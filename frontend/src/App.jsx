@@ -1,17 +1,10 @@
 import React from "react";
+import AuthScreen from "./components/auth/AuthScreen";
 
-function App() {
-  return (
-    <>
-      <h1>
-        UDV Team Map от Druzhba — не потеряешь коллегу, даже если захочешь 😎
-      </h1>
-      <h2>
-        Визуализация оргструктуры компании, поиск сотрудников по должности,
-        отделу и городу. Всё для продуктивной дружбы и работы
-      </h2>
-    </>
-  );
+export default function App() {
+  const handleAuthenticated = () => {
+    console.log("Пользователь вошёл!");
+  };
+
+  return <AuthScreen onAuthenticated={handleAuthenticated} />;
 }
-
-export default App;
