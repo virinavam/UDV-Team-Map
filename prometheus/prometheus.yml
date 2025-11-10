@@ -1,7 +1,5 @@
 global:
-  # Проверка целей каждые 15 секунд
   scrape_interval: 15s
-  # Время оценки правил
   evaluation_interval: 15s
 
 scrape_configs:
@@ -12,8 +10,6 @@ scrape_configs:
 
   # --- 2. FastAPI Backend Monitoring ---
   - job_name: 'backend'
-    # Указываем, что метрики будут доступны по пути /metrics
     metrics_path: '/metrics'
-    # Используем имя сервиса Docker Compose 'backend' и его внутренний порт
     static_configs:
       - targets: ['backend:8000']

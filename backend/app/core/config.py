@@ -1,64 +1,57 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
+from pydantic import Field, computed_field
 
-
-# ----------------------------------------------------
-# 1. ОСНОВНЫЕ НАСТРОЙКИ
-# ----------------------------------------------------
 
 class Settings(BaseSettings):
-    # Указываем Pydantic, что нужно искать переменные в файле .env
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"  # Игнорировать переменные в .env, которых нет в классе
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
-    # Общие настройки проекта
+    # --------------------------------------------------------------------------
+    # Основные параметры проекта
+    # --------------------------------------------------------------------------
     PROJECT_NAME: str = "FastAPI Base Project"
     VERSION: str = "1.0.0"
     SECRET_KEY: str = Field(..., description="Секретный ключ для JWT/сессий")
 
-    # ----------------------------------------------------
-    # 2. НАСТРОЙКИ БАЗЫ ДАННЫХ (PostgreSQL)
-    # ----------------------------------------------------
-
-    # Pydantic автоматически собирает DSN (строку подключения) из отдельных частей
-    # или использует полную строку, если она задана.
+    # --------------------------------------------------------------------------
+    # Настройки PostgreSQL
+    # --------------------------------------------------------------------------
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    POSTGRES_HOST: str = "db" # Используем имя сервиса 'db' из docker-compose
-    POSTGRES_PORT: int = 5432 # Используем порт сервиса 'db' из docker-compose
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
 
-    # DSN (Data Source Name) для синхронного и асинхронного подключения
-    # Pydantic Dsn - это валидатор, гарантирующий правильный формат URL.
-    # Это DSN для SQLAlchemy ORM (asyncpg)
-    DATABASE_URL_ASYNC: str = ""  # Будет заполнено в методе __init__
+    # --------------------------------------------------------------------------
+    # Настройки S3
+    # --------------------------------------------------------------------------
+    S3_ROOT_USER: str
+    S3_ROOT_PASSWORD: str
+    S3_HOST: str
+    S3_PORT: int
 
-    # ----------------------------------------------------
-    # 3. НАСТРОЙКИ MINIO
-    # ----------------------------------------------------
-    MINIO_ROOT_USER: str
-    MINIO_ROOT_PASSWORD: str
-    MINIO_HOST: str = "minio"  # Имя сервиса MinIO в docker-compose
-    MINIO_PORT: int = 9000
+    # --------------------------------------------------------------------------
+    # Настройки Prometheus
+    # --------------------------------------------------------------------------
+    PROMETHEUS_HOST: str
+    PROMETHEUS_PORT: int
 
-    # ----------------------------------------------------
-    # 4. НАСТРОЙКИ МОНИТОРИНГА
-    # ----------------------------------------------------
-    PROMETHEUS_HOST: str = "prometheus"
-    PROMETHEUS_PORT: int = 9090
-
-    def __init__(self, **values):
-        super().__init__(**values)
-
-        # Генерируем асинхронный URL после загрузки всех переменных
-        # Используем postgresql+asyncpg:// для асинхронного драйвера
-        self.DATABASE_URL_ASYNC = (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:"
-            f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
-            f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    @computed_field
+    @property
+    def DATABASE_URL_ASYNC(self) -> str:
+        """Асинхронный URL для SQLAlchemy/Alembic."""
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    @computed_field
+    @property
+    def S3_URL(self) -> str:
+        return f"http://{self.S3_HOST}:{self.S3_PORT}"
 
 
 settings = Settings()

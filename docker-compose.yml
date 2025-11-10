@@ -17,18 +17,14 @@ services:
       retries: 5
 
   backend:
-    build: ./backend # Dockerfile из папки backend/
+    build: ./backend
     restart: always
     env_file:
       - .env
     ports:
       - "8000:8000"
     volumes:
-      # код приложения (для Hot Reload)
-      - ./backend/app:/app/app
-      # Alembic (чтобы сгенерированные скрипты появились на хосте)
-      - ./backend/alembic:/app/alembic
-      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
@@ -51,8 +47,8 @@ services:
     volumes:
       - minio_data:/data
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${S3_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${S3_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
 
   prometheus:
