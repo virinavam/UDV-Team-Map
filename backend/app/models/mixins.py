@@ -1,4 +1,4 @@
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 from sqlalchemy import Column
 from sqlalchemy import TIMESTAMP
@@ -16,15 +16,15 @@ class TimeStampMixin:
     """
 
     created_at: Mapped[datetime] = Column(
-        TIMESTAMP(timezone=False),
+        TIMESTAMP(timezone=True),
         nullable=True,
-        default=datetime.now(UTC),
+        default=datetime.now(timezone.utc),
         server_default=text("current_timestamp(0)"),
     )
     updated_at: Mapped[datetime] = Column(
-        TIMESTAMP(timezone=False),
+        TIMESTAMP(timezone=True),
         nullable=True,
-        default=datetime.now(UTC),
+        default=datetime.now(timezone.utc),
         server_default=text("current_timestamp(0)"),
-        onupdate=datetime.now(UTC),
+        onupdate=datetime.now(timezone.utc),
     )

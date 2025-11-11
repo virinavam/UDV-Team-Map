@@ -10,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.middleware.cors import CORSMiddleware
 
+from app.api.v1.api import v1_router
 from app.core.config import settings
 from app.logger import get_logger
 
@@ -92,4 +93,5 @@ def read_root():
     return {"message": "Ok"}
 
 
+api_router.include_router(v1_router)
 app.include_router(api_router)

@@ -24,14 +24,26 @@ class Department(TimeStampMixin, Base):
     legal_entity = relationship("LegalEntity", back_populates="departments")
 
     # связь с родительским отделом
-    parent = relationship("Department", remote_side=[Base.id], back_populates="subdepartments")
+    parent = relationship(
+        "Department",
+        remote_side="Department.id",
+        back_populates="subdepartments"
+    )
 
     # связь с дочерними отделами
     subdepartments = relationship("Department", back_populates="parent")
 
     # связь с руководителем отдела
-    manager = relationship("User", back_populates="managed_department", uselist=False)
+    manager = relationship(
+        "User",
+        back_populates="managed_department",
+        uselist=False,
+        foreign_keys="Department.manager_id"
+    )
 
     # связь с сотрудниками отдела
-    employees = relationship("User", back_populates="department")
-
+    employees = relationship(
+        "User",
+        back_populates="department",
+        foreign_keys="User.department_id"
+    )
