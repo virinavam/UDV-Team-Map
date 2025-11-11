@@ -15,6 +15,8 @@ sys.path.insert(0,os.path.dirname(os.path.dirname(os.path.abspath(__file__))))  
 # Импорт моделей
 from app.models.base import Base
 from app.models.user import User
+from app.models.department import Department
+from app.models.legal_entity import LegalEntity
 from app.core.config import settings
 
 target_metadata = Base.metadata
