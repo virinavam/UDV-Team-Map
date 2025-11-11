@@ -17,6 +17,9 @@ class Department(TimeStampMixin, Base):
     # ссылка на родительский отдел
     parent_id = Column(UUID(as_uuid=True), ForeignKey('departments.id', ondelete="RESTRICT"), nullable=True)
 
+    # ссылка на руководителя отдела
+    manager_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete="SET NULL"), unique=True, nullable=True)
+
     # связь с юридическим лицом
     legal_entity = relationship("LegalEntity", back_populates="departments")
 
@@ -25,3 +28,10 @@ class Department(TimeStampMixin, Base):
 
     # связь с дочерними отделами
     subdepartments = relationship("Department", back_populates="parent")
+
+    # связь с руководителем отдела
+    manager = relationship("User", back_populates="managed_department", uselist=False)
+
+    # связь с сотрудниками отдела
+    employees = relationship("User", back_populates="department")
+
