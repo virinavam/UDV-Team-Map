@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     # --------------------------------------------------------------------------
     # Основные параметры проекта
     # --------------------------------------------------------------------------
-    PROJECT_NAME: str = "FastAPI Base Project"
-    VERSION: str = "1.0.0"
+    PROJECT_NAME: str = "UDV Team Map API"
+    VERSION: str = "0.0.1"
     SECRET_KEY: str = Field(..., description="Секретный ключ для JWT/сессий")
     ALGORITHM: str = "HS256"
 
