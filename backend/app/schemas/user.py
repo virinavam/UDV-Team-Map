@@ -18,10 +18,10 @@ class UserRegisterRequest(UserLoginRequest):
 
 # === Базовая схема ===
 class UserBase(BaseModel):
-    first_name: str = Field(..., max_length=100, description="Имя сотрудника")
-    last_name: str = Field(..., max_length=100, description="Фамилия сотрудника")
+    first_name: Optional[str] = Field(..., max_length=100, description="Имя сотрудника")
+    last_name: Optional[str] = Field(..., max_length=100, description="Фамилия сотрудника")
     email: EmailStr = Field(..., description="Рабочая почта (логин в системе)")
-    position: str = Field(..., max_length=150, description="Должность сотрудника")
+    position: Optional[str] = Field(None, max_length=150, description="Должность сотрудника")
     department_id: Optional[UUID] = Field(None, description="ID отдела")
     role: RoleEnum = Field(default=RoleEnum.EMPLOYEE, description="Роль в системе (права доступа)")
     city: Optional[str] = Field(None, max_length=100)
@@ -43,3 +43,16 @@ class UserRead(UserBase):
 
     class Config:
         orm_mode = True
+
+class UserUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, max_length=100, description="Имя сотрудника")
+    last_name: Optional[str] = Field(None, max_length=100, description="Фамилия сотрудника")
+    position: Optional[str] = Field(None, max_length=150, description="Должность сотрудника")
+    department_id: Optional[UUID] = Field(None, description="ID отдела")
+    role: Optional[RoleEnum] = Field(None, description="Роль в системе (права доступа)")
+    city: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=50)
+    telegram: Optional[str] = Field(None, max_length=100)
+    mattermost: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = None
+    birthday: Optional[date] = None

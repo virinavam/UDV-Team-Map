@@ -5,14 +5,17 @@ from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 
-from sqlalchemy import text
+from sqlalchemy import text, select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import v1_router
 from app.core.config import settings
+from app.enums import RoleEnum
 from app.logger import get_logger
+from app.models import User
+from app.utils.password import get_password_hash
 
 logger = get_logger()
 
@@ -27,6 +30,55 @@ async def check_postgres():
     except SQLAlchemyError as e:
         logger.error(f"PostgreSQL check failed", exc_info=True)
         raise e
+
+
+async def init_default_admins(engine):
+    """Создает системного и HR-администратора, если они не существуют."""
+    sys_admin_email = "sys.admin@example.com"
+    hr_admin_email = "hr.admin@example.com"
+
+    users_to_create = [
+        {
+            "email": sys_admin_email,
+            "role": RoleEnum.SYSTEM_ADMIN,
+            "first_name": "System",
+            "last_name": "Admin",
+            "password": settings.ADMIN_DEFAULT_PASSWORD,
+        },
+        {
+            "email": hr_admin_email,
+            "role": RoleEnum.HR_ADMIN,
+            "first_name": "HR",
+            "last_name": "Admin",
+            "password": settings.HR_DEFAULT_PASSWORD,
+        },
+    ]
+
+    async with AsyncSession(engine) as session:
+        for user_data in users_to_create:
+            # 1. Проверяем, существует ли пользователь
+            existing_user = await session.execute(
+                select(User).where(User.email == user_data["email"])
+            )
+            if existing_user.scalar_one_or_none():
+                logger.info(f"User {user_data['email']} already exists. Skipping.")
+                continue
+
+            # 2. Создаем нового пользователя
+            hashed_password = get_password_hash(user_data["password"])
+
+            new_user = User(
+                first_name=user_data["first_name"],
+                last_name=user_data["last_name"],
+                email=user_data["email"],
+                role=user_data["role"],
+                password_hash=hashed_password,
+            )
+
+            session.add(new_user)
+            logger.info(f"Created default user: {user_data['email']} ({user_data['role'].value})")
+
+        await session.commit()
 
 
 def check_s3():
@@ -61,7 +113,14 @@ async def lifespan(_: FastAPI):
     await check_postgres()
     check_s3()
     check_prometheus()
-    yield
+
+    engine = create_async_engine(settings.DATABASE_URL_ASYNC)
+    try:
+        await init_default_admins(engine)
+        logger.info("Default administrators initialized.")
+        yield
+    finally:
+        await engine.dispose()
 
 
 app = FastAPI(
