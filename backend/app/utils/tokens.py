@@ -6,27 +6,33 @@ from jwt import ExpiredSignatureError, PyJWTError
 from starlette import status
 
 from app.core.config import settings
+from app.models.user import User
+from app.logger import get_logger
+
+logger = get_logger()
 
 
-def create_access_token(email: str) -> str:
+def create_access_token(user: User) -> str:
     """
     Создаёт токен доступа с заданным сроком действия.
-    :param email: Адрес электронной почты пользователя
+    :param user: Пользователь
     :return: JWT-токен
     """
     expires_delta = timedelta(days=settings.ACCESS_TOKEN_EXPIRE_DAYS)
-    to_encode = {"sub": email, "exp": datetime.now(timezone.utc) + expires_delta, "type": "access"}
+    to_encode = {"sub": str(user.id), "exp": datetime.now(timezone.utc) + expires_delta, "type": "access"}
+    logger.info(to_encode)
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_refresh_token(email: str) -> str:
+def create_refresh_token(user: User) -> str:
     """
     Создаёт токен обновления с заданным сроком действия.
-    :param email: Адрес электронной почты пользователя
+    :param user: Пользователь
     :return: JWT-токен
     """
     expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-    to_encode = {"sub": email, "exp": datetime.now(timezone.utc) + expires_delta, "type": "refresh"}
+    to_encode = {"sub": str(user.id), "exp": datetime.now(timezone.utc) + expires_delta, "type": "refresh"}
+    logger.info(to_encode)
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -37,7 +43,9 @@ def decode_token(token: str) -> dict:
     :return: полезная нагрузка токена
     """
     try:
-        return jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=settings.ALGORITHM)
+        logger.info(payload)
+        return payload
     except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

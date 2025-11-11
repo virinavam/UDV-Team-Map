@@ -14,7 +14,7 @@ class User(TimeStampMixin, Base):
     last_name = Column(String(100), nullable=False)  # Фамилия сотрудника
     email = Column(String(255), unique=True, nullable=False)  # Рабочая почта (логин в системе)
     password_hash = Column(String(255), nullable=False)  # Хэш пароля
-    position = Column(String(150), nullable=False)  # Должность сотрудника
+    position = Column(String(150), nullable=True)  # Должность сотрудника
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)  # Связь с отделом
     role = Column(ENUM(RoleEnum), nullable=False, default=RoleEnum.EMPLOYEE.value,
                   server_default=text(f"'{RoleEnum.EMPLOYEE.value}'"))  # Роль в системе (права доступа)
@@ -29,5 +29,16 @@ class User(TimeStampMixin, Base):
     # Активен ли сотрудник в системе (технический флаг)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
 
-    department = relationship("Department", back_populates="employees")
-    managed_department = relationship("Department", back_populates="manager", uselist=False)
+    department = relationship(
+        "Department",
+        back_populates="employees",
+        foreign_keys=[department_id]
+    )
+
+    managed_department = relationship(
+        "Department",
+        back_populates="manager",
+        uselist=False,
+        foreign_keys="Department.manager_id"
+    )
+

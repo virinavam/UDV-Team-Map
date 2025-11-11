@@ -1,20 +1,45 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from datetime import date, datetime
+from typing import Optional
+from uuid import UUID
+from pydantic import BaseModel, EmailStr, Field
+
+from app.enums import RoleEnum, EmployeeStatusEnum
 
 
-# Схема для создания пользователя (что мы получаем от клиента)
-class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
+class UserLoginRequest(BaseModel):
+    email: EmailStr = Field(..., description="Рабочая почта (логин в системе)")
+    password: str = Field(..., min_length=6, description="Пароль для нового пользователя")
 
 
-# Схема для чтения данных пользователя (что мы отдаем клиенту)
-class UserInDBBase(BaseModel):
-    model_config = ConfigDict(from_attributes=True)  # Позволяет создавать из ORM-моделей
-
-    id: int
-    email: EmailStr
+class UserRegisterRequest(UserLoginRequest):
+    first_name: str = Field(..., max_length=100, description="Имя сотрудника")
+    last_name: str = Field(..., max_length=100, description="Фамилия сотрудника")
 
 
-# Финальная схема, которую возвращает API
-class User(UserInDBBase):
-    pass
+# === Базовая схема ===
+class UserBase(BaseModel):
+    first_name: str = Field(..., max_length=100, description="Имя сотрудника")
+    last_name: str = Field(..., max_length=100, description="Фамилия сотрудника")
+    email: EmailStr = Field(..., description="Рабочая почта (логин в системе)")
+    position: str = Field(..., max_length=150, description="Должность сотрудника")
+    department_id: Optional[UUID] = Field(None, description="ID отдела")
+    role: RoleEnum = Field(default=RoleEnum.EMPLOYEE, description="Роль в системе (права доступа)")
+    city: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=50)
+    telegram: Optional[str] = Field(None, max_length=100)
+    mattermost: Optional[str] = Field(None, max_length=100)
+    bio: Optional[str] = None
+    birthday: Optional[date] = None
+    photo_url: Optional[str] = Field(None, max_length=255)
+    employee_status: Optional[EmployeeStatusEnum] = None
+    is_active: bool = True
+
+
+# === Ответ пользователю (чтение) ===
+class UserRead(UserBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        orm_mode = True
