@@ -1,6 +1,7 @@
 import sys
 import os
 import asyncio
+import alembic_postgresql_enum
 from logging.config import fileConfig
 
 from sqlalchemy import pool
