@@ -9,4 +9,5 @@ class LegalEntity(TimeStampMixin, Base):
     __tablename__ = "legal_entities"
 
     name = Column(String, unique=True, nullable=False)  # название юрлица
-    departments = relationship("Department", back_populates="legal_entity")  # связь с отделами
+    departments = relationship("Department", back_populates="legal_entity",
+                               order_by="Department.name")  # связь с департаментами

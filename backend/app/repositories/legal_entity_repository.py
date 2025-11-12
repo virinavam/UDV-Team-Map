@@ -2,6 +2,7 @@ from uuid import UUID
 
 from sqlalchemy import select, Sequence, update, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models import LegalEntity, Department
 
@@ -13,13 +14,24 @@ class LegalEntityRepository:
     async def get_by_id(self, legal_entity_id: UUID) -> LegalEntity | None:
         """Получает юридическое лицо по ID."""
         result = await self.db.execute(
-            select(LegalEntity).where(LegalEntity.id == legal_entity_id)
+            select(LegalEntity)
+            .where(LegalEntity.id == legal_entity_id)
+            .options(
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.employees)
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_all_legal_entities(self) -> Sequence[LegalEntity]:
         """Получает список всех юридических лиц."""
-        result = await self.db.execute(select(LegalEntity))
+        result = await self.db.execute(
+            select(LegalEntity)
+            .options(
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.employees)
+            )
+        )
         return result.scalars().all()
 
     async def create_legal_entity(self, name: str) -> LegalEntity:
@@ -27,24 +39,23 @@ class LegalEntityRepository:
         new_entity = LegalEntity(name=name)
         self.db.add(new_entity)
         await self.db.commit()
-        return new_entity
+        await self.db.refresh(new_entity)
+        return await self.get_by_id(new_entity.id)
 
     async def update_legal_entity(self, legal_entity_id: UUID, update_data: dict) -> LegalEntity | None:
         """Обновляет данные юридического лица в БД."""
-        if not update_data:
-            return await self.get_by_id(legal_entity_id)
+        if update_data:
+            stmt = (
+                update(LegalEntity)
+                .where(LegalEntity.id == legal_entity_id)
+                .values(**update_data)
+                .returning(LegalEntity)
+            )
 
-        stmt = (
-            update(LegalEntity)
-            .where(LegalEntity.id == legal_entity_id)
-            .values(**update_data)
-            .returning(LegalEntity)
-        )
+            await self.db.execute(stmt)
+            await self.db.commit()
 
-        result = await self.db.execute(stmt)
-        await self.db.commit()
-
-        return result.scalar_one_or_none()
+        return await self.get_by_id(legal_entity_id)
 
     async def count_departments(self, legal_entity_id: UUID) -> int:
         """Подсчитывает количество отделов, связанных с юрлицом."""

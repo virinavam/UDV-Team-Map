@@ -1,6 +1,8 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import Field, BaseModel
+from app.schemas.department import DepartmentReadSmall
 
 
 class LegalEntityCreate(BaseModel):
@@ -14,3 +16,6 @@ class LegalEntityUpdate(BaseModel):
 class LegalEntityRead(BaseModel):
     id: UUID
     name: str
+    departments: list[DepartmentReadSmall] = []
+    created_at: datetime
+    updated_at: datetime

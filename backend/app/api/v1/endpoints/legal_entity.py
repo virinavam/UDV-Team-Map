@@ -59,7 +59,7 @@ async def update_legal_entity(le_id: UUID, updates: LegalEntityUpdate,
 
 
 @le_router.delete("/{legal_entity_id}",
-                  response_model=None,
+                  status_code=204,
                   summary="Удалить юридическое лицо",
                   dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))])
 async def delete_legal_entity(le_id: UUID, le_service: LegalEntityService = Depends(get_le_service)):
@@ -67,4 +67,3 @@ async def delete_legal_entity(le_id: UUID, le_service: LegalEntityService = Depe
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
     await le_service.delete_legal_entity(le_id)
     logger.info("Юридическое лицо с ID %s успешно удалено.", le_id)
-    return {"detail": f"Юридическое лицо с ID {le_id} успешно удалено."}
