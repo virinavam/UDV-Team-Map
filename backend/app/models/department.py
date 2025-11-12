@@ -31,7 +31,7 @@ class Department(TimeStampMixin, Base):
     )
 
     # связь с дочерними отделами
-    subdepartments = relationship("Department", back_populates="parent")
+    subdepartments = relationship("Department", back_populates="parent", order_by="Department.name")
 
     # связь с руководителем отдела
     manager = relationship(

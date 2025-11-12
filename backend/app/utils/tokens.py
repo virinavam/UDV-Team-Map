@@ -32,7 +32,7 @@ def create_refresh_token(user: User) -> str:
     """
     expires_delta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {"sub": str(user.id), "exp": datetime.now(timezone.utc) + expires_delta, "type": "refresh"}
-    logger.info(to_encode)
+    # logger.info(to_encode)
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -44,7 +44,7 @@ def decode_token(token: str) -> dict:
     """
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=settings.ALGORITHM)
-        logger.info(payload)
+        # logger.info(payload)
         return payload
     except ExpiredSignatureError:
         raise HTTPException(
