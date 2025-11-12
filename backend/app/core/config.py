@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_DAYS: int = 1
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
+    ADMIN_DEFAULT_PASSWORD: str = "secure_sys_admin_password"
+    HR_DEFAULT_PASSWORD: str = "secure_hr_admin_password"
+
     # --------------------------------------------------------------------------
     # Настройки PostgreSQL
     # --------------------------------------------------------------------------
