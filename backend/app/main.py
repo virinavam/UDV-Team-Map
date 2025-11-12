@@ -35,8 +35,8 @@ async def check_postgres():
 
 async def init_default_admins(engine):
     """Создает системного и HR-администратора, если они не существуют."""
-    sys_admin_email = "sys.admin@example.com"
-    hr_admin_email = "hr.admin@example.com"
+    sys_admin_email = settings.ADMIN_DEFAULT_EMAIL
+    hr_admin_email = settings.HR_DEFAULT_EMAIL
 
     users_to_create = [
         {
