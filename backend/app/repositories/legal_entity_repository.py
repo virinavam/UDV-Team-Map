@@ -48,6 +48,8 @@ class LegalEntityRepository:
 
     async def update_legal_entity(self, legal_entity_id: UUID, update_data: dict) -> LegalEntity | None:
         """Обновляет данные юридического лица в БД."""
+        legal_entity = await self.get_by_id(legal_entity_id)
+
         if update_data:
             stmt = (
                 update(LegalEntity)
@@ -58,6 +60,7 @@ class LegalEntityRepository:
 
             await self.db.execute(stmt)
             await self.db.commit()
+            await self.db.refresh(legal_entity)
 
         return await self.get_by_id(legal_entity_id)
 

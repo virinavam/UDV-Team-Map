@@ -47,19 +47,21 @@ class DepartmentRepository:
         await self.db.refresh(new_department)
         return await self.get_by_id(new_department.id)
 
-    async def update_department(self, departament_id: UUID, update_data: dict) -> Department | None:
+    async def update_department(self, department_id: UUID, update_data: dict) -> Department | None:
         """Обновляет данные департамента в БД."""
+        department = await self.get_by_id(department_id)
         if update_data:
             stmt = (
                 update(Department)
-                .where(Department.id == departament_id)
+                .where(Department.id == department_id)
                 .values(**update_data)
                 .returning(Department)
             )
             await self.db.execute(stmt)
             await self.db.commit()
+            await self.db.refresh(department)
 
-        return await self.get_by_id(departament_id)
+        return await self.get_by_id(department_id)
 
     async def count_subdepartments(self, departament_id: UUID) -> int:
         """Подсчитывает количество подотделов"""

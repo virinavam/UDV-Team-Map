@@ -56,6 +56,8 @@ class UserRepository:
         if not update_data:
             return await self.get_by_id(user_id)
 
+        user = await self.get_by_id(user_id)
+
         stmt = (
             update(User)
             .where(User.id == user_id)
@@ -63,10 +65,11 @@ class UserRepository:
             .returning(User)
         )
 
-        result = await self.db.execute(stmt)
+        await self.db.execute(stmt)
         await self.db.commit()
+        await self.db.refresh(user)
 
-        return result.scalar_one_or_none()
+        return await self.get_by_id(user_id)
 
     async def delete_user(self, user_id: UUID) -> User | None:
         """Пометить пользователя как неактивного."""
