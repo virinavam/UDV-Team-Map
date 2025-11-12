@@ -7,12 +7,14 @@ from starlette import status
 
 from app.models import Department
 from app.repositories.department_repository import DepartmentRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.department import DepartmentCreate, DepartmentUpdate
 
 
 class DepartmentService:
     def __init__(self, db: AsyncSession):
         self.department_repo = DepartmentRepository(db)
+        self.user_repo = UserRepository(db)
 
     async def _check_parent(self, parent_id: UUID):
         parent_department = await self.department_repo.get_by_id(parent_id)
@@ -54,8 +56,14 @@ class DepartmentService:
     async def update_department(self, department_id: UUID, updates: DepartmentUpdate) -> Department:
         """Обновляет данные департамента."""
         update_data = updates.model_dump(exclude_unset=True)
+        department = await self.department_repo.get_by_id(department_id)
+        if not department:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Департамент не найден."
+            )
 
-        if 'parent_id' in update_data:
+        if 'parent_id' in update_data and updates.parent_id is not None:
             await self._check_parent(update_data['parent_id'])
             is_loop = await self.department_repo.is_descendant(
                 child_id=update_data['parent_id'],
@@ -66,13 +74,25 @@ class DepartmentService:
                     status_code=status.HTTP_409_CONFLICT,
                     detail="Невозможно установить родительский отдел, так как это создаст циклическую зависимость."
                 )
+        if 'manager_id' in update_data and updates.manager_id is not None:
+            manager = await self.user_repo.get_by_id(updates.manager_id)
+            if not manager:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Пользователь с ID {updates.manager_id} не найден."
+                )
+            if manager.managed_department:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Пользователь с ID {updates.manager_id} уже является менеджером отдела с ID {manager.managed_department.id}."
+                )
         if updates.parent_id:
             parent_department = await self._check_parent(updates.parent_id)
-            if parent_department.legal_entity_id != updates.legal_entity_id:
+            if parent_department.legal_entity_id != department.legal_entity_id:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Юридическое лицо родительского отдела не совпадает с юридическим лицом создаваемого отдела. ({} != {})"
-                    .format(parent_department.legal_entity_id, updates.legal_entity_id)
+                    .format(parent_department.legal_entity_id, department.legal_entity_id)
                 )
         updated_department = await self.department_repo.update_department(department_id, update_data)
         if not updated_department:

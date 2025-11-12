@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models import User
 from app.schemas.user import UserRegisterRequest
@@ -19,7 +20,13 @@ class UserRepository:
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         """Получает пользователя по UUID."""
-        result = await self.db.execute(select(User).where(User.id == user_id))
+        result = await self.db.execute(
+            select(User)
+            .where(User.id == user_id)
+            .options(
+                selectinload(User.managed_department)
+            )
+        )
         return result.scalar_one_or_none()
 
     async def create_user(self, data: UserRegisterRequest, password_hash: str) -> User:

@@ -18,7 +18,9 @@ class LegalEntityRepository:
             .where(LegalEntity.id == legal_entity_id)
             .options(
                 selectinload(LegalEntity.departments)
-                .selectinload(Department.employees)
+                .selectinload(Department.employees),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.manager)
             )
         )
         return result.scalar_one_or_none()
@@ -29,7 +31,9 @@ class LegalEntityRepository:
             select(LegalEntity)
             .options(
                 selectinload(LegalEntity.departments)
-                .selectinload(Department.employees)
+                .selectinload(Department.employees),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.manager)
             )
         )
         return result.scalars().all()

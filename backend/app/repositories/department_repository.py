@@ -18,8 +18,10 @@ class DepartmentRepository:
             select(Department)
             .where(Department.id == department_id)
             .options(
+                selectinload(Department.manager),
                 selectinload(Department.employees),
-                selectinload(Department.subdepartments).selectinload(Department.employees)
+                selectinload(Department.subdepartments).selectinload(Department.manager),
+                selectinload(Department.subdepartments).selectinload(Department.employees),
             )
         )
         return result.scalar_one_or_none()
@@ -29,8 +31,10 @@ class DepartmentRepository:
         result = await self.db.execute(
             select(Department)
             .options(
+                selectinload(Department.manager),
                 selectinload(Department.employees),
-                selectinload(Department.subdepartments).selectinload(Department.employees)
+                selectinload(Department.subdepartments).selectinload(Department.manager),
+                selectinload(Department.subdepartments).selectinload(Department.employees),
             )
         )
         return result.scalars().all()

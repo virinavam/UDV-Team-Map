@@ -15,6 +15,7 @@ class DepartmentCreate(BaseModel):
 class DepartmentUpdate(BaseModel):
     name: str | None = Field(None, description="Новое название департамента")
     parent_id: UUID | None = None
+    manager_id: UUID | None = None
 
 
 class DepartmentReadSmall(BaseModel):
