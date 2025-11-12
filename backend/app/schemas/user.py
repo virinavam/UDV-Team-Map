@@ -47,6 +47,7 @@ class UserRead(UserBase):
 class UserUpdate(BaseModel):
     first_name: Optional[str] = Field(None, max_length=100, description="Имя сотрудника")
     last_name: Optional[str] = Field(None, max_length=100, description="Фамилия сотрудника")
+    email: Optional[EmailStr] = Field(None, description="Рабочая почта (логин в системе)")
     position: Optional[str] = Field(None, max_length=150, description="Должность сотрудника")
     department_id: Optional[UUID] = Field(None, description="ID отдела")
     role: Optional[RoleEnum] = Field(None, description="Роль в системе (права доступа)")

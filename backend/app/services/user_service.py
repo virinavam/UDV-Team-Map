@@ -9,7 +9,6 @@ from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserUpdate
 
 
-
 class UserService:
     def __init__(self, db: AsyncSession):
         self.user_repository = UserRepository(db)
@@ -62,7 +61,6 @@ class UserService:
             user_id=user_id,
             update_data=update_data
         )
-
 
         if not updated_user:
             raise HTTPException(

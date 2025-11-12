@@ -6,13 +6,14 @@ from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 
 from sqlalchemy import text, select
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import v1_router
 from app.core.config import settings
 from app.enums import RoleEnum
+from app.exceptions.handlers import integrity_error_handler
 from app.logger import get_logger
 from app.models import User
 from app.utils.password import get_password_hash
@@ -135,7 +136,7 @@ app = FastAPI(
 api_router = APIRouter(prefix="/api")
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # type: ignore
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
@@ -145,6 +146,8 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["Content-Disposition"],
 )
+
+app.add_exception_handler(IntegrityError, integrity_error_handler)  # type: ignore
 
 
 @api_router.get("/")

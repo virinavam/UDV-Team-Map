@@ -1,6 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -41,7 +42,7 @@ async def read_employee(user_id: UUID, user_service: UserService = Depends(get_u
 @employees_router.patch("/{user_id}",
                         response_model=UserRead,
                         summary="Обновить данные сотрудника",
-                        dependencies=[Depends(require_roles([RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN]))])
+                        dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))])
 async def update_employee(user_id: UUID,
                           updates: UserUpdate,
                           user_service: UserService = Depends(get_user_service)):
@@ -53,7 +54,7 @@ async def update_employee(user_id: UUID,
 @employees_router.delete("/{user_id}",
                          response_model=UserRead,
                          summary="Деактивировать сотрудника",
-                         dependencies=[Depends(require_roles([RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN]))])
+                         dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))])
 async def deactivate_employee(user_id: UUID,
                               user_service: UserService = Depends(get_user_service)):
     """Помечает сотрудника как неактивного.

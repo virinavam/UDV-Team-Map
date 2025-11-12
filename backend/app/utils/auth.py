@@ -9,8 +9,11 @@ from app.database import get_db
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.utils.tokens import decode_token
+from app.logger import get_logger
 
 security = HTTPBearer()
+logger = get_logger()
+
 
 
 async def get_user_by_token(access_token: str, db: AsyncSession) -> User:
@@ -67,6 +70,8 @@ def require_roles(*roles):
     async def dependency(user: User = Depends(get_current_user_by_credentials)):
         # Преобразуем роли в строки для сравнения
         role_values = [role.value if hasattr(role, 'value') else str(role) for role in roles]
+        # logger.info(f"roles: {role_values}")
+        # logger.info(f"user: {user.role}")
         if user.role not in role_values:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
