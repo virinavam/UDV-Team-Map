@@ -44,7 +44,6 @@ jobs:
              sleep 3
              timeout=$((timeout-3))
           done
-          echo "Backend is ready!"
 
       - name: Run tests
         run: make test
