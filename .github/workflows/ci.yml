@@ -16,6 +16,19 @@ jobs:
 
       - name: Start Docker services
         run: make up
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: testdb
+          POSTGRES_HOST: db
+          POSTGRES_PORT: 5432
+          S3_ROOT_USER: minio
+          S3_ROOT_PASSWORD: minio123
+          S3_HOST: minio
+          S3_PORT: 9000
+          PROMETHEUS_HOST: prometheus
+          PROMETHEUS_PORT: 9090
+          SECRET_KEY: testsecretkey
 
       - name: Wait for backend to be ready
         run: |
