@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_DAYS: int = 1
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
+    ADMIN_DEFAULT_EMAIL: str = "sys.admin@example.com"
     ADMIN_DEFAULT_PASSWORD: str = "secure_sys_admin_password"
+    HR_DEFAULT_EMAIL: str = "hr.admin@example.com"
     HR_DEFAULT_PASSWORD: str = "secure_hr_admin_password"
 
     # --------------------------------------------------------------------------
@@ -52,6 +54,14 @@ class Settings(BaseSettings):
         """Асинхронный URL для SQLAlchemy/Alembic."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Синхронный URL для SQLAlchemy."""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 

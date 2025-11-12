@@ -1,0 +1,53 @@
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          echo "POSTGRES_USER=testuser" >> .env
+          echo "POSTGRES_PASSWORD=testpassword" >> .env
+          echo "POSTGRES_DB=testdb" >> .env
+          echo "POSTGRES_HOST=db" >> .env
+          echo "POSTGRES_PORT=5432" >> .env
+          echo "S3_ROOT_USER=minio" >> .env
+          echo "S3_ROOT_PASSWORD=minio123" >> .env
+          echo "S3_HOST=minio" >> .env
+          echo "S3_PORT=9000" >> .env
+          echo "PROMETHEUS_HOST=prometheus" >> .env
+          echo "PROMETHEUS_PORT=9090" >> .env
+          echo "SECRET_KEY=testsecretkey" >> .env
+
+      - name: Start Docker services
+        run: make up
+
+      - name: Wait for backend to be ready
+        run: |
+          timeout=60
+          until curl -sf http://localhost:8000/api/; do
+             if [ $timeout -le 0 ]; then
+               echo "Backend did not start in time!"
+               exit 1
+             fi
+             echo "Waiting for backend..."
+             sleep 3
+             timeout=$((timeout-3))
+          done
+
+      - name: Run tests
+        run: make test
+
+      - name: Stop Docker services
+        if: always()
+        run: make down

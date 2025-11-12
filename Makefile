@@ -34,5 +34,13 @@ up:
 	docker compose up -d
 	docker exec $(CONTAINER) poetry run alembic -c $(ALEMBIC) upgrade head
 
+up-rebuild:
+	docker compose build --no-cache
+	docker compose up -d
+	docker exec $(CONTAINER) poetry run alembic -c $(ALEMBIC) upgrade head
+
 down:
 	docker compose down
+
+test:
+	docker exec -e PYTHONPATH=/app -w /app $(CONTAINER) poetry run pytest -v --disable-warnings

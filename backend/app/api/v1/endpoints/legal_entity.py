@@ -38,7 +38,7 @@ async def create_legal_entity(data: LegalEntityCreate, le_service: LegalEntitySe
     return await le_service.create_legal_entity(data.name)
 
 
-@le_router.get("/{legal_entity_id}",
+@le_router.get("/{le_id}",
                response_model=LegalEntityRead,
                summary="Получить юридическое лицо по ID",
                dependencies=[Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
@@ -47,7 +47,7 @@ async def read_legal_entity(le_id: UUID, le_service: LegalEntityService = Depend
     return await le_service.get_legal_entity(le_id)
 
 
-@le_router.patch("/{legal_entity_id}",
+@le_router.patch("/{le_id}",
                  response_model=LegalEntityRead,
                  summary="Обновить данные юридического лица",
                  dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))])
@@ -58,7 +58,7 @@ async def update_legal_entity(le_id: UUID, updates: LegalEntityUpdate,
     return await le_service.update_legal_entity(le_id, updates)
 
 
-@le_router.delete("/{legal_entity_id}",
+@le_router.delete("/{le_id}",
                   status_code=204,
                   summary="Удалить юридическое лицо",
                   dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))])

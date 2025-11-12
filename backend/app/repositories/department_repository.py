@@ -72,8 +72,9 @@ class DepartmentRepository:
 
     async def count_users(self, department_id: UUID) -> int:
         """Подсчитывает количество пользователей в департаменте"""
-        stmt = select(func.count(User.id).where(
-            User.department_id == department_id)
+        stmt = (
+            select(func.count(User.id))
+            .where(User.department_id == department_id)
         )
         return await self.db.scalar(stmt)
 
