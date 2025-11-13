@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Boolean, Text, Date, ForeignKey, text
+from sqlalchemy import Column, String, Boolean, Text, Date, ForeignKey, text, Index, func
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import relationship
 
@@ -42,3 +42,13 @@ class User(TimeStampMixin, Base):
         foreign_keys="Department.manager_id"
     )
 
+    __table_args__ = (
+        Index("idx_users_first_name_trgm", func.lower(first_name), postgresql_using="gin",
+              postgresql_ops={"lower": "gin_trgm_ops"}),
+        Index("idx_users_last_name_trgm", func.lower(last_name), postgresql_using="gin",
+              postgresql_ops={"lower": "gin_trgm_ops"}),
+        Index("idx_users_position_trgm", func.lower(position), postgresql_using="gin",
+              postgresql_ops={"lower": "gin_trgm_ops"}),
+        Index("idx_users_email_trgm", func.lower(email), postgresql_using="gin",
+              postgresql_ops={"lower": "gin_trgm_ops"}),
+    )

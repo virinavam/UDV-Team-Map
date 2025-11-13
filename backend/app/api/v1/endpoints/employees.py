@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -60,3 +60,26 @@ async def deactivate_employee(user_id: UUID,
     """Помечает сотрудника как неактивного.
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
     return await user_service.deactivate_user(user_id)
+
+
+@employees_router.get("/active/",
+                      response_model=list[UserRead],
+                      summary="Получить всех активных сотрудников",
+                      dependencies=[
+                          Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def read_active_employees(user_service: UserService = Depends(get_user_service)):
+    return await user_service.get_all_active_users()
+
+
+@employees_router.get("/search/",
+                      response_model=list[UserRead],
+                      summary="Поиск сотрудников по имени, фамилии, должности или email",
+                      dependencies=[
+                          Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def search_employees(
+        query: str,
+        limit: int = Query(5, ge=1, le=10, description="Максимальное количество возвращаемых сотрудников (1-10)"),
+        user_service: UserService = Depends(get_user_service)
+):
+    """Выполняет нечеткий поиск сотрудников по имени, фамилии, должности и email."""
+    return await user_service.search_users(search_query=query, limit=limit)

@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserUpdate
+from app.logger import get_logger
+
+logger = get_logger()
 
 
 class UserService:
@@ -69,3 +72,13 @@ class UserService:
             )
 
         return updated_user
+
+    async def search_users(self, search_query: str, limit: int = 10) -> Sequence[User]:
+        """
+        Выполняет нечеткий поиск по имени, фамилии, должности и email.
+        1 <= limit <= 10
+        """
+        limit = min(max(1, limit), 10)
+        users = await self.user_repository.search_users_fuzzy(search_query, limit)
+        logger.info(f"{users}")
+        return users

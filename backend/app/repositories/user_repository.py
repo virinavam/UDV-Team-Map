@@ -1,12 +1,16 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import User
 from app.schemas.user import UserRegisterRequest
+
+from app.logger import get_logger
+
+logger = get_logger()
 
 
 class UserRepository:
@@ -85,3 +89,35 @@ class UserRepository:
 
         user = result.scalar_one_or_none()
         return user
+
+    async def search_users_fuzzy(self, search_query: str, threshold: float = 0.1, limit: int = 10):
+        search_query_lower = search_query.lower()
+
+        sim_first = func.similarity(search_query_lower, func.lower(User.first_name))
+        sim_last = func.similarity(search_query_lower, func.lower(User.last_name))
+        sim_position = func.similarity(search_query_lower, func.lower(User.position))
+        sim_email = func.similarity(search_query_lower, func.lower(User.email))
+
+        similarity_score = func.greatest(sim_first, sim_last, sim_position, sim_email).label("score")
+
+        stmt = (
+            select(User, similarity_score)
+            .where(
+                or_(
+                    sim_first > threshold,
+                    sim_last > threshold,
+                    sim_position > threshold,
+                    sim_email > threshold
+                )
+            )
+            .order_by(text("score DESC"))
+            .limit(limit)
+        )
+
+        result = await self.db.execute(stmt)
+        rows = result.tuples().all()
+
+        for user, score in rows:
+            logger.info("User: %s, similarity: %.3f", user.email, score)
+
+        return rows
