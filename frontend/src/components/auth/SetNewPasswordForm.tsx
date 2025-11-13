@@ -48,14 +48,19 @@ interface SetNewPasswordFormProps {
   onAuthenticated: () => void;
 }
 
-export default function SetNewPasswordForm({ onAuthenticated }: SetNewPasswordFormProps) {
+export default function SetNewPasswordForm({
+  onAuthenticated,
+}: SetNewPasswordFormProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Получаем токен из state или из URL параметров
-  const token = location.state?.token || new URLSearchParams(location.search).get("token") || "mock_token";
+  const token =
+    location.state?.token ||
+    new URLSearchParams(location.search).get("token") ||
+    "mock_token";
 
   const {
     register,
@@ -102,7 +107,8 @@ export default function SetNewPasswordForm({ onAuthenticated }: SetNewPasswordFo
               borderColor={errors.password ? "red.500" : "gray.300"}
               _focus={{
                 borderColor: errors.password ? "red.500" : "blue.500",
-                boxShadow: "0 0 0 1px " + (errors.password ? "red.500" : "blue.500"),
+                boxShadow:
+                  "0 0 0 1px " + (errors.password ? "red.500" : "blue.500"),
               }}
             />
             {errors.password && (
@@ -120,11 +126,15 @@ export default function SetNewPasswordForm({ onAuthenticated }: SetNewPasswordFo
               borderColor={errors.confirmPassword ? "red.500" : "gray.300"}
               _focus={{
                 borderColor: errors.confirmPassword ? "red.500" : "blue.500",
-                boxShadow: "0 0 0 1px " + (errors.confirmPassword ? "red.500" : "blue.500"),
+                boxShadow:
+                  "0 0 0 1px " +
+                  (errors.confirmPassword ? "red.500" : "blue.500"),
               }}
             />
             {errors.confirmPassword && (
-              <FormErrorMessage>{errors.confirmPassword.message}</FormErrorMessage>
+              <FormErrorMessage>
+                {errors.confirmPassword.message}
+              </FormErrorMessage>
             )}
           </FormControl>
 
@@ -139,10 +149,10 @@ export default function SetNewPasswordForm({ onAuthenticated }: SetNewPasswordFo
             w="100%"
             h="44px"
             borderRadius="12px"
-            bg="#526ED3"
+            bg="#763186"
             color="white"
             isLoading={isLoading}
-            _hover={{ bg: "#4356b0" }}
+            _hover={{ bg: "#763186" }}
             _loading={{ opacity: 0.8 }}
           >
             Войти
@@ -152,4 +162,3 @@ export default function SetNewPasswordForm({ onAuthenticated }: SetNewPasswordFo
     </Box>
   );
 }
-

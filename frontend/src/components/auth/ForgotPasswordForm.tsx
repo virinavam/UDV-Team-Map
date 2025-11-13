@@ -17,10 +17,7 @@ import { useNavigate } from "react-router-dom";
 import { authAPI } from "../../lib/api";
 
 const schema = yup.object().shape({
-  email: yup
-    .string()
-    .email("Некорректный email")
-    .required("Email обязателен"),
+  email: yup.string().email("Некорректный email").required("Email обязателен"),
 });
 
 interface ForgotPasswordFormData {
@@ -113,10 +110,14 @@ export default function ForgotPasswordForm() {
               placeholder="your.email@udv.com"
               {...register("email")}
               bg="white"
-              borderColor={errors.email ? "red.500" : "gray.300"}
+              borderColor="#763186"
               _focus={{
-                borderColor: errors.email ? "red.500" : "blue.500",
-                boxShadow: "0 0 0 1px " + (errors.email ? "red.500" : "blue.500"),
+                borderColor: "#763186",
+                boxShadow: "0 0 0 1px #763186", // вот эта строка делает обводку нужного цвета
+              }}
+              _hover={{
+                borderColor: "#763186",
+                boxShadow: "0 0 0 1px #763186",
               }}
             />
             {errors.email && (
@@ -129,10 +130,10 @@ export default function ForgotPasswordForm() {
             w="100%"
             h="44px"
             borderRadius="12px"
-            bg="#526ED3"
+            bg="#763186"
             color="white"
             isLoading={isLoading}
-            _hover={{ bg: "#4356b0" }}
+            _hover={{ bg: "#763186" }}
             _loading={{ opacity: 0.8 }}
           >
             Отправить письмо
@@ -141,7 +142,7 @@ export default function ForgotPasswordForm() {
           <Button
             type="button"
             variant="link"
-            color="#526ED3"
+            color="#763186"
             fontSize="sm"
             fontWeight="normal"
             onClick={() => navigate("/login")}
@@ -154,4 +155,3 @@ export default function ForgotPasswordForm() {
     </Box>
   );
 }
-

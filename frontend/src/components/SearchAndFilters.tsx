@@ -90,7 +90,14 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
   };
 
   return (
-    <Flex gap={4} px={6} py={4} bg="white" borderBottom="1px solid" borderColor="gray.200">
+    <Flex
+      gap={4}
+      px={6}
+      py={4}
+      bg="white"
+      borderBottom="1px solid"
+      borderColor="gray.200"
+    >
       {/* Search Bar */}
       <InputGroup flex={1} maxW="600px">
         <InputLeftElement pointerEvents="none">
@@ -131,19 +138,22 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
         <PopoverContent w="250px">
           <PopoverBody p={0}>
             <VStack align="stretch" spacing={0}>
-              <Flex justify="space-between" p={3} borderBottom="1px solid" borderColor="gray.200">
+              <Flex
+                justify="space-between"
+                p={3}
+                borderBottom="1px solid"
+                borderColor="gray.200"
+              >
                 <Button
                   size="sm"
-                  colorScheme="blue"
-                  onClick={handleCityApply}
+                  bg="#763186" // фон кнопки
+                  color="white" // цвет текста
+                  _hover={{ bg: "#763186" }} // цвет при наведении (не менять)
+                  onClick={handleSkillsApply}
                 >
                   Применить
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCityReset}
-                >
+                <Button size="sm" variant="ghost" onClick={handleCityReset}>
                   Сбросить
                 </Button>
               </Flex>
@@ -192,19 +202,22 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
         <PopoverContent w="300px" maxH="400px" overflowY="auto">
           <PopoverBody p={0}>
             <VStack align="stretch" spacing={0}>
-              <Flex justify="space-between" p={3} borderBottom="1px solid" borderColor="gray.200">
+              <Flex
+                justify="space-between"
+                p={3}
+                borderBottom="1px solid"
+                borderColor="gray.200"
+              >
                 <Button
                   size="sm"
-                  colorScheme="blue"
+                  bg="#763186" // фон кнопки
+                  color="white" // цвет текста
+                  _hover={{ bg: "#763186" }} // цвет при наведении (не менять)
                   onClick={handleSkillsApply}
                 >
                   Применить
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleSkillsReset}
-                >
+                <Button size="sm" variant="ghost" onClick={handleSkillsReset}>
                   Сбросить
                 </Button>
               </Flex>
@@ -230,4 +243,3 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
 };
 
 export default SearchAndFilters;
-

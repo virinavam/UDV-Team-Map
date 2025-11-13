@@ -1,5 +1,8 @@
-const API_BASE_URL = (import.meta as any).env.VITE_API_URL || "http://localhost:8000/api";
+// lib/api.ts
+const API_BASE_URL =
+  (import.meta as any).env.VITE_API_URL || "http://localhost:8000/api";
 
+// ======================= Типы =======================
 interface LoginRequest {
   email: string;
   password: string;
@@ -40,28 +43,44 @@ interface User {
   updated_at: string;
 }
 
+// ========== Forgot Password ==========
+interface ForgotPasswordRequest {
+  email: string;
+}
+
+interface ForgotPasswordResponse {
+  success: boolean;
+  message?: string;
+}
+
+// ========== Set Password ==========
+interface SetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+interface SetPasswordResponse {
+  success: boolean;
+  message?: string;
+}
+
+// ======================= API =======================
 export const authAPI = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        return {
-          success: false,
-          message: errorData.detail || "Ошибка входа",
-        };
+        return { success: false, message: errorData.detail || "Ошибка входа" };
       }
 
       const data = await response.json();
 
-      // Сохраняем токены в localStorage
       if (data.access_token) {
         localStorage.setItem("authToken", data.access_token);
         localStorage.setItem("refreshToken", data.refresh_token || "");
@@ -80,10 +99,7 @@ export const authAPI = {
       };
     } catch (error) {
       console.error("Login API error:", error);
-      return {
-        success: false,
-        message: "Ошибка подключения к серверу",
-      };
+      return { success: false, message: "Ошибка подключения к серверу" };
     }
   },
 
@@ -99,34 +115,68 @@ export const authAPI = {
   async getCurrentUser(): Promise<User | null> {
     try {
       const token = this.getToken();
-      if (!token) {
-        return null;
-      }
-      console.log(token)
+      if (!token) return null;
 
       const response = await fetch(`${API_BASE_URL}/auth/me`, {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
 
-      console.log(response.json());
-
       if (!response.ok) {
-        if (response.status === 401) {
-          // Токен невалиден, удаляем его
-          await this.logout();
-        }
+        if (response.status === 401) await this.logout();
         return null;
       }
 
-      return await response.json() as User;
+      return (await response.json()) as User;
     } catch (error) {
       console.error("Get current user error:", error);
       return null;
     }
   },
-};
 
+  async forgotPassword(
+    data: ForgotPasswordRequest
+  ): Promise<ForgotPasswordResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      const resData = await response.json();
+      if (!response.ok)
+        return { success: false, message: resData.message || "Ошибка" };
+
+      return { success: true, message: resData.message || "Письмо отправлено" };
+    } catch (error) {
+      console.error("Forgot password API error:", error);
+      return { success: false, message: "Ошибка подключения к серверу" };
+    }
+  },
+
+  async setPassword(data: SetPasswordRequest): Promise<SetPasswordResponse> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/set-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      const resData = await response.json();
+      if (!response.ok)
+        return { success: false, message: resData.message || "Ошибка" };
+
+      return {
+        success: true,
+        message: resData.message || "Пароль успешно изменен",
+      };
+    } catch (error) {
+      console.error("Set password API error:", error);
+      return { success: false, message: "Ошибка подключения к серверу" };
+    }
+  },
+};

@@ -16,13 +16,8 @@ import { useNavigate } from "react-router-dom";
 import { authAPI } from "../../lib/api";
 
 const schema = yup.object().shape({
-  email: yup
-    .string()
-    .email("Некорректный email")
-    .required("Email обязателен"),
-  password: yup
-    .string()
-    .required("Пароль обязателен"),
+  email: yup.string().email("Некорректный email").required("Email обязателен"),
+  password: yup.string().required("Пароль обязателен"),
 });
 
 interface LoginFormData {
@@ -48,7 +43,6 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
     mode: "onChange", // Валидация при изменении полей
     reValidateMode: "onChange", // Перевалидация при изменении
   });
-
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -153,7 +147,7 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
             w="100%"
             h="44px"
             borderRadius="12px"
-            bg="#526ED3"
+            bg="#763186"
             color="white"
             isLoading={isLoading}
             _hover={{ bg: "#4356b0" }}
@@ -165,7 +159,7 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
           <Button
             type="button"
             variant="link"
-            color="#526ED3"
+            color="#763186"
             fontSize="sm"
             fontWeight="normal"
             onClick={() => navigate("/forgot-password")}
@@ -178,4 +172,3 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
     </Box>
   );
 }
-
