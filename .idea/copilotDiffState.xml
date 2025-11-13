@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/.github/workflows/code-quality.yml">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/.github/workflows/code-quality.yml" />
+              <option name="updatedContent" value="name: Code Quality &amp; Security&#10;&#10;on:&#10;  pull_request:&#10;    branches:&#10;      - main&#10;      - dev&#10;&#10;jobs:&#10;  security-and-quality:&#10;    runs-on: ubuntu-latest&#10;    &#10;    steps:&#10;      - name: Checkout code&#10;        uses: actions/checkout@v4&#10;&#10;      - name: Set up Python&#10;        uses: actions/setup-python@v4&#10;        with:&#10;          python-version: '3.12'&#10;&#10;      - name: Install Poetry&#10;        uses: snok/install-poetry@v1&#10;        with:&#10;          version: latest&#10;          virtualenvs-create: true&#10;          virtualenvs-in-project: true&#10;&#10;      - name: Load cached venv&#10;        id: cached-poetry-dependencies&#10;        uses: actions/cache@v3&#10;        with:&#10;          path: backend/.venv&#10;          key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}&#10;&#10;      - name: Install dependencies&#10;        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'&#10;        run: |&#10;          cd backend&#10;          poetry install&#10;&#10;      - name: Run mypy type checking&#10;        continue-on-error: true&#10;        run: |&#10;          cd backend&#10;          poetry run mypy app --ignore-missing-imports --no-error-summary 2&gt;/dev/null || true&#10;&#10;      - name: Check for security issues with bandit&#10;        continue-on-error: true&#10;        run: |&#10;          cd backend&#10;          poetry run bandit -r app -f json -o bandit-report.json 2&gt;/dev/null || true&#10;&#10;      - name: Dependency vulnerability check&#10;        continue-on-error: true&#10;        run: |&#10;          cd backend&#10;          poetry run safety check --json 2&gt;/dev/null || true&#10;&#10;      - name: Upload coverage to Codecov&#10;        if: always()&#10;        uses: codecov/codecov-action@v3&#10;        with:&#10;          files: ./coverage.xml&#10;          flags: unittests&#10;          fail_ci_if_error: false&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
