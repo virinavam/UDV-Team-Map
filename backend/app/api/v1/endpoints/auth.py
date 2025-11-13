@@ -1,14 +1,13 @@
-from uuid import UUID
-
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 from app.database import get_db
 from app.logger import get_logger
+from app.models import User
 from app.schemas.auth import AuthResponse
-from app.schemas.user import UserLoginRequest, UserRegisterRequest
+from app.schemas.user import UserLoginRequest, UserRegisterRequest, UserRead
 from app.services.auth_service import AuthService  # Импорт сервиса
+from app.utils.auth import get_current_user_by_credentials
 
 auth_router = APIRouter()
 logger = get_logger()
@@ -81,3 +80,13 @@ async def refresh(
     Логика вынесена в AuthService.
     """
     return await auth_service.refresh_tokens(refresh_token)
+
+
+@auth_router.get("/me", response_model=UserRead)
+async def get_current_user(user: User = Depends(get_current_user_by_credentials)):
+    """
+    Получает информацию о текущем аутентифицированном пользователе.
+    """
+    return user
+
+

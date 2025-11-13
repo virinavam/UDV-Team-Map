@@ -45,7 +45,6 @@ export default function LoginPage({ onAuthenticated }: LoginPageProps) {
           </Text>
         </VStack>
 
-        {/* Форма входа */}
         <LoginForm onAuthenticated={onAuthenticated} />
       </VStack>
     </Box>

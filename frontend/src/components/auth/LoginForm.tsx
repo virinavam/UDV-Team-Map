@@ -58,12 +58,15 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
       const response = await authAPI.login(data);
 
       if (response.success) {
+        // Вызываем callback для обновления состояния аутентификации
+        onAuthenticated();
+
         if (response.isTemporaryPassword) {
           // Редирект на установку нового пароля
           navigate("/set-password", { state: { token: response.token } });
         } else {
-          // Редирект в основное приложение
-          onAuthenticated();
+          // Редирект в основное приложение (на страницу сотрудников)
+          navigate("/employees");
         }
       } else {
         setError(response.message || "Неверный email или пароль");

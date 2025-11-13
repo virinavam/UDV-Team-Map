@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   Flex,
@@ -10,11 +11,29 @@ import {
 } from "@chakra-ui/react";
 
 interface HeaderProps {
-  currentPage: "team-map" | "employees";
-  onNavigate: (page: "team-map" | "employees") => void;
+  currentPage?: "team-map" | "employees";
 }
 
-const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
+const Header: React.FC<HeaderProps> = ({ currentPage }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Определяем текущую страницу на основе URL
+  const getCurrentPage = (): "team-map" | "employees" => {
+    if (location.pathname === "/team-map") return "team-map";
+    return "employees";
+  };
+
+  const activePage = currentPage || getCurrentPage();
+
+  const handleNavigate = (page: "team-map" | "employees") => {
+    const path = page === "team-map" ? "/team-map" : "/employees";
+    // Проверяем, не находимся ли мы уже на этой странице
+    if (location.pathname !== path) {
+      navigate(path);
+    }
+  };
+
   const activeColor = useColorModeValue("blue.500", "blue.300");
   const inactiveColor = useColorModeValue("gray.500", "gray.400");
   const borderColor = useColorModeValue("blue.500", "blue.300");
@@ -55,13 +74,14 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
         <HStack spacing={8}>
           <Box
             as="button"
-            onClick={() => onNavigate("team-map")}
+            onClick={() => handleNavigate("team-map")}
             position="relative"
             pb={2}
             _hover={{ color: activeColor }}
-            color={currentPage === "team-map" ? activeColor : inactiveColor}
-            fontWeight={currentPage === "team-map" ? "semibold" : "normal"}
+            color={activePage === "team-map" ? activeColor : inactiveColor}
+            fontWeight={activePage === "team-map" ? "semibold" : "normal"}
             transition="all 0.2s"
+            cursor="pointer"
           >
             <HStack spacing={2}>
               <Icon viewBox="0 0 24 24" w={5} h={5}>
@@ -72,7 +92,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
               </Icon>
               <Text>Team Map</Text>
             </HStack>
-            {currentPage === "team-map" && (
+            {activePage === "team-map" && (
               <Box
                 position="absolute"
                 bottom={0}
@@ -86,13 +106,14 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
 
           <Box
             as="button"
-            onClick={() => onNavigate("employees")}
+            onClick={() => handleNavigate("employees")}
             position="relative"
             pb={2}
             _hover={{ color: activeColor }}
-            color={currentPage === "employees" ? activeColor : inactiveColor}
-            fontWeight={currentPage === "employees" ? "semibold" : "normal"}
+            color={activePage === "employees" ? activeColor : inactiveColor}
+            fontWeight={activePage === "employees" ? "semibold" : "normal"}
             transition="all 0.2s"
+            cursor="pointer"
           >
             <HStack spacing={2}>
               <Icon viewBox="0 0 24 24" w={5} h={5}>
@@ -103,7 +124,7 @@ const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate }) => {
               </Icon>
               <Text>Сотрудники</Text>
             </HStack>
-            {currentPage === "employees" && (
+            {activePage === "employees" && (
               <Box
                 position="absolute"
                 bottom={0}
