@@ -10,7 +10,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import OrgChartNode from "../components/OrgChartNode";
 import EmployeeDialog from "../components/EmployeeDialog";
-import Header from "../components/Header";
+import MainLayout from "../components/MainLayout";
 import {mockOrgTree, mockEmployees} from "../lib/mock-data";
 import {convertOrgTreeToFlow} from "../lib/org-tree-utils";
 import {Box} from "@chakra-ui/react";
@@ -59,8 +59,7 @@ export default function TeamMapPage({}: TeamMapPageProps) {
         : null;
 
     return (
-        <Box h="100vh" w="100vw" bg="gray.50">
-            <Header currentPage="team-map"/>
+        <MainLayout>
             <Box h="calc(100vh - 73px)">
                 <ReactFlow
                     nodes={nodes}
@@ -82,6 +81,6 @@ export default function TeamMapPage({}: TeamMapPageProps) {
                 onClose={() => setSelectedEmployee(null)}
                 employee={employee || null}
             />
-        </Box>
+        </MainLayout>
     );
 }

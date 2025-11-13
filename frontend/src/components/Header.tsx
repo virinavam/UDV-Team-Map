@@ -39,10 +39,10 @@ const Header: React.FC<HeaderProps> = ({ currentPage }) => {
       py={4}
     >
       <Flex justify="space-between" align="center">
-        {/* Левая часть: UDV Group + кнопки */}
+        {/* Левая часть: UDV Team Map + кнопки */}
         <HStack spacing={6} align="center">
           <Text fontSize="xl" fontWeight="bold" color="gray.800">
-            UDV Group
+            UDV Team Map
           </Text>
 
           {/* Кнопки навигации */}

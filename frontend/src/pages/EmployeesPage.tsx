@@ -1,6 +1,6 @@
 import React, {useState, useMemo} from "react";
 import {Box, SimpleGrid} from "@chakra-ui/react";
-import Header from "../components/Header";
+import MainLayout from "../components/MainLayout";
 import SearchAndFilters from "../components/SearchAndFilters";
 import EmployeeCard from "../components/EmployeeCard";
 import {mockEmployees} from "../lib/mock-data";
@@ -58,27 +58,32 @@ const EmployeesPage: React.FC<EmployeesPageProps> = () => {
     }, [searchQuery, selectedCity, selectedSkills]);
 
     return (
-        <Box minH="100vh" bg="gray.50">
-            <Header currentPage="employees"/>
-            <SearchAndFilters
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                selectedCity={selectedCity}
-                onCityChange={setSelectedCity}
-                selectedSkills={selectedSkills}
-                onSkillsChange={setSelectedSkills}
-                cities={cities}
-                skills={skills}
-            />
-            <Box px={6} py={6}>
-                <SimpleGrid columns={{base: 1, md: 2, lg: 3, xl: 4}} spacing={6}>
-                    {filteredEmployees.map((employee) => (
-                        <EmployeeCard key={employee.id} employee={employee}/>
-                    ))}
-                </SimpleGrid>
-                Сотрудники не найдены
+        <MainLayout>
+            <Box p={6}>
+                <SearchAndFilters
+                    searchQuery={searchQuery}
+                    onSearchChange={setSearchQuery}
+                    selectedCity={selectedCity}
+                    onCityChange={setSelectedCity}
+                    selectedSkills={selectedSkills}
+                    onSkillsChange={setSelectedSkills}
+                    cities={cities}
+                    skills={skills}
+                />
+                <Box mt={6}>
+                    <SimpleGrid columns={{base: 1, md: 2, lg: 3, xl: 4}} spacing={6}>
+                        {filteredEmployees.map((employee) => (
+                            <EmployeeCard key={employee.id} employee={employee}/>
+                        ))}
+                    </SimpleGrid>
+                    {filteredEmployees.length === 0 && (
+                        <Box textAlign="center" py={8}>
+                            Сотрудники не найдены
+                        </Box>
+                    )}
+                </Box>
             </Box>
-        </Box>
+        </MainLayout>
     );
 };
 

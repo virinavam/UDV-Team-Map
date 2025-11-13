@@ -3,6 +3,9 @@ import {Routes, Route, Navigate} from "react-router-dom";
 import AuthScreen from "./components/auth/AuthScreen";
 import EmployeesPage from "./pages/EmployeesPage";
 import TeamMapPage from "./pages/TeamMapPage";
+import ProfilePage from "./pages/ProfilePage";
+import AdminDashboardPage from "./pages/AdminDashboardPage";
+import HRDataPage from "./pages/HRDataPage";
 import {authAPI} from "./lib/api";
 import {Spinner, Center} from "@chakra-ui/react";
 
@@ -20,7 +23,7 @@ function ProtectedRoute({element, isAuthenticated, isLoading}) {
 export default function App() {
     console.log("App mounted")
     const [currentUser, setCurrentUser] = useState(null);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(true);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -80,6 +83,70 @@ export default function App() {
                     <ProtectedRoute
                         element={
                             <TeamMapPage/>
+                        }
+                        isAuthenticated={isAuthenticated}
+                        isLoading={isLoading}
+                    />
+                }
+            />
+            <Route
+                path="/profile/:id"
+                element={
+                    <ProtectedRoute
+                        element={
+                            <ProfilePage/>
+                        }
+                        isAuthenticated={isAuthenticated}
+                        isLoading={isLoading}
+                    />
+                }
+            />
+            <Route
+                path="/admin"
+                element={
+                    <ProtectedRoute
+                        element={
+                            <AdminDashboardPage/>
+                        }
+                        isAuthenticated={isAuthenticated}
+                        isLoading={isLoading}
+                    />
+                }
+            />
+            <Route
+                path="/hr-data"
+                element={
+                    <ProtectedRoute
+                        element={
+                            <HRDataPage/>
+                        }
+                        isAuthenticated={isAuthenticated}
+                        isLoading={isLoading}
+                    />
+                }
+            />
+            <Route
+                path="/moderation"
+                element={
+                    <ProtectedRoute
+                        element={
+                            <Center h="100vh">
+                                <Spinner size="lg" color="blue.500"/>
+                            </Center>
+                        }
+                        isAuthenticated={isAuthenticated}
+                        isLoading={isLoading}
+                    />
+                }
+            />
+            <Route
+                path="/administrator"
+                element={
+                    <ProtectedRoute
+                        element={
+                            <Center h="100vh">
+                                <Spinner size="lg" color="blue.500"/>
+                            </Center>
                         }
                         isAuthenticated={isAuthenticated}
                         isLoading={isLoading}

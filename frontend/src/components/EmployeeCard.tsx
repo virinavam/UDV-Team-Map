@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   VStack,
@@ -24,17 +25,24 @@ interface EmployeeCardProps {
 }
 
 const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    navigate(`/profile/${employee.id}`);
+  };
+
   return (
     <Box
       bg="white"
       borderRadius="lg"
       p={6}
       boxShadow="sm"
-      _hover={{ boxShadow: "md", transform: "translateY(-2px)" }}
+      _hover={{ boxShadow: "md", transform: "translateY(-2px)", cursor: "pointer" }}
       transition="all 0.2s"
       h="100%"
       display="flex"
       flexDirection="column"
+      onClick={handleClick}
     >
       <VStack spacing={4} align="stretch" flex={1}>
         {/* Profile Picture */}

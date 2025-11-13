@@ -17,7 +17,25 @@ export interface Employee {
   photoUrl?: string;
   firstName?: string;
   lastName?: string;
+  middleName?: string; // Отчество
+  dateOfBirth?: string; // Дата рождения в формате DD.MM.YYYY
+  phone?: string; // Номер телефона
+  mattermost?: string; // Mattermost username
+  telegram?: string; // Telegram username
   department?: string;
+  departmentFull?: string; // Полное название подразделения
+  managerName?: string; // Имя руководителя
+  workExperience?: string; // Стаж работы в компании
+  aboutMe?: string; // О себе
   location?: string;
   manager?: boolean;
+  // Дополнительные поля для админ-панели
+  legalEntity?: string; // Юридическое лицо
+  group?: string; // Группа
+  hireDate?: string; // Дата найма в формате DD.MM.YYYY
+  salary?: number; // Оклад
+  employmentStatus?: string; // Статус трудоустройства
+  contractNumber?: string; // Номер трудового договора
+  description?: string; // Описание
+  comment?: string; // Комментарий
 }
