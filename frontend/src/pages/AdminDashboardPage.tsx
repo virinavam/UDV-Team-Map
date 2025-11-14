@@ -33,7 +33,9 @@ const AdminDashboardPage: React.FC = () => {
   const [selectedPosition, setSelectedPosition] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string[]>([]);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(
+    null
+  );
 
   const {
     isOpen: isEditModalOpen,
@@ -96,7 +98,8 @@ const AdminDashboardPage: React.FC = () => {
       // Поиск
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchableText = `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
+        const searchableText =
+          `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
         if (!searchableText.includes(query)) {
           return false;
         }
@@ -104,7 +107,8 @@ const AdminDashboardPage: React.FC = () => {
 
       // Фильтр по юридическому лицу
       if (selectedLegalEntity.length > 0) {
-        const entity = employee.legalEntity || employee.departmentFull?.split(" / ")[0];
+        const entity =
+          employee.legalEntity || employee.departmentFull?.split(" / ")[0];
         if (!entity || !selectedLegalEntity.includes(entity)) {
           return false;
         }
@@ -112,7 +116,8 @@ const AdminDashboardPage: React.FC = () => {
 
       // Фильтр по подразделению
       if (selectedDepartment.length > 0) {
-        const dep = employee.departmentFull?.split(" / ")[2] || employee.department;
+        const dep =
+          employee.departmentFull?.split(" / ")[2] || employee.department;
         if (!dep || !selectedDepartment.includes(dep)) {
           return false;
         }
@@ -127,7 +132,10 @@ const AdminDashboardPage: React.FC = () => {
 
       // Фильтр по должности
       if (selectedPosition.length > 0) {
-        if (!employee.position || !selectedPosition.includes(employee.position)) {
+        if (
+          !employee.position ||
+          !selectedPosition.includes(employee.position)
+        ) {
           return false;
         }
       }
@@ -211,7 +219,7 @@ const AdminDashboardPage: React.FC = () => {
             </InputGroup>
             <Button
               leftIcon={<AddIcon />}
-              colorScheme="purple"
+              colorScheme="#763186"
               onClick={handleAddEmployee}
             >
               Добавить нового сотрудника
@@ -283,7 +291,7 @@ const AdminDashboardPage: React.FC = () => {
             <Text>Вы уверены, что хотите удалить этого сотрудника?</Text>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="purple" mr={3} onClick={confirmDelete}>
+            <Button colorScheme="#763186" mr={3} onClick={confirmDelete}>
               Да
             </Button>
             <Button variant="ghost" onClick={onDeleteDialogClose}>
@@ -297,4 +305,3 @@ const AdminDashboardPage: React.FC = () => {
 };
 
 export default AdminDashboardPage;
-

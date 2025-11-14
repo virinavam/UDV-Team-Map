@@ -66,15 +66,23 @@ const AdminEmployeeTable: React.FC<AdminEmployeeTableProps> = ({
                 </Text>
               </Td>
               <Td>{employee.position}</Td>
-              <Td>{employee.legalEntity || employee.departmentFull?.split(" / ")[0] || "-"}</Td>
-              <Td>{employee.departmentFull?.split(" / ")[2] || employee.department || "-"}</Td>
+              <Td>
+                {employee.legalEntity ||
+                  employee.departmentFull?.split(" / ")[0] ||
+                  "-"}
+              </Td>
+              <Td>
+                {employee.departmentFull?.split(" / ")[2] ||
+                  employee.department ||
+                  "-"}
+              </Td>
               <Td>
                 <HStack spacing={2}>
                   <IconButton
                     aria-label="Редактировать"
                     icon={<EditIcon />}
                     size="sm"
-                    colorScheme="purple"
+                    colorScheme="#763186"
                     variant="ghost"
                     onClick={() => onEdit(employee)}
                   />
@@ -97,4 +105,3 @@ const AdminEmployeeTable: React.FC<AdminEmployeeTableProps> = ({
 };
 
 export default AdminEmployeeTable;
-

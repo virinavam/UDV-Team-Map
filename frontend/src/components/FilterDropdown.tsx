@@ -80,22 +80,24 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
           <HStack justify="space-between">
             <Button
               size="sm"
-              colorScheme="purple"
+              bg="#763186"
+              color="white"
+              _hover={{ bg: "#5e2770" }}
               onClick={handleApply}
             >
               Применить
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleReset}
-            >
+
+            <Button size="sm" variant="outline" onClick={handleReset}>
               Сбросить
             </Button>
           </HStack>
           <Box maxH="300px" overflowY="auto">
             {options.map((option) => (
-              <MenuItem key={option.value} onClick={() => handleToggle(option.value)}>
+              <MenuItem
+                key={option.value}
+                onClick={() => handleToggle(option.value)}
+              >
                 <Checkbox
                   isChecked={tempSelection.includes(option.value)}
                   onChange={() => handleToggle(option.value)}
@@ -113,4 +115,3 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 };
 
 export default FilterDropdown;
-

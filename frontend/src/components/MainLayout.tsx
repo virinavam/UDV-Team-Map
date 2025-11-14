@@ -1,12 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Box,
-  Flex,
-  Text,
-  HStack,
-  useColorModeValue,
-} from "@chakra-ui/react";
+import { Box, Flex, Text, HStack, useColorModeValue } from "@chakra-ui/react";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -20,12 +14,9 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
-  { key: "team-map", label: "Team Map", path: "/team-map", icon: "🗺️" },
-  { key: "employees", label: "Сотрудники", path: "/employees", icon: "👥" },
-  { key: "admin", label: "Админ-панель", path: "/admin", icon: "⚙️" },
-  { key: "hr-data", label: "Кадровые данные", path: "/hr-data", icon: "📄" },
-  { key: "moderation", label: "Модерация", path: "/moderation", icon: "🛡️" },
-  { key: "administrator", label: "Администратор", path: "/administrator", icon: "👤" },
+  { key: "team-map", label: "Team Map", path: "/team-map" },
+  { key: "employees", label: "Сотрудники", path: "/employees" },
+  { key: "admin", label: "Кадровые данные", path: "/admin" },
 ];
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
@@ -103,7 +94,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           {/* User Profile */}
           <HStack spacing={2}>
             <Text color={activeColor} fontWeight="medium">
-              Администратор
+              Ольга Лебедева
             </Text>
           </HStack>
         </Flex>
@@ -116,4 +107,3 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 };
 
 export default MainLayout;
-

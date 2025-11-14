@@ -119,7 +119,9 @@ const ProfilePage: React.FC = () => {
 
   if (!displayEmployee) return null;
 
-  const fullName = `${displayEmployee.lastName || ""} ${displayEmployee.firstName || ""} ${displayEmployee.middleName || ""}`.trim();
+  const fullName = `${displayEmployee.lastName || ""} ${
+    displayEmployee.firstName || ""
+  } ${displayEmployee.middleName || ""}`.trim();
 
   return (
     <MainLayout>
@@ -129,7 +131,7 @@ const ProfilePage: React.FC = () => {
             leftIcon={<ArrowBackIcon />}
             variant="ghost"
             onClick={handleBack}
-            colorScheme="purple"
+            colorScheme="#763186"
           >
             Назад
           </Button>
@@ -138,7 +140,7 @@ const ProfilePage: React.FC = () => {
               leftIcon={<EditIcon />}
               variant="outline"
               onClick={handleEdit}
-              colorScheme="purple"
+              colorScheme="#763186"
             >
               Редактировать
             </Button>
@@ -165,10 +167,12 @@ const ProfilePage: React.FC = () => {
         <ModalContent>
           <ModalHeader>Сохранить изменения?</ModalHeader>
           <ModalBody>
-            <Text>Примененные изменения будут отправлены на проверку модератору</Text>
+            <Text>
+              Примененные изменения будут отправлены на проверку модератору
+            </Text>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="purple" mr={3} onClick={confirmSave}>
+            <Button colorScheme="#763186" mr={3} onClick={confirmSave}>
               Да
             </Button>
             <Button variant="ghost" onClick={onSaveDialogClose}>
@@ -187,7 +191,7 @@ const ProfilePage: React.FC = () => {
             <Text>Внесенные изменения будут потеряны</Text>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="purple" mr={3} onClick={confirmCancel}>
+            <Button colorScheme="#763186" mr={3} onClick={confirmCancel}>
               Да
             </Button>
             <Button variant="ghost" onClick={onCancelDialogClose}>
@@ -373,7 +377,13 @@ const EditMode: React.FC<{
             <Text mb={4} color="gray.600">
               Выберите файл или перетяните его сюда
             </Text>
-            <VStack align="start" spacing={1} fontSize="sm" color="gray.600" pl={4}>
+            <VStack
+              align="start"
+              spacing={1}
+              fontSize="sm"
+              color="gray.600"
+              pl={4}
+            >
               <Text fontWeight="semibold" mb={2}>
                 Требования к фото:
               </Text>
@@ -450,7 +460,10 @@ const EditMode: React.FC<{
                 onChange={(e) =>
                   onFieldChange(
                     "skills",
-                    e.target.value.split(",").map((s) => s.trim()).filter(Boolean)
+                    e.target.value
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter(Boolean)
                   )
                 }
                 placeholder="Введите навыки через запятую"
@@ -600,7 +613,7 @@ const EditMode: React.FC<{
 
       {/* Кнопка сохранения */}
       <Flex justify="center" mt={8}>
-        <Button colorScheme="purple" size="lg" onClick={onSave}>
+        <Button colorScheme="#763186" size="lg" onClick={onSave}>
           Сохранить
         </Button>
       </Flex>
@@ -609,4 +622,3 @@ const EditMode: React.FC<{
 };
 
 export default ProfilePage;
-

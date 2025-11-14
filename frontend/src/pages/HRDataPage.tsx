@@ -80,7 +80,8 @@ const HRDataPage: React.FC = () => {
       // Поиск
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
-        const searchableText = `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
+        const searchableText =
+          `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
         if (!searchableText.includes(query)) {
           return false;
         }
@@ -88,7 +89,8 @@ const HRDataPage: React.FC = () => {
 
       // Фильтр по юридическому лицу
       if (selectedLegalEntity.length > 0) {
-        const entity = employee.legalEntity || employee.departmentFull?.split(" / ")[0];
+        const entity =
+          employee.legalEntity || employee.departmentFull?.split(" / ")[0];
         if (!entity || !selectedLegalEntity.includes(entity)) {
           return false;
         }
@@ -96,7 +98,8 @@ const HRDataPage: React.FC = () => {
 
       // Фильтр по подразделению
       if (selectedDepartment.length > 0) {
-        const dep = employee.departmentFull?.split(" / ")[2] || employee.department;
+        const dep =
+          employee.departmentFull?.split(" / ")[2] || employee.department;
         if (!dep || !selectedDepartment.includes(dep)) {
           return false;
         }
@@ -111,7 +114,10 @@ const HRDataPage: React.FC = () => {
 
       // Фильтр по должности
       if (selectedPosition.length > 0) {
-        if (!employee.position || !selectedPosition.includes(employee.position)) {
+        if (
+          !employee.position ||
+          !selectedPosition.includes(employee.position)
+        ) {
           return false;
         }
       }
@@ -137,7 +143,16 @@ const HRDataPage: React.FC = () => {
   const handleExportToExcel = () => {
     // Имитация экспорта в Excel
     const csvContent = [
-      ["ФИО", "Должность", "Дата найма", "Оклад", "Статус", "Номер договора", "Юридическое лицо", "Подразделение"],
+      [
+        "ФИО",
+        "Должность",
+        "Дата найма",
+        "Оклад",
+        "Статус",
+        "Номер договора",
+        "Юридическое лицо",
+        "Подразделение",
+      ],
       ...filteredEmployees.map((emp) => [
         `${emp.lastName} ${emp.firstName} ${emp.middleName}`,
         emp.position || "",
@@ -180,10 +195,7 @@ const HRDataPage: React.FC = () => {
                 bg="white"
               />
             </InputGroup>
-            <Button
-              colorScheme="purple"
-              onClick={handleExportToExcel}
-            >
+            <Button colorScheme="#763186" onClick={handleExportToExcel}>
               📥 Экспорт в Excel
             </Button>
           </HStack>
@@ -267,23 +279,36 @@ const HRDataPage: React.FC = () => {
                     </Td>
                     <Td>
                       <Text fontWeight="medium">
-                        {employee.lastName} {employee.firstName} {employee.middleName}
+                        {employee.lastName} {employee.firstName}{" "}
+                        {employee.middleName}
                       </Text>
                     </Td>
                     <Td>{employee.position}</Td>
                     <Td>{employee.hireDate || "-"}</Td>
-                    <Td>{employee.salary ? `${employee.salary.toLocaleString()} ₽` : "-"}</Td>
+                    <Td>
+                      {employee.salary
+                        ? `${employee.salary.toLocaleString()} ₽`
+                        : "-"}
+                    </Td>
                     <Td>{employee.employmentStatus || "Работает"}</Td>
                     <Td>{employee.contractNumber || "-"}</Td>
-                    <Td>{employee.legalEntity || employee.departmentFull?.split(" / ")[0] || "-"}</Td>
-                    <Td>{employee.departmentFull?.split(" / ")[2] || employee.department || "-"}</Td>
+                    <Td>
+                      {employee.legalEntity ||
+                        employee.departmentFull?.split(" / ")[0] ||
+                        "-"}
+                    </Td>
+                    <Td>
+                      {employee.departmentFull?.split(" / ")[2] ||
+                        employee.department ||
+                        "-"}
+                    </Td>
                     <Td>
                       <HStack spacing={2}>
                         <IconButton
                           aria-label="Редактировать"
                           icon={<EditIcon />}
                           size="sm"
-                          colorScheme="purple"
+                          colorScheme="#763186"
                           variant="ghost"
                         />
                         <IconButton
@@ -307,4 +332,3 @@ const HRDataPage: React.FC = () => {
 };
 
 export default HRDataPage;
-

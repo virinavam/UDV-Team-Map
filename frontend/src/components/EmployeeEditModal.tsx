@@ -86,14 +86,20 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   };
 
   const handleSkillsChange = (value: string) => {
-    const skills = value.split(",").map((s) => s.trim()).filter(Boolean);
+    const skills = value
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     handleFieldChange("skills", skills);
   };
 
   const handleSave = () => {
     const employeeData: Employee = {
       id: employee?.id || `e${Date.now()}`,
-      name: `${formData.lastName || ""} ${formData.firstName || ""} ${formData.middleName || ""}`.trim() || "Новый сотрудник",
+      name:
+        `${formData.lastName || ""} ${formData.firstName || ""} ${
+          formData.middleName || ""
+        }`.trim() || "Новый сотрудник",
       position: formData.position || "",
       city: formData.city || "",
       email: formData.email || "",
@@ -112,7 +118,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>
-          {employee ? "Редактирование данных сотрудника" : "Добавление нового сотрудника"}
+          {employee
+            ? "Редактирование данных сотрудника"
+            : "Добавление нового сотрудника"}
         </ModalHeader>
         <ModalCloseButton />
         <ModalBody>
@@ -159,7 +167,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.lastName || ""}
-                      onChange={(e) => handleFieldChange("lastName", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("lastName", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -177,7 +187,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.firstName || ""}
-                      onChange={(e) => handleFieldChange("firstName", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("firstName", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -195,7 +207,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.middleName || ""}
-                      onChange={(e) => handleFieldChange("middleName", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("middleName", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -213,7 +227,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.city || ""}
-                      onChange={(e) => handleFieldChange("city", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("city", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -237,7 +253,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.email || ""}
-                      onChange={(e) => handleFieldChange("email", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("email", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -255,7 +273,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.phone || ""}
-                      onChange={(e) => handleFieldChange("phone", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("phone", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -280,7 +300,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.position || ""}
-                      onChange={(e) => handleFieldChange("position", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("position", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -298,7 +320,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.hireDate || ""}
-                      onChange={(e) => handleFieldChange("hireDate", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("hireDate", e.target.value)
+                      }
                       bg="gray.50"
                       placeholder="DD.MM.YYYY"
                     />
@@ -317,7 +341,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.legalEntity || ""}
-                      onChange={(e) => handleFieldChange("legalEntity", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("legalEntity", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -347,7 +373,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.department || ""}
-                      onChange={(e) => handleFieldChange("department", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("department", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -364,7 +392,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <FormLabel>Описание</FormLabel>
                   <Textarea
                     value={formData.description || ""}
-                    onChange={(e) => handleFieldChange("description", e.target.value)}
+                    onChange={(e) =>
+                      handleFieldChange("description", e.target.value)
+                    }
                     bg="gray.50"
                     rows={3}
                   />
@@ -376,7 +406,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.group || ""}
-                      onChange={(e) => handleFieldChange("group", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("group", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -394,7 +426,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.managerName || ""}
-                      onChange={(e) => handleFieldChange("managerName", e.target.value)}
+                      onChange={(e) =>
+                        handleFieldChange("managerName", e.target.value)
+                      }
                       bg="gray.50"
                     />
                     <IconButton
@@ -417,7 +451,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <FormLabel>Комментарий</FormLabel>
                   <Textarea
                     value={formData.comment || ""}
-                    onChange={(e) => handleFieldChange("comment", e.target.value)}
+                    onChange={(e) =>
+                      handleFieldChange("comment", e.target.value)
+                    }
                     bg="gray.50"
                     placeholder="Введите текст..."
                     rows={3}
@@ -428,7 +464,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
           </VStack>
         </ModalBody>
         <ModalFooter>
-          <Button colorScheme="purple" mr={3} onClick={handleSave}>
+          <Button colorScheme="#763186" mr={3} onClick={handleSave}>
             Сохранить
           </Button>
           <Button variant="ghost" onClick={onClose}>
@@ -441,4 +477,3 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
 };
 
 export default EmployeeEditModal;
-
