@@ -76,9 +76,12 @@ class UserService:
     async def search_users(self, search_query: str, limit: int = 10) -> Sequence[User]:
         """
         Выполняет нечеткий поиск по имени, фамилии, должности и email.
-        1 <= limit <= 10
+        args:
+            search_query (str): Строка поиска.
+            limit (int): Максимальное количество возвращаемых пользователей (по умолчанию 10, максимум 10, минимум 1).
+        returns:
+            Sequence[User]: Список пользователей, соответствующих критериям поиска.
         """
         limit = min(max(1, limit), 10)
         users = await self.user_repository.search_users_fuzzy(search_query, limit)
-        logger.info(f"{users}")
         return users

@@ -77,9 +77,16 @@ async def read_active_employees(user_service: UserService = Depends(get_user_ser
                       dependencies=[
                           Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def search_employees(
-        query: str,
-        limit: int = Query(5, ge=1, le=10, description="Максимальное количество возвращаемых сотрудников (1-10)"),
+        q: str,
+        limit: int = Query(5, ge=1, le=10, description="Максимальное количество возвращаемых сотрудников"),
         user_service: UserService = Depends(get_user_service)
 ):
-    """Выполняет нечеткий поиск сотрудников по имени, фамилии, должности и email."""
-    return await user_service.search_users(search_query=query, limit=limit)
+    """
+    Выполняет нечеткий поиск по имени, фамилии, должности и email.
+    args:
+        q (str): Строка поиска.
+        limit (int): Максимальное количество возвращаемых пользователей (по умолчанию 10, максимум 10, минимум 1).
+    returns:
+        Sequence[User]: Список пользователей, соответствующих критериям поиска.
+    """
+    return await user_service.search_users(search_query=q, limit=limit)

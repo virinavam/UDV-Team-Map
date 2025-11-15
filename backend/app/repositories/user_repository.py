@@ -90,26 +90,21 @@ class UserRepository:
         user = result.scalar_one_or_none()
         return user
 
-    async def search_users_fuzzy(self, search_query: str, threshold: float = 0.1, limit: int = 10):
+    async def search_users_fuzzy(self, search_query: str, limit: int = 10):
         search_query_lower = search_query.lower()
 
-        sim_first = func.similarity(search_query_lower, func.lower(User.first_name))
-        sim_last = func.similarity(search_query_lower, func.lower(User.last_name))
-        sim_position = func.similarity(search_query_lower, func.lower(User.position))
-        sim_email = func.similarity(search_query_lower, func.lower(User.email))
+        # Объединённая строка, как в GIN TRGM индексе
+        combined_field = func.lower(
+            func.coalesce(User.first_name, '') + ' ' +
+            func.coalesce(User.last_name, '') + ' ' +
+            func.coalesce(User.position, '') + ' ' +
+            func.coalesce(User.email, '')
+        )
 
-        similarity_score = func.greatest(sim_first, sim_last, sim_position, sim_email).label("score")
+        similarity_score = func.similarity(combined_field, search_query_lower).label("score")
 
         stmt = (
             select(User, similarity_score)
-            .where(
-                or_(
-                    sim_first > threshold,
-                    sim_last > threshold,
-                    sim_position > threshold,
-                    sim_email > threshold
-                )
-            )
             .order_by(text("score DESC"))
             .limit(limit)
         )
@@ -117,7 +112,9 @@ class UserRepository:
         result = await self.db.execute(stmt)
         rows = result.tuples().all()
 
+        logger.info("Fuzzy search results for query '%s':", search_query)
         for user, score in rows:
             logger.info("User: %s, similarity: %.3f", user.email, score)
 
+        rows = [user for user, score in rows]
         return rows

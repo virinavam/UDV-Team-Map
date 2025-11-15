@@ -43,12 +43,15 @@ class User(TimeStampMixin, Base):
     )
 
     __table_args__ = (
-        Index("idx_users_first_name_trgm", func.lower(first_name), postgresql_using="gin",
-              postgresql_ops={"lower": "gin_trgm_ops"}),
-        Index("idx_users_last_name_trgm", func.lower(last_name), postgresql_using="gin",
-              postgresql_ops={"lower": "gin_trgm_ops"}),
-        Index("idx_users_position_trgm", func.lower(position), postgresql_using="gin",
-              postgresql_ops={"lower": "gin_trgm_ops"}),
-        Index("idx_users_email_trgm", func.lower(email), postgresql_using="gin",
-              postgresql_ops={"lower": "gin_trgm_ops"}),
+        Index(
+            "idx_users_fuzzy_search",
+            func.lower(
+                func.coalesce(first_name, '') + ' ' +
+                func.coalesce(last_name, '') + ' ' +
+                func.coalesce(position, '') + ' ' +
+                func.coalesce(email, '')
+            ),
+            postgresql_using="gin",
+            postgresql_ops={"lower": "gin_trgm_ops"}
+        ),
     )
