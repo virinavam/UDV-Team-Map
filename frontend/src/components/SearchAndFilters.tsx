@@ -16,7 +16,7 @@ import {
   Radio,
   RadioGroup,
   Text,
-  Badge,
+  Icon,
 } from "@chakra-ui/react";
 import { SearchIcon, ChevronDownIcon } from "@chakra-ui/icons";
 
@@ -99,145 +99,225 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
       borderColor="gray.200"
     >
       {/* Search Bar */}
-      <InputGroup flex={1} maxW="600px">
-        <InputLeftElement pointerEvents="none">
-          <SearchIcon color="gray.400" />
-        </InputLeftElement>
-        <Input
-          placeholder="Поиск сотрудника по ФИО, должности и почте..."
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          bg="white"
-          borderColor="gray.300"
-        />
-      </InputGroup>
+      <Box
+        display="flex"
+        flexDirection="column"
+        alignItems="flex-start"
+        p={0}
+        gap="4px"
+        flex={1}
+        minW="400px"
+        h="44px"
+      >
+        <InputGroup w="100%" h="44px">
+          <InputLeftElement pointerEvents="none" h="44px">
+            <SearchIcon color="gray.400" />
+          </InputLeftElement>
+          <Input
+            placeholder="Поиск сотрудника по ФИО, должности и почте..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            bg="white"
+            borderColor="gray.300"
+            h="44px"
+          />
+        </InputGroup>
+      </Box>
 
       {/* City Filter */}
-      <Popover
-        isOpen={isCityOpen}
-        onOpen={() => setIsCityOpen(true)}
-        onClose={() => setIsCityOpen(false)}
-        placement="bottom-start"
+      <Box
+        display="flex"
+        flexDirection="column"
+        alignItems="flex-start"
+        p={0}
+        gap="4px"
+        w="200px"
+        h="44px"
       >
-        <PopoverTrigger>
-          <Button
-            rightIcon={<ChevronDownIcon />}
-            variant="outline"
-            borderColor="gray.300"
-            bg="white"
-            _hover={{ bg: "gray.50" }}
-          >
-            Город
-            {selectedCity && (
-              <Badge ml={2} colorScheme="blue">
-                1
-              </Badge>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent w="250px">
-          <PopoverBody p={0}>
-            <VStack align="stretch" spacing={0}>
-              <Flex
-                justify="space-between"
-                p={3}
-                borderBottom="1px solid"
-                borderColor="gray.200"
-              >
-                <Button
-                  size="sm"
-                  bg="#763186" // фон кнопки
-                  color="white" // цвет текста
-                  _hover={{ bg: "#763186" }} // цвет при наведении (не менять)
-                  onClick={handleSkillsApply}
+        <Popover
+          isOpen={isCityOpen}
+          onOpen={() => setIsCityOpen(true)}
+          onClose={() => setIsCityOpen(false)}
+          placement="bottom-start"
+        >
+          <PopoverTrigger>
+            <Button
+              leftIcon={
+                <Box
+                  as="img"
+                  src="/filter.svg"
+                  alt="Filter"
+                  w="16px"
+                  h="14px"
+                />
+              }
+              rightIcon={<ChevronDownIcon />}
+              variant="outline"
+              borderColor="gray.300"
+              bg="white"
+              _hover={{ bg: "gray.50" }}
+              h="44px"
+              w="100%"
+            >
+              Город
+              {selectedCity && (
+                <Box
+                  ml={2}
+                  minW="20px"
+                  h="20px"
+                  borderRadius="full"
+                  bg="rgba(121, 129, 140, 0.12)"
+                  color="#79818C"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontSize="xs"
+                  fontWeight="semibold"
+                  px={1.5}
                 >
-                  Применить
-                </Button>
-                <Button size="sm" variant="ghost" onClick={handleCityReset}>
-                  Сбросить
-                </Button>
-              </Flex>
-              <Box p={3}>
-                <RadioGroup
-                  value={tempCity}
-                  onChange={(value) => setTempCity(value)}
+                  1
+                </Box>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent w="250px">
+            <PopoverBody p={0}>
+              <VStack align="stretch" spacing={0}>
+                <Flex
+                  justify="space-between"
+                  p={3}
+                  borderBottom="1px solid"
+                  borderColor="gray.200"
                 >
-                  <VStack align="start" spacing={2}>
-                    {cities.map((city) => (
-                      <Radio key={city} value={city}>
-                        {city}
-                      </Radio>
-                    ))}
-                  </VStack>
-                </RadioGroup>
-              </Box>
-            </VStack>
-          </PopoverBody>
-        </PopoverContent>
-      </Popover>
+                  <Button
+                    size="sm"
+                    bg="#763186" // фон кнопки
+                    color="white" // цвет текста
+                    _hover={{ bg: "#763186" }} // цвет при наведении (не менять)
+                    onClick={handleCityApply}
+                  >
+                    Применить
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleCityReset}>
+                    Сбросить
+                  </Button>
+                </Flex>
+                <Box p={3}>
+                  <RadioGroup
+                    value={tempCity}
+                    onChange={(value) => setTempCity(value)}
+                  >
+                    <VStack align="start" spacing={2}>
+                      {cities.map((city) => (
+                        <Radio key={city} value={city}>
+                          {city}
+                        </Radio>
+                      ))}
+                    </VStack>
+                  </RadioGroup>
+                </Box>
+              </VStack>
+            </PopoverBody>
+          </PopoverContent>
+        </Popover>
+      </Box>
 
       {/* Skills Filter */}
-      <Popover
-        isOpen={isSkillsOpen}
-        onOpen={() => setIsSkillsOpen(true)}
-        onClose={() => setIsSkillsOpen(false)}
-        placement="bottom-start"
+      <Box
+        display="flex"
+        flexDirection="column"
+        alignItems="flex-start"
+        p={0}
+        gap="4px"
+        w="200px"
+        h="44px"
       >
-        <PopoverTrigger>
-          <Button
-            rightIcon={<ChevronDownIcon />}
-            variant="outline"
-            borderColor="gray.300"
-            bg="white"
-            _hover={{ bg: "gray.50" }}
-          >
-            Навыки
-            {selectedSkills.length > 0 && (
-              <Badge ml={2} colorScheme="blue">
-                {selectedSkills.length}
-              </Badge>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent w="300px" maxH="400px" overflowY="auto">
-          <PopoverBody p={0}>
-            <VStack align="stretch" spacing={0}>
-              <Flex
-                justify="space-between"
-                p={3}
-                borderBottom="1px solid"
-                borderColor="gray.200"
-              >
-                <Button
-                  size="sm"
-                  bg="#763186" // фон кнопки
-                  color="white" // цвет текста
-                  _hover={{ bg: "#763186" }} // цвет при наведении (не менять)
-                  onClick={handleSkillsApply}
+        <Popover
+          isOpen={isSkillsOpen}
+          onOpen={() => setIsSkillsOpen(true)}
+          onClose={() => setIsSkillsOpen(false)}
+          placement="bottom-start"
+        >
+          <PopoverTrigger>
+            <Button
+              leftIcon={
+                <Box
+                  as="img"
+                  src="/filter.svg"
+                  alt="Filter"
+                  w="16px"
+                  h="14px"
+                />
+              }
+              rightIcon={<ChevronDownIcon />}
+              variant="outline"
+              borderColor="gray.300"
+              bg="white"
+              _hover={{ bg: "gray.50" }}
+              h="44px"
+              w="100%"
+            >
+              Навыки
+              {selectedSkills.length > 0 && (
+                <Box
+                  ml={2}
+                  minW="20px"
+                  h="20px"
+                  borderRadius="full"
+                  bg="rgba(121, 129, 140, 0.12)"
+                  color="#79818C"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontSize="xs"
+                  fontWeight="semibold"
+                  px={1.5}
                 >
-                  Применить
-                </Button>
-                <Button size="sm" variant="ghost" onClick={handleSkillsReset}>
-                  Сбросить
-                </Button>
-              </Flex>
-              <Box p={3}>
-                <VStack align="start" spacing={2}>
-                  {skills.map((skill) => (
-                    <Checkbox
-                      key={skill}
-                      isChecked={tempSkills.includes(skill)}
-                      onChange={() => handleSkillToggle(skill)}
-                    >
-                      {skill}
-                    </Checkbox>
-                  ))}
-                </VStack>
-              </Box>
-            </VStack>
-          </PopoverBody>
-        </PopoverContent>
-      </Popover>
+                  {selectedSkills.length}
+                </Box>
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent w="300px" maxH="400px" overflowY="auto">
+            <PopoverBody p={0}>
+              <VStack align="stretch" spacing={0}>
+                <Flex
+                  justify="space-between"
+                  p={3}
+                  borderBottom="1px solid"
+                  borderColor="gray.200"
+                >
+                  <Button
+                    size="sm"
+                    bg="#763186" // фон кнопки
+                    color="white" // цвет текста
+                    _hover={{ bg: "#763186" }} // цвет при наведении (не менять)
+                    onClick={handleSkillsApply}
+                  >
+                    Применить
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={handleSkillsReset}>
+                    Сбросить
+                  </Button>
+                </Flex>
+                <Box p={3}>
+                  <VStack align="start" spacing={2}>
+                    {skills.map((skill) => (
+                      <Checkbox
+                        key={skill}
+                        isChecked={tempSkills.includes(skill)}
+                        onChange={() => handleSkillToggle(skill)}
+                      >
+                        {skill}
+                      </Checkbox>
+                    ))}
+                  </VStack>
+                </Box>
+              </VStack>
+            </PopoverBody>
+          </PopoverContent>
+        </Popover>
+      </Box>
     </Flex>
   );
 };

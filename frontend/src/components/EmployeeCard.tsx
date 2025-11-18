@@ -1,16 +1,8 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Box,
-  VStack,
-  Text,
-  HStack,
-  Avatar,
-  Tag,
-  TagLabel,
-  Icon,
-} from "@chakra-ui/react";
+import { Box, VStack, Avatar, Tag, TagLabel, Icon } from "@chakra-ui/react";
 import { EmailIcon } from "@chakra-ui/icons";
+import { HStack, Text, Image } from "@chakra-ui/react";
 
 interface EmployeeCardProps {
   employee: {
@@ -21,6 +13,9 @@ interface EmployeeCardProps {
     email: string;
     skills: string[];
     photoUrl?: string;
+    status: "Активен" | "Не активен" | "В отпуске";
+    mattermost?: string;
+    telegram?: string;
   };
 }
 
@@ -37,7 +32,11 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
       borderRadius="lg"
       p={6}
       boxShadow="sm"
-      _hover={{ boxShadow: "md", transform: "translateY(-2px)", cursor: "pointer" }}
+      _hover={{
+        boxShadow: "md",
+        transform: "translateY(-2px)",
+        cursor: "pointer",
+      }}
       transition="all 0.2s"
       h="100%"
       display="flex"
@@ -56,53 +55,163 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
         </Box>
 
         {/* Name */}
-        <Text fontSize="lg" fontWeight="bold" textAlign="center" color="gray.800">
-          {employee.name}
-        </Text>
-
-        {/* Role */}
-        <HStack spacing={2} color="gray.600">
-          <Icon viewBox="0 0 24 24" w={4} h={4}>
-            <path
-              fill="currentColor"
-              d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"
-            />
-          </Icon>
-          <Text fontSize="sm">{employee.position}</Text>
-        </HStack>
-
-        {/* Location */}
-        <HStack spacing={2} color="gray.600">
-          <Icon viewBox="0 0 24 24" w={4} h={4}>
-            <path
-              fill="currentColor"
-              d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"
-            />
-          </Icon>
-          <Text fontSize="sm">{employee.city}</Text>
-        </HStack>
-
-        {/* Email */}
-        <HStack spacing={2} color="gray.600">
-          <EmailIcon w={4} h={4} />
-          <Text fontSize="sm" isTruncated>
-            {employee.email}
+        <Box
+          width="272px"
+          height="28px"
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          textAlign="center"
+          margin="0 auto" // чтобы центрировать по горизонтали
+        >
+          <Text
+            fontFamily="Golos, sans-serif"
+            fontStyle="normal"
+            fontWeight={700}
+            fontSize="24px"
+            lineHeight="28px"
+            color="#0B2027"
+          >
+            {employee.name}
           </Text>
+        </Box>
+
+        {/* Status Badge */}
+        <Box
+          display="flex"
+          flexDirection="row"
+          justifyContent="center"
+          alignItems="center"
+          px={2} // padding: 0 8px
+          height="22px"
+          width="118px"
+          bg="rgba(118, 49, 134, 0.1)"
+          borderRadius="30px"
+          margin="0 auto" // по центру под именем
+        >
+          {/* Фиолетовый кружок */}
+          <Box
+            width="8px"
+            height="8px"
+            bg="#763186"
+            borderRadius="50%"
+            mr={2} // отступ справа от кружка
+          />
+          <Text fontSize="sm" fontWeight="medium" color="gray.800">
+            {employee.status}{" "}
+            {/* поле status нужно добавить в объект сотрудника */}
+          </Text>
+        </Box>
+
+        {/* Role with icon */}
+        <HStack spacing={2} justify="center" align="center">
+          {/* Union SVG Icon */}
+          <Image
+            src="/role.svg" // путь относительно public
+            alt="Role icon"
+            boxSize="16px" // ширина и высота
+          />
+
+          {/* Position text */}
+          <Text fontSize="sm" fontWeight="medium" color="black">
+            {employee.position}
+          </Text>
+        </HStack>
+
+        {/* Location with icon */}
+        <HStack spacing={2} justify="center" align="center">
+          {/* Location SVG Icon */}
+          <Image
+            src="/location.svg" // путь относительно public
+            alt="Location icon"
+            boxSize="16px" // ширина и высота иконки
+          />
+
+          {/* City text */}
+          <Text fontSize="sm" color="black">
+            {employee.city}
+          </Text>
+        </HStack>
+
+        {/* Divider line */}
+        <Box
+          height="1px" // толщина линии
+          width="100%" // растянуть на всю ширину карточки
+          bg="#E8E8E8" // цвет линии
+          my={1} // отступ сверху и снизу
+        />
+
+        <HStack spacing={4} justify="center" align="center">
+          {/* Email */}
+          {employee.email && (
+            <a
+              href={`mailto:${employee.email}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Image
+                src="/mail.svg" // путь к иконке в public
+                alt="Email"
+                boxSize="20px" // ширина и высота иконки
+                cursor="pointer" // чтобы курсор менялся на pointer
+              />
+            </a>
+          )}
+
+          {/* Mattermost */}
+          {employee.mattermost && (
+            <a
+              href={`mattermost://user?email=${employee.mattermost}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Image src="/mattermost.svg" alt="Mattermost" boxSize="20px" />
+            </a>
+          )}
+
+          {/* Telegram */}
+          {employee.telegram && (
+            <a
+              href={`https://t.me/${employee.telegram.replace("@", "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Image src="/telegram.svg" alt="Telegram" boxSize="20px" />
+            </a>
+          )}
         </HStack>
 
         {/* Skills */}
         <Box mt="auto" pt={2}>
-          <HStack spacing={2} flexWrap="wrap">
+          <HStack spacing={2} flexWrap="wrap" justify="center" align="center">
             {employee.skills.map((skill) => (
-              <Tag
+              <Box
                 key={skill}
-                size="sm"
-                bg="blue.50"
-                color="blue.700"
-                borderRadius="full"
+                display="flex"
+                flexDirection="column"
+                justifyContent="center"
+                alignItems="center"
+                px={2} // горизонтальные отступы, текст растянет блок
+                height="22px" // фиксированная высота
+                bg="rgba(0, 210, 157, 0.12)" // зелёный фон
+                borderRadius="30px"
+                flex="none"
+                order={0}
+                flexGrow={0}
               >
-                <TagLabel>{skill}</TagLabel>
-              </Tag>
+                <Text
+                  fontStyle="normal"
+                  fontWeight={500}
+                  fontSize="13px"
+                  lineHeight="16px"
+                  color="rgba(25, 28, 48, 0.9)"
+                  display="flex"
+                  alignItems="center"
+                  textAlign="center"
+                >
+                  {skill}
+                </Text>
+              </Box>
             ))}
           </HStack>
         </Box>
@@ -112,4 +221,3 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
 };
 
 export default EmployeeCard;
-

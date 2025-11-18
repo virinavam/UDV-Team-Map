@@ -38,4 +38,5 @@ export interface Employee {
   contractNumber?: string; // Номер трудового договора
   description?: string; // Описание
   comment?: string; // Комментарий
+  status: "Активен" | "Не активен" | "В отпуске"; //Статус сотрудника
 }

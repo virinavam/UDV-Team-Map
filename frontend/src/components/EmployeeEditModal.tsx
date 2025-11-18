@@ -104,8 +104,10 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
       city: formData.city || "",
       email: formData.email || "",
       skills: formData.skills || [],
-      ...formData,
+      status: formData.status || "Активен",
+      ...formData, // остальные поля
     };
+
     onSave(employeeData);
   };
 

@@ -32,8 +32,21 @@ const EmployeesPage: React.FC<EmployeesPageProps> = () => {
         const query = searchQuery.toLowerCase();
         const searchableText =
           `${employee.name} ${employee.position} ${employee.email}`.toLowerCase();
-        if (!searchableText.includes(query)) {
-          return false;
+        if (searchQuery) {
+          const queryWords = searchQuery
+            .toLowerCase()
+            .split(" ")
+            .filter(Boolean); // убираем пустые строки
+
+          const searchableText =
+            `${employee.name} ${employee.position} ${employee.email}`.toLowerCase();
+
+          // проверяем, что каждое слово встречается где-то в searchableText
+          // сейчас, например, "Смирнова Product" → разделяется на ["смирнова", "product"]
+          const matches = queryWords.every((word) =>
+            searchableText.includes(word)
+          );
+          if (!matches) return false;
         }
       }
 
@@ -85,5 +98,7 @@ const EmployeesPage: React.FC<EmployeesPageProps> = () => {
     </MainLayout>
   );
 };
+
+interface EmployeesPageProps {}
 
 export default EmployeesPage;

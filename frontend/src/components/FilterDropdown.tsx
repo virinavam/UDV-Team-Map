@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -9,7 +9,6 @@ import {
   Checkbox,
   VStack,
   HStack,
-  Text,
   useDisclosure,
 } from "@chakra-ui/react";
 import { ChevronDownIcon } from "@chakra-ui/icons";
@@ -37,31 +36,34 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tempSelection, setTempSelection] = useState<string[]>(selectedValues);
 
+  // Синхронизация временного выбора с внешними selectedValues
   useEffect(() => {
     setTempSelection(selectedValues);
   }, [selectedValues]);
 
+  // Переключение выбора
+  const handleToggle = (value: string) => {
+    setTempSelection((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value]
+    );
+  };
+
+  // Применить выбранные значения
   const handleApply = () => {
     onSelectionChange(tempSelection);
     onClose();
   };
 
+  // Сбросить выбор
   const handleReset = () => {
     setTempSelection([]);
     onSelectionChange([]);
     onClose();
   };
 
-  const handleToggle = (value: string) => {
-    if (tempSelection.includes(value)) {
-      setTempSelection(tempSelection.filter((v) => v !== value));
-    } else {
-      setTempSelection([...tempSelection, value]);
-    }
-  };
-
+  // Отображение количества выбранных опций
   const count = selectedValues.length;
-  const displayLabel = showCount && count > 0 ? `${label} ${count}` : label;
+  const displayLabel = showCount && count > 0 ? `${label} (${count})` : label;
 
   return (
     <Menu isOpen={isOpen} onOpen={onOpen} onClose={onClose}>
@@ -75,6 +77,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
       >
         {displayLabel}
       </MenuButton>
+
       <MenuList minW="200px" p={4}>
         <VStack align="stretch" spacing={3}>
           <HStack justify="space-between">
@@ -87,17 +90,14 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
             >
               Применить
             </Button>
-
             <Button size="sm" variant="outline" onClick={handleReset}>
               Сбросить
             </Button>
           </HStack>
+
           <Box maxH="300px" overflowY="auto">
             {options.map((option) => (
-              <MenuItem
-                key={option.value}
-                onClick={() => handleToggle(option.value)}
-              >
+              <MenuItem key={option.value} cursor="default">
                 <Checkbox
                   isChecked={tempSelection.includes(option.value)}
                   onChange={() => handleToggle(option.value)}
