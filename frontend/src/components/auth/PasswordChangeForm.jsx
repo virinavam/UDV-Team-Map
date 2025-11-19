@@ -41,6 +41,15 @@ export default function PasswordChangeForm({ onSuccess, onBack }) {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Введите новый пароль"
             required
+            borderColor="#763186"
+            _focus={{
+              borderColor: "#763186",
+              boxShadow: "0 0 0 1px #763186",
+            }}
+            _hover={{
+              borderColor: "#763186",
+              boxShadow: "0 0 0 1px #763186",
+            }}
           />
         </FormControl>
 
@@ -52,6 +61,15 @@ export default function PasswordChangeForm({ onSuccess, onBack }) {
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Подтвердите пароль"
             required
+            borderColor="#763186"
+            _focus={{
+              borderColor: "#763186",
+              boxShadow: "0 0 0 1px #763186",
+            }}
+            _hover={{
+              borderColor: "#763186",
+              boxShadow: "0 0 0 1px #763186",
+            }}
           />
         </FormControl>
 
@@ -62,10 +80,10 @@ export default function PasswordChangeForm({ onSuccess, onBack }) {
           w="435px"
           h="44px"
           borderRadius="12px"
-          bg="#526ED3"
+          bg="#763186"
           color="white"
           isLoading={loading}
-          _hover={{ bg: "#4356b0" }}
+          _hover={{ bg: "#763186" }}
         >
           Войти
         </Button>
@@ -76,7 +94,7 @@ export default function PasswordChangeForm({ onSuccess, onBack }) {
           h="44px"
           borderRadius="12px"
           bg="#F4F4F4"
-          color="#526ED3"
+          color="#763186"
           onClick={onBack}
           _hover={{ bg: "#F4F4F4" }}
         >

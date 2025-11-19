@@ -31,6 +31,15 @@ export default function PasswordResetForm({ onSuccess, onBack }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="your.email@udv.com"
             required
+            borderColor="#763186"
+            _focus={{
+              borderColor: "#763186",
+              boxShadow: "0 0 0 1px #763186",
+            }}
+            _hover={{
+              borderColor: "#763186",
+              boxShadow: "0 0 0 1px #763186",
+            }}
           />
         </FormControl>
 
@@ -39,10 +48,10 @@ export default function PasswordResetForm({ onSuccess, onBack }) {
           w="435px"
           h="44px"
           borderRadius="12px"
-          bg="#526ED3"
+          bg="#763186"
           color="white"
           isLoading={loading}
-          _hover={{ bg: "#4356b0" }}
+          _hover={{ bg: "#763186" }}
         >
           Отправить письмо
         </Button>
@@ -52,7 +61,7 @@ export default function PasswordResetForm({ onSuccess, onBack }) {
           w="435px"
           h="44px"
           borderRadius="12px"
-          color="#526ED3"
+          color="#763186"
           bg="#F4F4F4"
           _hover={{ bg: "#F4F4F4" }}
           onClick={onBack}
