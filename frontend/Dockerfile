@@ -1,20 +1,19 @@
 FROM node:20-alpine
 
-# Устанавливаем рабочую директорию
+# Рабочая директория
 WORKDIR /app
 
-# Копируем package.json для установки зависимостей (node_modules будет создан на этапе сборки)
-COPY package.json package-lock.json* ./
+# Копируем package.json и package-lock.json
+COPY package*.json ./
 
-# Устанавливаем зависимости. Если package-lock.json нет - команда fallbacks на npm install
-RUN npm ci --silent || npm install --silent
+# Устанавливаем зависимости
+RUN npm install --silent
 
-# Копируем остальной код (это нужно для сборки node_modules в образе)
+# Копируем весь код
 COPY . .
 
-# Открываем порт dev-сервера Vite (по-умолчанию 5173)
+# Открываем порт Vite
 EXPOSE 5173
 
-# В режиме разработки запускать Vite (hot reload). В production вы можете запускать сборку `npm run build`.
-CMD ["npm", "run", "dev"]
-
+# Запускаем dev-сервер Vite на 0.0.0.0
+CMD ["npm", "run", "dev", "--", "--host"]
