@@ -1,12 +1,16 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func, or_, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import User
 from app.schemas.user import UserRegisterRequest
+
+from app.logger import get_logger
+
+logger = get_logger()
 
 
 class UserRepository:
@@ -85,3 +89,32 @@ class UserRepository:
 
         user = result.scalar_one_or_none()
         return user
+
+    async def search_users_fuzzy(self, search_query: str, limit: int = 10):
+        search_query_lower = search_query.lower()
+
+        # Объединённая строка, как в GIN TRGM индексе
+        combined_field = func.lower(
+            func.coalesce(User.first_name, '') + ' ' +
+            func.coalesce(User.last_name, '') + ' ' +
+            func.coalesce(User.position, '') + ' ' +
+            func.coalesce(User.email, '')
+        )
+
+        similarity_score = func.similarity(combined_field, search_query_lower).label("score")
+
+        stmt = (
+            select(User, similarity_score)
+            .order_by(text("score DESC"))
+            .limit(limit)
+        )
+
+        result = await self.db.execute(stmt)
+        rows = result.tuples().all()
+
+        logger.info("Fuzzy search results for query '%s':", search_query)
+        for user, score in rows:
+            logger.info("User: %s, similarity: %.3f", user.email, score)
+
+        rows = [user for user, score in rows]
+        return rows
