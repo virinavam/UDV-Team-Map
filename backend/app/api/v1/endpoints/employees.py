@@ -79,7 +79,7 @@ async def read_active_employees(user_service: UserService = Depends(get_user_ser
 async def search_employees(
         q: str,
         city: Optional[str] = Query(None, description="Фильтр по городу"),
-        skills: Optional[list[str]] = Query(None, description="Фильтр по навыкам (может быть несколько)"),
+        # skills: Optional[list[str]] = Query(None, description="Фильтр по навыкам (может быть несколько)"),
         user_service: UserService = Depends(get_user_service)
 ):
     """
@@ -91,4 +91,5 @@ async def search_employees(
     returns:
         Sequence[User]: Список пользователей, соответствующих критериям поиска.
     """
-    return await user_service.search_users(search_query=q, city=city, skills=skills)
+    # return await user_service.search_users(search_query=q, city=city, skills=skills)
+    return await user_service.search_users(search_query=q, city=city)
