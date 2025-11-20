@@ -90,7 +90,7 @@ class UserRepository:
         user = result.scalar_one_or_none()
         return user
 
-    async def search_users_fuzzy(self, search_query: str, limit: int = 10):
+    async def search_users_fuzzy(self, search_query: str, city: str | None = None, skills: list | None = None) -> Sequence[User]:
         search_query_lower = search_query.lower()
 
         # Объединённая строка, как в GIN TRGM индексе
@@ -106,8 +106,10 @@ class UserRepository:
         stmt = (
             select(User, similarity_score)
             .order_by(text("score DESC"))
-            .limit(limit)
         )
+
+        if city:
+            stmt = stmt.filter(func.lower(User.city) == city.lower())
 
         result = await self.db.execute(stmt)
         rows = result.tuples().all()

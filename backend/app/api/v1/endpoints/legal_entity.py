@@ -1,14 +1,16 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.enums import RoleEnum
+from app.exceptions.legal_entity import LegalEntityNotFound, LegalEntityAlreadyExists
 from app.logger import get_logger
 from app.schemas.legal_entity import LegalEntityRead, LegalEntityCreate, LegalEntityUpdate
 from app.services.legal_entity_service import LegalEntityService
 from app.utils.auth import require_roles
+from starlette import status
 
 le_router = APIRouter()
 logger = get_logger()
@@ -35,7 +37,10 @@ async def read_legal_entities(le_service: LegalEntityService = Depends(get_le_se
 async def create_legal_entity(data: LegalEntityCreate, le_service: LegalEntityService = Depends(get_le_service)):
     """Создает новое юридическое лицо.
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
-    return await le_service.create_legal_entity(data.name)
+    try:
+        return await le_service.create_legal_entity(data.name)
+    except LegalEntityAlreadyExists as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @le_router.get("/{le_id}",
@@ -44,7 +49,10 @@ async def create_legal_entity(data: LegalEntityCreate, le_service: LegalEntitySe
                dependencies=[Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def read_legal_entity(le_id: UUID, le_service: LegalEntityService = Depends(get_le_service)):
     """Получает юридическое лицо по его UUID."""
-    return await le_service.get_legal_entity(le_id)
+    try:
+        return await le_service.get_legal_entity(le_id)
+    except LegalEntityNotFound as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @le_router.patch("/{le_id}",
@@ -55,7 +63,12 @@ async def update_legal_entity(le_id: UUID, updates: LegalEntityUpdate,
                               le_service: LegalEntityService = Depends(get_le_service)):
     """Обновляет данные юридического лица.
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
-    return await le_service.update_legal_entity(le_id, updates)
+    try:
+        return await le_service.update_legal_entity(le_id, updates)
+    except LegalEntityAlreadyExists as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except LegalEntityNotFound as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @le_router.delete("/{le_id}",
@@ -65,5 +78,8 @@ async def update_legal_entity(le_id: UUID, updates: LegalEntityUpdate,
 async def delete_legal_entity(le_id: UUID, le_service: LegalEntityService = Depends(get_le_service)):
     """Удаляет юридическое лицо.
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
-    await le_service.delete_legal_entity(le_id)
-    logger.info("Юридическое лицо с ID %s успешно удалено.", le_id)
+    try:
+        await le_service.delete_legal_entity(le_id)
+        logger.info("Юридическое лицо с ID %s успешно удалено.", le_id)
+    except LegalEntityNotFound as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
