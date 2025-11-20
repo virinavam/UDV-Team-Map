@@ -10,7 +10,7 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     ports:
       - "5432:5432"
-    healthcheck: # Проверка готовности БД перед запуском бэкенда
+    healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
       timeout: 5s
@@ -35,11 +35,10 @@ services:
     env_file:
       - .env
     ports:
-      - "5173:5173" # Vite dev server
+      - "5173:5173"
     volumes:
-      - ./frontend:/app:delegated # монтируем код для hot-reload
-      - /app/node_modules # локальный node_modules в контейнере (чтобы host не перезаписывал)
-    # Пробрасываем аргумент --host, чтобы Vite слушал на 0.0.0.0 и был доступен из других контейнеров
+      - ./frontend:/app:delegated
+      - /app/node_modules
     command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
     depends_on:
       - backend

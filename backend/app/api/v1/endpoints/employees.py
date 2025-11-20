@@ -1,7 +1,7 @@
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -60,3 +60,35 @@ async def deactivate_employee(user_id: UUID,
     """Помечает сотрудника как неактивного.
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
     return await user_service.deactivate_user(user_id)
+
+
+@employees_router.get("/active/",
+                      response_model=list[UserRead],
+                      summary="Получить всех активных сотрудников",
+                      dependencies=[
+                          Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def read_active_employees(user_service: UserService = Depends(get_user_service)):
+    return await user_service.get_all_active_users()
+
+
+@employees_router.get("/search/",
+                      response_model=list[UserRead],
+                      summary="Поиск сотрудников по имени, фамилии, должности или email",
+                      dependencies=[
+                          Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def search_employees(
+        q: str,
+        city: Optional[str] = Query(None, description="Фильтр по городу"),
+        # skills: Optional[list[str]] = Query(None, description="Фильтр по навыкам (может быть несколько)"),
+        user_service: UserService = Depends(get_user_service)
+):
+    """
+    Выполняет нечеткий поиск по имени, фамилии, должности и email.
+    args:
+        q (str): Строка поиска.
+        city (Optional[str]): Название города для фильтрации.
+    returns:
+        Sequence[User]: Список пользователей, соответствующих критериям поиска.
+    """
+    # return await user_service.search_users(search_query=q, city=city, skills=skills)
+    return await user_service.search_users(search_query=q, city=city)

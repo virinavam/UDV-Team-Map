@@ -1,10 +1,11 @@
-from sqlalchemy import Column, String, Boolean, Text, Date, ForeignKey, text
+from sqlalchemy import Column, String, Boolean, Text, Date, ForeignKey, text, Index, func
 from sqlalchemy.dialects.postgresql import UUID, ENUM
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base
 from app.models.mixins import TimeStampMixin
 from app.enums import RoleEnum, EmployeeStatusEnum
+from app.models.skills import user_skills_association
 
 
 class User(TimeStampMixin, Base):
@@ -29,6 +30,13 @@ class User(TimeStampMixin, Base):
     # Активен ли сотрудник в системе (технический флаг)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
 
+    skills = relationship(
+        "Skill",
+        secondary=user_skills_association,
+        back_populates="users",
+        lazy="selectin"
+    )
+
     department = relationship(
         "Department",
         back_populates="employees",
@@ -42,3 +50,16 @@ class User(TimeStampMixin, Base):
         foreign_keys="Department.manager_id"
     )
 
+    __table_args__ = (
+        Index(
+            "idx_users_fuzzy_search",
+            func.lower(
+                func.coalesce(first_name, '') + ' ' +
+                func.coalesce(last_name, '') + ' ' +
+                func.coalesce(position, '') + ' ' +
+                func.coalesce(email, '')
+            ),
+            postgresql_using="gin",
+            postgresql_ops={"lower": "gin_trgm_ops"}
+        ),
+    )

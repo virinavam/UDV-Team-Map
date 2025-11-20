@@ -7,5 +7,5 @@ __all__ = [
     "Base",
     "User",
     "Department",
-    "LegalEntity"
+    "LegalEntity",
 ]
