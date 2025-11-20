@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.database import get_db
 from app.enums import RoleEnum
+from app.exceptions.skill import SkillAlreadyExistsError, SkillNotFoundError
 from app.logger import get_logger
 from app.services.skill_service import SkillService
 from app.schemas.skill import SkillCreate, SkillUpdate, SkillRead
@@ -33,7 +34,10 @@ async def get_all_skills(skill_service: SkillService = Depends(get_skill_service
                     dependencies=[
                         Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def create_skill(skill: SkillCreate, skill_service: SkillService = Depends(get_skill_service)):
-    return await skill_service.create_skill(skill)
+    try:
+        return await skill_service.create_skill(skill)
+    except SkillAlreadyExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @skills_router.patch("/{skill_id}", response_model=SkillRead,
@@ -41,7 +45,12 @@ async def create_skill(skill: SkillCreate, skill_service: SkillService = Depends
                      dependencies=[
                          Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def update_skill(skill_id: UUID, skill: SkillUpdate, skill_service: SkillService = Depends(get_skill_service)):
-    return await skill_service.update_skill(skill_id, skill)
+    try:
+        return await skill_service.update_skill(skill_id, skill)
+    except SkillAlreadyExistsError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except SkillNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
 @skills_router.delete("/{skill_id}",
@@ -50,5 +59,8 @@ async def update_skill(skill_id: UUID, skill: SkillUpdate, skill_service: SkillS
                       dependencies=[
                           Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def delete_skill(skill_id: UUID, skill_service: SkillService = Depends(get_skill_service)):
-    await skill_service.delete_skill(skill_id)
-    logger.info("Навык с ID %s успешно удален.", skill_id)
+    try:
+        await skill_service.delete_skill(skill_id)
+        logger.info("Навык с ID %s успешно удален.", skill_id)
+    except SkillNotFoundError as e:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

@@ -1,10 +1,9 @@
-from fastapi import HTTPException
-from starlette import status
 from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions.skill import SkillAlreadyExistsError, SkillNotFoundError
 from app.models.skills import Skill
 from app.repositories.skill_repository import SkillRepository
 from app.schemas.skill import SkillCreate, SkillUpdate
@@ -19,10 +18,7 @@ class SkillService:
         existing = await self.skill_repo.get_skill_by_name(name)
 
         if existing and existing.id != ignore_id:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Навык с именем '{name}' уже существует."
-            )
+            raise SkillAlreadyExistsError(f"Навык с именем '{name}' уже существует.")
 
     async def create_skill(self, create_data: SkillCreate) -> Skill:
         """Создает новый навык."""
@@ -36,10 +32,7 @@ class SkillService:
         skill = await self.skill_repo.get_by_id(skill_id)
 
         if not skill:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Навык не найден."
-            )
+            raise SkillNotFoundError("Навык не найден.")
         return skill
 
     async def get_all_skills(self) -> Sequence[Skill]:
@@ -51,10 +44,7 @@ class SkillService:
         skill = await self.skill_repo.get_by_id(skill_id)
 
         if not skill:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Навык не найден."
-            )
+            raise SkillNotFoundError("Навык не найден.")
 
         update_data = updates.model_dump(exclude_unset=True)
 
@@ -70,9 +60,6 @@ class SkillService:
         skill = await self.skill_repo.get_by_id(skill_id)
 
         if not skill:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Навык не найден."
-            )
+            raise SkillNotFoundError("Навык не найден.")
 
         await self.skill_repo.delete_skill(skill)
