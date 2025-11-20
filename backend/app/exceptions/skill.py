@@ -1,4 +1,4 @@
-from service import ServiceError
+from app.exceptions.service import ServiceError
 
 
 class SkillError(ServiceError):

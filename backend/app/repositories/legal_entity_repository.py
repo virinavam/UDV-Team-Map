@@ -25,6 +25,20 @@ class LegalEntityRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_by_name(self, legal_entity_name: str) -> LegalEntity | None:
+        """Получает юрлицо по названию"""
+        result = await self.db.execute(
+            select(LegalEntity)
+            .where(LegalEntity.name == legal_entity_name)
+            .options(
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.employees),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.manager)
+            )
+        )
+        return result.scalar_one_or_none()
+
     async def get_all_legal_entities(self) -> Sequence[LegalEntity]:
         """Получает список всех юридических лиц."""
         result = await self.db.execute(
