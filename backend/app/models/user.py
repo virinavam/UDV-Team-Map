@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 from app.models.mixins import TimeStampMixin
 from app.enums import RoleEnum, EmployeeStatusEnum
+from app.models.skills import user_skills_association
 
 
 class User(TimeStampMixin, Base):
@@ -28,6 +29,13 @@ class User(TimeStampMixin, Base):
     employee_status = Column(ENUM(EmployeeStatusEnum), nullable=True)  # Редактируемый пользователем статус
     # Активен ли сотрудник в системе (технический флаг)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
+
+    skills = relationship(
+        "Skill",
+        secondary=user_skills_association,
+        back_populates="users",
+        lazy="selectin"
+    )
 
     department = relationship(
         "Department",
