@@ -8,7 +8,7 @@ class UserError(ServiceError):
 
 
 class UserNotFound(UserError):
-    def __init__(self, identifier: str | UUID  | None = None):
+    def __init__(self, identifier: str | UUID | None = None):
 
         if identifier is None:
             message = "User not found"

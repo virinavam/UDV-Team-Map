@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
+
 from app.schemas.department import DepartmentReadSmall
 
 

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from sqlalchemy import select, Sequence, update, func, delete
+from sqlalchemy import Sequence, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,8 +29,7 @@ class DepartmentRepository:
     async def get_all_departments(self) -> Sequence[Department]:
         """Получает список всех департаментов."""
         result = await self.db.execute(
-            select(Department)
-            .options(
+            select(Department).options(
                 selectinload(Department.manager),
                 selectinload(Department.employees),
                 selectinload(Department.subdepartments).selectinload(Department.manager),
@@ -51,12 +50,7 @@ class DepartmentRepository:
         """Обновляет данные департамента в БД."""
         department = await self.get_by_id(department_id)
         if update_data:
-            stmt = (
-                update(Department)
-                .where(Department.id == department_id)
-                .values(**update_data)
-                .returning(Department)
-            )
+            stmt = update(Department).where(Department.id == department_id).values(**update_data).returning(Department)
             await self.db.execute(stmt)
             await self.db.commit()
             await self.db.refresh(department)
@@ -65,17 +59,12 @@ class DepartmentRepository:
 
     async def count_subdepartments(self, departament_id: UUID) -> int:
         """Подсчитывает количество подотделов"""
-        stmt = select(func.count(Department.id)).where(
-            Department.parent_id == departament_id
-        )
+        stmt = select(func.count(Department.id)).where(Department.parent_id == departament_id)
         return await self.db.scalar(stmt)
 
     async def count_users(self, department_id: UUID) -> int:
         """Подсчитывает количество пользователей в департаменте"""
-        stmt = (
-            select(func.count(User.id))
-            .where(User.department_id == department_id)
-        )
+        stmt = select(func.count(User.id)).where(User.department_id == department_id)
         return await self.db.scalar(stmt)
 
     async def is_descendant(self, child_id: UUID, parent_id: UUID) -> bool:
@@ -95,9 +84,8 @@ class DepartmentRepository:
             .cte(name="department_tree", recursive=True)
         )
 
-        recursive_term = (
-            select(DepartmentTable.c.id, DepartmentTable.c.parent_id)
-            .join(anchor, DepartmentTable.c.parent_id == anchor.c.id)
+        recursive_term = select(DepartmentTable.c.id, DepartmentTable.c.parent_id).join(
+            anchor, DepartmentTable.c.parent_id == anchor.c.id
         )
 
         department_cte = anchor.union_all(recursive_term)

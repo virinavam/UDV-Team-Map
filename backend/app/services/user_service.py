@@ -3,6 +3,7 @@ from uuid import UUID
 from sqlalchemy import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logger import get_logger
 from app.exceptions.skill import SkillNotFound
 from app.exceptions.user import UserNotFound
 from app.models import User
@@ -10,7 +11,6 @@ from app.repositories.skill_repository import SkillRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.skill import SetSkillsRequest
 from app.schemas.user import UserUpdate
-from app.logger import get_logger
 
 logger = get_logger()
 
@@ -55,14 +55,12 @@ class UserService:
                 raise UserNotFound(user_id)
             return user
 
-        updated_user = await self.user_repository.update_user(
-            user_id=user_id,
-            update_data=update_data
-        )
+        updated_user = await self.user_repository.update_user(user_id=user_id, update_data=update_data)
         return updated_user
 
-    async def search_users(self, search_query: str, city: str | None = None, skills: list | None = None) -> Sequence[
-        User]:
+    async def search_users(
+        self, search_query: str, city: str | None = None, skills: list | None = None
+    ) -> Sequence[User]:
         """
         Выполняет нечеткий поиск по имени, фамилии, должности и email.
         args:

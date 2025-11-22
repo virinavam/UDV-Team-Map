@@ -1,20 +1,17 @@
-import requests
 import uuid
+
+import requests
 
 BASE_URL = "http://localhost:8000"
 
 
 # ===================== AUTH ENDPOINTS =====================
 
+
 def test_register_new_user():
     """Проверяем регистрацию нового пользователя"""
     user_email = f"testuser_{uuid.uuid4().hex[:8]}@example.com"
-    register_data = {
-        "email": user_email,
-        "password": "SecurePassword123",
-        "first_name": "Test",
-        "last_name": "User"
-    }
+    register_data = {"email": user_email, "password": "SecurePassword123", "first_name": "Test", "last_name": "User"}
 
     r = requests.post(f"{BASE_URL}/api/auth/register", json=register_data)
     assert r.status_code == 200
@@ -48,6 +45,7 @@ def test_refresh_token(auth_tokens):
 
 # ===================== EMPLOYEES ENDPOINTS =====================
 
+
 def test_get_employees(auth_header):
     """Проверяем получение списка всех сотрудников"""
     r = requests.get(f"{BASE_URL}/api/employees/", headers=auth_header)
@@ -66,7 +64,7 @@ def test_get_employees(auth_header):
 
 def test_get_employee_by_id(auth_header, auth_tokens):
     """Проверяем получение сотрудника по ID"""
-    user_id = auth_tokens['user_id']
+    user_id = auth_tokens["user_id"]
     r = requests.get(f"{BASE_URL}/api/employees/{user_id}", headers=auth_header)
     assert r.status_code == 200
     data = r.json()
@@ -79,17 +77,15 @@ def test_get_employee_by_id(auth_header, auth_tokens):
 
 def test_update_employee(auth_header, auth_tokens):
     """Проверяем обновление данных сотрудника"""
-    user_id = auth_tokens['user_id']
+    user_id = auth_tokens["user_id"]
     update_data = {
         "first_name": "UpdatedName",
         "position": "Senior Developer",
         "city": "Moscow",
-        "phone": "+79991234567"
+        "phone": "+79991234567",
     }
 
-    r = requests.patch(f"{BASE_URL}/api/employees/{user_id}",
-                       headers=auth_header,
-                       json=update_data)
+    r = requests.patch(f"{BASE_URL}/api/employees/{user_id}", headers=auth_header, json=update_data)
     assert r.status_code == 200
     data = r.json()
     assert data["first_name"] == "UpdatedName"
@@ -102,12 +98,7 @@ def test_deactivate_employee(auth_header, auth_tokens):
     """Проверяем деактивацию сотрудника"""
     # Сначала создаем нового сотрудника для деактивации
     user_email = f"deactivate_test_{uuid.uuid4().hex[:8]}@example.com"
-    register_data = {
-        "email": user_email,
-        "password": "Password123",
-        "first_name": "ToDeactivate",
-        "last_name": "User"
-    }
+    register_data = {"email": user_email, "password": "Password123", "first_name": "ToDeactivate", "last_name": "User"}
 
     register_resp = requests.post(f"{BASE_URL}/api/auth/register", json=register_data)
     assert register_resp.status_code == 200
@@ -122,14 +113,13 @@ def test_deactivate_employee(auth_header, auth_tokens):
 
 # ===================== LEGAL ENTITIES ENDPOINTS =====================
 
+
 def test_create_legal_entity(auth_header):
     """Проверяем создание юридического лица"""
     le_name = f"ООО TestCompany_{uuid.uuid4().hex[:6]}"
     create_data = {"name": le_name}
 
-    r = requests.post(f"{BASE_URL}/api/legal-entities/",
-                      headers=auth_header,
-                      json=create_data)
+    r = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=create_data)
     assert r.status_code == 200
     data = r.json()
     assert "id" in data
@@ -158,9 +148,7 @@ def test_get_legal_entity_by_id(auth_header):
     # Сначала создаем юридическое лицо
     le_name = f"ООО GetTest_{uuid.uuid4().hex[:6]}"
     create_data = {"name": le_name}
-    create_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                               headers=auth_header,
-                               json=create_data)
+    create_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=create_data)
     assert create_resp.status_code == 200
     le_id = create_resp.json()["id"]
 
@@ -177,18 +165,14 @@ def test_update_legal_entity(auth_header):
     # Сначала создаем юридическое лицо
     le_name = f"ООО UpdateTest_{uuid.uuid4().hex[:6]}"
     create_data = {"name": le_name}
-    create_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                               headers=auth_header,
-                               json=create_data)
+    create_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=create_data)
     assert create_resp.status_code == 200
     le_id = create_resp.json()["id"]
 
     # Обновляем его
     new_name = f"ООО UpdatedName_{uuid.uuid4().hex[:6]}"
     update_data = {"name": new_name}
-    r = requests.patch(f"{BASE_URL}/api/legal-entities/{le_id}",
-                       headers=auth_header,
-                       json=update_data)
+    r = requests.patch(f"{BASE_URL}/api/legal-entities/{le_id}", headers=auth_header, json=update_data)
     assert r.status_code == 200
     data = r.json()
     assert data["name"] == new_name
@@ -199,9 +183,7 @@ def test_delete_legal_entity(auth_header):
     # Сначала создаем юридическое лицо
     le_name = f"ООО DeleteTest_{uuid.uuid4().hex[:6]}"
     create_data = {"name": le_name}
-    create_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                               headers=auth_header,
-                               json=create_data)
+    create_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=create_data)
     assert create_resp.status_code == 200
     le_id = create_resp.json()["id"]
 
@@ -212,27 +194,21 @@ def test_delete_legal_entity(auth_header):
 
 # ===================== DEPARTMENTS ENDPOINTS =====================
 
+
 def test_create_department(auth_header):
     """Проверяем создание отдела"""
     # Сначала создаем юридическое лицо
     le_name = f"ООО DeptTest_{uuid.uuid4().hex[:6]}"
     le_create_data = {"name": le_name}
-    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                           headers=auth_header,
-                           json=le_create_data)
+    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=le_create_data)
     assert le_resp.status_code == 200
     le_id = le_resp.json()["id"]
 
     # Теперь создаем отдел
     dept_name = f"Department_{uuid.uuid4().hex[:6]}"
-    dept_data = {
-        "name": dept_name,
-        "legal_entity_id": le_id
-    }
+    dept_data = {"name": dept_name, "legal_entity_id": le_id}
 
-    r = requests.post(f"{BASE_URL}/api/departments/",
-                      headers=auth_header,
-                      json=dept_data)
+    r = requests.post(f"{BASE_URL}/api/departments/", headers=auth_header, json=dept_data)
     assert r.status_code == 200
     data = r.json()
     assert "id" in data
@@ -262,20 +238,13 @@ def test_get_department_by_id(auth_header):
     # Сначала создаем отдел
     le_name = f"ООО GetDeptTest_{uuid.uuid4().hex[:6]}"
     le_create_data = {"name": le_name}
-    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                           headers=auth_header,
-                           json=le_create_data)
+    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=le_create_data)
     assert le_resp.status_code == 200
     le_id = le_resp.json()["id"]
 
     dept_name = f"GetDept_{uuid.uuid4().hex[:6]}"
-    dept_data = {
-        "name": dept_name,
-        "legal_entity_id": le_id
-    }
-    create_resp = requests.post(f"{BASE_URL}/api/departments/",
-                               headers=auth_header,
-                               json=dept_data)
+    dept_data = {"name": dept_name, "legal_entity_id": le_id}
+    create_resp = requests.post(f"{BASE_URL}/api/departments/", headers=auth_header, json=dept_data)
     assert create_resp.status_code == 200
     dept_id = create_resp.json()["id"]
 
@@ -292,29 +261,20 @@ def test_update_department(auth_header):
     # Сначала создаем отдел
     le_name = f"ООО UpdateDeptTest_{uuid.uuid4().hex[:6]}"
     le_create_data = {"name": le_name}
-    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                           headers=auth_header,
-                           json=le_create_data)
+    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=le_create_data)
     assert le_resp.status_code == 200
     le_id = le_resp.json()["id"]
 
     dept_name = f"UpdateDept_{uuid.uuid4().hex[:6]}"
-    dept_data = {
-        "name": dept_name,
-        "legal_entity_id": le_id
-    }
-    create_resp = requests.post(f"{BASE_URL}/api/departments/",
-                               headers=auth_header,
-                               json=dept_data)
+    dept_data = {"name": dept_name, "legal_entity_id": le_id}
+    create_resp = requests.post(f"{BASE_URL}/api/departments/", headers=auth_header, json=dept_data)
     assert create_resp.status_code == 200
     dept_id = create_resp.json()["id"]
 
     # Обновляем его
     new_name = f"UpdatedDept_{uuid.uuid4().hex[:6]}"
     update_data = {"name": new_name}
-    r = requests.patch(f"{BASE_URL}/api/departments/{dept_id}",
-                       headers=auth_header,
-                       json=update_data)
+    r = requests.patch(f"{BASE_URL}/api/departments/{dept_id}", headers=auth_header, json=update_data)
     assert r.status_code == 200
     data = r.json()
     assert data["name"] == new_name
@@ -325,20 +285,13 @@ def test_delete_department(auth_header):
     # Сначала создаем отдел
     le_name = f"ООО DeleteDeptTest_{uuid.uuid4().hex[:6]}"
     le_create_data = {"name": le_name}
-    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/",
-                           headers=auth_header,
-                           json=le_create_data)
+    le_resp = requests.post(f"{BASE_URL}/api/legal-entities/", headers=auth_header, json=le_create_data)
     assert le_resp.status_code == 200
     le_id = le_resp.json()["id"]
 
     dept_name = f"DeleteDept_{uuid.uuid4().hex[:6]}"
-    dept_data = {
-        "name": dept_name,
-        "legal_entity_id": le_id
-    }
-    create_resp = requests.post(f"{BASE_URL}/api/departments/",
-                               headers=auth_header,
-                               json=dept_data)
+    dept_data = {"name": dept_name, "legal_entity_id": le_id}
+    create_resp = requests.post(f"{BASE_URL}/api/departments/", headers=auth_header, json=dept_data)
     assert create_resp.status_code == 200
     dept_id = create_resp.json()["id"]
 

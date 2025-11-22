@@ -5,6 +5,7 @@ from app.exceptions.service import ServiceError
 
 class SkillError(ServiceError):
     """Base class for all skill-related errors."""
+
     pass
 
 

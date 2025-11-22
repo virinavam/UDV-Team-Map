@@ -1,10 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import select, Sequence, update, func, delete
+from sqlalchemy import Sequence, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import LegalEntity, Department
+from app.models import Department, LegalEntity
 
 
 class LegalEntityRepository:
@@ -17,10 +17,8 @@ class LegalEntityRepository:
             select(LegalEntity)
             .where(LegalEntity.id == legal_entity_id)
             .options(
-                selectinload(LegalEntity.departments)
-                .selectinload(Department.employees),
-                selectinload(LegalEntity.departments)
-                .selectinload(Department.manager)
+                selectinload(LegalEntity.departments).selectinload(Department.employees),
+                selectinload(LegalEntity.departments).selectinload(Department.manager),
             )
         )
         return result.scalar_one_or_none()
@@ -31,10 +29,8 @@ class LegalEntityRepository:
             select(LegalEntity)
             .where(LegalEntity.name == legal_entity_name)
             .options(
-                selectinload(LegalEntity.departments)
-                .selectinload(Department.employees),
-                selectinload(LegalEntity.departments)
-                .selectinload(Department.manager)
+                selectinload(LegalEntity.departments).selectinload(Department.employees),
+                selectinload(LegalEntity.departments).selectinload(Department.manager),
             )
         )
         return result.scalar_one_or_none()
@@ -42,12 +38,9 @@ class LegalEntityRepository:
     async def get_all_legal_entities(self) -> Sequence[LegalEntity]:
         """Получает список всех юридических лиц."""
         result = await self.db.execute(
-            select(LegalEntity)
-            .options(
-                selectinload(LegalEntity.departments)
-                .selectinload(Department.employees),
-                selectinload(LegalEntity.departments)
-                .selectinload(Department.manager)
+            select(LegalEntity).options(
+                selectinload(LegalEntity.departments).selectinload(Department.employees),
+                selectinload(LegalEntity.departments).selectinload(Department.manager),
             )
         )
         return result.scalars().all()
@@ -81,9 +74,7 @@ class LegalEntityRepository:
     async def count_departments(self, legal_entity_id: UUID) -> int:
         """Подсчитывает количество отделов, связанных с юрлицом."""
         # Используем прямой SQL-запрос для эффективности
-        stmt = select(func.count(Department.id)).where(
-            Department.legal_entity_id == legal_entity_id
-        )
+        stmt = select(func.count(Department.id)).where(Department.legal_entity_id == legal_entity_id)
         # scalar_one возвращает одно значение (результат функции count)
         return await self.db.scalar(stmt)
 
