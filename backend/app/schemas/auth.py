@@ -8,3 +8,7 @@ class AuthResponse(BaseModel):
     refresh_token: str
     user_id: UUID
     role: RoleEnum
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str

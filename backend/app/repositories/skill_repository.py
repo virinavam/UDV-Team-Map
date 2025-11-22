@@ -43,13 +43,8 @@ class SkillRepository:
         """
         if not names:
             return []
-
-        # Приводим все имена к нижнему регистру для сравнения
         names_lower = [name.lower() for name in names]
-
-        # Используем .in_() для эффективного поиска по списку
         stmt = select(Skill).filter(func.lower(Skill.name).in_(names_lower))
-
         result = await self.db.execute(stmt)
         return result.scalars().all()
 

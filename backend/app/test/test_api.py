@@ -37,7 +37,7 @@ def test_login_user(auth_tokens):
 def test_refresh_token(auth_tokens):
     """Проверяем обновление токена"""
     refresh_token = auth_tokens["refresh_token"]
-    r = requests.post(f"{BASE_URL}/api/auth/refresh", params={"refresh_token": refresh_token})
+    r = requests.post(f"{BASE_URL}/api/auth/refresh", json={"refresh_token": refresh_token})
     assert r.status_code == 200
     data = r.json()
     assert "access_token" in data

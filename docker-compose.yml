@@ -1,5 +1,6 @@
 services:
   db:
+    container_name: postgres
     image: postgres:15-alpine
     restart: always
     environment:
@@ -17,6 +18,7 @@ services:
       retries: 5
 
   backend:
+    container_name: backend
     build: ./backend
     restart: always
     env_file:
@@ -30,6 +32,7 @@ services:
         condition: service_healthy
 
   frontend:
+    container_name: frontend
     build: ./frontend
     restart: unless-stopped
     env_file:
@@ -39,11 +42,12 @@ services:
     volumes:
       - ./frontend:/app:delegated
       - /app/node_modules
-    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+    command: [ "npm", "run", "dev", "--", "--host", "0.0.0.0" ]
     depends_on:
       - backend
 
   nginx:
+    container_name: nginx
     image: nginx:1.27.5-alpine3.21
     ports:
       - "80:80"
@@ -54,10 +58,11 @@ services:
       - frontend
 
   minio:
+    container_name: minio
     image: minio/minio:RELEASE.2025-05-24T17-08-30Z
     ports:
-      - "9000:9000" # API
-      - "9001:9001" # Console
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     environment:
@@ -66,6 +71,7 @@ services:
     command: server /data --console-address ":9001"
 
   prometheus:
+    container_name: prometheus
     image: prom/prometheus:v3.6.0
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -74,6 +80,7 @@ services:
       - "9090:9090"
 
   grafana:
+    container_name: grafana
     image: grafana/grafana-oss:11.5.8
     volumes:
       - grafana_data:/var/lib/grafana
@@ -84,7 +91,6 @@ services:
       - .env
     depends_on:
       - prometheus
-
 
 volumes:
   postgres_data:

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.logger import get_logger
 from app.models import User
-from app.schemas.auth import AuthResponse
+from app.schemas.auth import AuthResponse, RefreshRequest
 from app.schemas.user import UserLoginRequest, UserRegisterRequest, UserRead
 from app.services.auth_service import AuthService  # Импорт сервиса
 from app.utils.auth import get_current_user_by_credentials
@@ -46,40 +46,18 @@ async def login(
     return await auth_service.login_user(data)
 
 
-@auth_router.post("/refresh",
-                  response_model=AuthResponse,
-                  responses={
-                      401: {
-                          "description": "Ошибки авторизации",
-                          "content": {
-                              "application/json": {
-                                  "examples": {
-                                      "invalid_token_type": {
-                                          "summary": "Неверный тип токена",
-                                          "value": {"detail": "Ожидался refresh токен"},
-                                      },
-                                      "missing_subject": {
-                                          "summary": "Отсутствует идентификатор пользователя",
-                                          "value": {"detail": "Токен не содержит информации о пользователе"},
-                                      },
-                                      "user_not_found": {
-                                          "summary": "Пользователь не существует",
-                                          "value": {"detail": "Пользователь не найден"},
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                  })
+@auth_router.post("/refresh", response_model=AuthResponse)
 async def refresh(
-        refresh_token: str,
+        body: RefreshRequest,
         auth_service: AuthService = Depends(get_auth_service)
 ):
     """
-    Обновляет access и refresh токены, если refresh токен валиден.
+    Обновляет access токен, если refresh токен валиден.
     Логика вынесена в AuthService.
     """
-    return await auth_service.refresh_tokens(refresh_token)
+    auth_response = await auth_service.refresh_tokens(body.refresh_token)
+    auth_response.refresh_token = body.refresh_token
+    return auth_response
 
 
 @auth_router.get("/me", response_model=UserRead)
@@ -88,5 +66,3 @@ async def get_current_user(user: User = Depends(get_current_user_by_credentials)
     Получает информацию о текущем аутентифицированном пользователе.
     """
     return user
-
-

@@ -1,11 +1,12 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, update, func, or_, text
+from sqlalchemy import select, update, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import User
+from app.models.skills import user_skills_association, Skill
 from app.schemas.user import UserRegisterRequest
 
 from app.logger import get_logger
@@ -28,7 +29,8 @@ class UserRepository:
             select(User)
             .where(User.id == user_id)
             .options(
-                selectinload(User.managed_department)
+                selectinload(User.managed_department),
+                selectinload(User.skills)
             )
         )
         return result.scalar_one_or_none()
@@ -47,7 +49,11 @@ class UserRepository:
 
     async def get_all_users(self) -> Sequence[User]:
         """Получает список всех пользователей."""
-        result = await self.db.execute(select(User))
+        result = await self.db.execute(select(User)
+        .options(
+            selectinload(User.managed_department),
+            selectinload(User.skills)
+        ))
         return result.scalars().all()
 
     async def get_all_active_users(self) -> Sequence[User]:
@@ -90,7 +96,14 @@ class UserRepository:
         user = result.scalar_one_or_none()
         return user
 
-    async def search_users_fuzzy(self, search_query: str, city: str | None = None, skills: list | None = None) -> Sequence[User]:
+    async def set_skills(self, user_id: UUID, skills: Sequence[Skill]) -> User | None:
+        user = await self.get_by_id(user_id)
+        user.skills = list(skills)
+        await self.db.commit()
+        return await self.get_by_id(user_id)
+
+    async def search_users_fuzzy(self, search_query: str, city: str | None = None, skills: list | None = None) -> \
+            Sequence[User]:
         search_query_lower = search_query.lower()
 
         # Объединённая строка, как в GIN TRGM индексе
@@ -110,6 +123,15 @@ class UserRepository:
 
         if city:
             stmt = stmt.filter(func.lower(User.city) == city.lower())
+
+        if skills:
+            stmt = (
+                stmt.join(user_skills_association, user_skills_association.c.user_id == User.id)
+                .join(Skill, Skill.id == user_skills_association.c.skill_id)
+                .filter(func.lower(Skill.name).in_([s.lower() for s in skills]))
+                .group_by(User.id)
+                .having(func.count(func.distinct(Skill.name)) == len(skills))
+            )
 
         result = await self.db.execute(stmt)
         rows = result.tuples().all()
