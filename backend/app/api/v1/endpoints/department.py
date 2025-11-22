@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from starlette import status
 
 from app.deps.department import get_department_service
 from app.enums import RoleEnum
@@ -55,7 +56,7 @@ async def update_department(department_id: UUID, updates: DepartmentUpdate,
 
 
 @department_router.delete("/{department_id}",
-                          status_code=204,
+                          status_code=status.HTTP_204_NO_CONTENT,
                           summary="Удалить отдел",
                           dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))])
 async def delete_department(department_id: UUID,

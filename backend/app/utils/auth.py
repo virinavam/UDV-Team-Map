@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.database import get_db
+from app.deps.db import get_db
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.utils.tokens import decode_token
@@ -13,7 +13,6 @@ from app.core.logger import get_logger
 
 security = HTTPBearer()
 logger = get_logger()
-
 
 
 async def get_user_by_token(access_token: str, db: AsyncSession) -> User:
