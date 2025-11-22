@@ -1,6 +1,6 @@
 # Makefile для Alembic с Docker + Poetry
 
-CONTAINER=udv-team-map-backend-1
+CONTAINER=backend
 ALEMBIC=app/alembic.ini
 
 current:
@@ -33,6 +33,7 @@ endif
 up:
 	docker compose up -d
 	docker exec $(CONTAINER) poetry run alembic -c $(ALEMBIC) upgrade head
+	make urls
 
 up-rebuild:
 	docker compose build --no-cache
@@ -44,3 +45,14 @@ down:
 
 test:
 	docker exec -e PYTHONPATH=/app -w /app $(CONTAINER) poetry run pytest -v --disable-warnings
+
+urls:
+	@echo ""
+	@echo "============================================="
+	@echo "       ДОСТУПНЫЕ СЕРВИСЫ И ИХ АДРЕСА"
+	@echo "============================================="
+	@echo "Frontend:          http://localhost/"
+	@echo "API:               http://localhost/api/docs/"
+	@echo "MinIO Console:     http://localhost:9001"
+	@echo "============================================="
+	@echo ""

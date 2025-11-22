@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.exceptions.user import UserAlreadyExists
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import AuthResponse
 from app.schemas.user import UserLoginRequest, UserRegisterRequest
@@ -16,11 +17,9 @@ class AuthService:
 
     async def register_user(self, data: UserRegisterRequest) -> AuthResponse:
         """Обрабатывает регистрацию нового пользователя."""
-        if await self.user_repository.get_by_email(str(data.email)):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Пользователь с таким email уже существует"
-            )
+        email = str(data.email)
+        if await self.user_repository.get_by_email(email):
+            raise UserAlreadyExists(email)
 
         password_hash = get_password_hash(data.password)
         new_user = await self.user_repository.create_user(data, password_hash)
@@ -40,7 +39,7 @@ class AuthService:
         return self._generate_auth_response(user)
 
     async def refresh_tokens(self, refresh_token: str) -> AuthResponse:
-        """Обновляет access и refresh токены."""
+        """Обновляет access токен c помощью refresh"""
         payload = decode_token(refresh_token)
 
         if payload.get("type") != "refresh":

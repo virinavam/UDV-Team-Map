@@ -6,7 +6,7 @@ from starlette import status
 
 from app.database import get_db
 from app.enums import RoleEnum
-from app.exceptions.skill import SkillAlreadyExistsError, SkillNotFoundError
+from app.exceptions.skill import SkillAlreadyExists, SkillNotFound
 from app.logger import get_logger
 from app.services.skill_service import SkillService
 from app.schemas.skill import SkillCreate, SkillUpdate, SkillRead
@@ -36,7 +36,7 @@ async def get_all_skills(skill_service: SkillService = Depends(get_skill_service
 async def create_skill(skill: SkillCreate, skill_service: SkillService = Depends(get_skill_service)):
     try:
         return await skill_service.create_skill(skill)
-    except SkillAlreadyExistsError as e:
+    except SkillAlreadyExists as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
@@ -47,9 +47,9 @@ async def create_skill(skill: SkillCreate, skill_service: SkillService = Depends
 async def update_skill(skill_id: UUID, skill: SkillUpdate, skill_service: SkillService = Depends(get_skill_service)):
     try:
         return await skill_service.update_skill(skill_id, skill)
-    except SkillAlreadyExistsError as e:
+    except SkillAlreadyExists as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
-    except SkillNotFoundError as e:
+    except SkillNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
@@ -62,5 +62,5 @@ async def delete_skill(skill_id: UUID, skill_service: SkillService = Depends(get
     try:
         await skill_service.delete_skill(skill_id)
         logger.info("Навык с ID %s успешно удален.", skill_id)
-    except SkillNotFoundError as e:
+    except SkillNotFound as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
