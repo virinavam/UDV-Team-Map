@@ -12,8 +12,7 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
 
         if content_length and int(content_length) > self.max_upload_size:
             return JSONResponse(
-                {"detail": f"File too large. Max size is {self.max_upload_size // (1024 * 1024)}MB"},
-                status_code=413
+                {"detail": f"File too large. Max size is {self.max_upload_size // (1024 * 1024)}MB"}, status_code=413
             )
 
         return await call_next(request)

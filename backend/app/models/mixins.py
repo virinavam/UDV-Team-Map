@@ -1,10 +1,7 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import Column
-from sqlalchemy import TIMESTAMP
-from sqlalchemy import text
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import declarative_mixin
+from sqlalchemy import TIMESTAMP, Column, text
+from sqlalchemy.orm import Mapped, declarative_mixin
 
 
 @declarative_mixin

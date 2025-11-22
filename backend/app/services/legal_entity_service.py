@@ -1,12 +1,9 @@
-from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Sequence
+from uuid import UUID
 
-from app.exceptions.legal_entity import (
-    LegalEntityNotFound,
-    LegalEntityAlreadyExists,
-    LegalEntityInUse
-)
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.exceptions.legal_entity import LegalEntityAlreadyExists, LegalEntityInUse, LegalEntityNotFound
 from app.models import LegalEntity
 from app.repositories.legal_entity_repository import LegalEntityRepository
 from app.schemas.legal_entity import LegalEntityUpdate
@@ -51,10 +48,7 @@ class LegalEntityService:
         """Удаляет юридическое лицо, если нет связанных отделов."""
         departments_count = await self.le_repository.count_departments(legal_entity_id)
         if departments_count > 0:
-            raise LegalEntityInUse(
-                legal_entity_id,
-                details=f"{departments_count} department(s) linked"
-            )
+            raise LegalEntityInUse(legal_entity_id, details=f"{departments_count} department(s) linked")
         deleted_count = await self.le_repository.delete_legal_entity(legal_entity_id)
         if not deleted_count:
             raise LegalEntityNotFound(legal_entity_id)

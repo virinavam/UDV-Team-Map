@@ -1,10 +1,7 @@
 import logging
 import textwrap
 from copy import copy
-from typing import ClassVar
-from typing import Literal
-from typing import Optional
-
+from typing import ClassVar, Literal, Optional
 
 LoggerNameT = Literal["udv"]
 _logger: Optional[logging.Logger] = None

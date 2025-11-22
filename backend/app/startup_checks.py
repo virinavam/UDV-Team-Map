@@ -3,10 +3,10 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 
 from app.core.config import settings
+from app.core.logger import get_logger
 from app.enums import RoleEnum
 from app.models import User
 from app.utils.password import get_password_hash
-from app.core.logger import get_logger
 
 logger = get_logger()
 
@@ -48,9 +48,7 @@ async def init_default_admins(engine):
     async with AsyncSession(engine) as session:
         for user_data in users_to_create:
             # 1. Проверяем, существует ли пользователь
-            existing_user = await session.execute(
-                select(User).where(User.email == user_data["email"])
-            )
+            existing_user = await session.execute(select(User).where(User.email == user_data["email"]))
             if existing_user.scalar_one_or_none():
                 logger.info(f"User {user_data['email']} already exists. Skipping.")
                 continue

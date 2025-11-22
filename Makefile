@@ -56,3 +56,18 @@ urls:
 	@echo "MinIO Console:     http://localhost:9001"
 	@echo "============================================="
 	@echo ""
+
+lint:
+	cd backend && poetry run isort . --settings-path pyproject.toml
+	cd backend && poetry run flake8 --config setup.cfg
+	cd backend && poetry run black . --config pyproject.toml
+
+check_lint:
+	cd backend && poetry run isort . --settings-path pyproject.toml --check-only
+	cd backend && poetry run flake8 --config setup.cfg
+	cd backend && poetry run black . --config pyproject.toml --check
+
+check_lint_docker:
+	docker exec $(CONTAINER) poetry run isort . --settings-path pyproject.toml --check-only
+	docker exec $(CONTAINER) poetry run flake8 --config setup.cfg
+	docker exec $(CONTAINER) poetry run black . --config pyproject.toml --check

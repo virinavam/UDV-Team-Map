@@ -1,4 +1,4 @@
-from sqlalchemy import String, Column, func, Index, Table, UUID, ForeignKey
+from sqlalchemy import UUID, Column, ForeignKey, Index, String, Table, func
 from sqlalchemy.orm import relationship
 
 from app.models import Base
@@ -19,11 +19,7 @@ class Skill(TimeStampMixin, Base):
     name = Column(String(100), unique=True, nullable=False)
 
     # Обратная связь к пользователям
-    users = relationship(
-        "User",
-        secondary=user_skills_association,
-        back_populates="skills"
-    )
+    users = relationship("User", secondary=user_skills_association, back_populates="skills")
 
     __table_args__ = (
         # Индекс для быстрого и регистронезависимого поиска по имени навыка

@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
+
 from app.core.logger import get_logger
 from app.deps.auth import get_auth_service
 from app.models import User
 from app.schemas.auth import AuthResponse, RefreshRequest
-from app.schemas.user import UserLoginRequest, UserRegisterRequest, UserRead
+from app.schemas.user import UserLoginRequest, UserRead, UserRegisterRequest
 from app.services.auth_service import AuthService  # Импорт сервиса
 from app.utils.auth import get_current_user_by_credentials
 
@@ -12,10 +13,7 @@ logger = get_logger()
 
 
 @auth_router.post("/register", response_model=AuthResponse)
-async def register(
-        data: UserRegisterRequest,
-        auth_service: AuthService = Depends(get_auth_service)
-):
+async def register(data: UserRegisterRequest, auth_service: AuthService = Depends(get_auth_service)):
     """
     Регистрирует нового пользователя и возвращает токены.
     Логика вынесена в AuthService.
@@ -28,10 +26,7 @@ async def register(
     response_model=AuthResponse,
     responses={401: {"description": "Неверный email или пароль"}},
 )
-async def login(
-        data: UserLoginRequest,
-        auth_service: AuthService = Depends(get_auth_service)
-):
+async def login(data: UserLoginRequest, auth_service: AuthService = Depends(get_auth_service)):
     """
     Аутентифицирует пользователя и возвращает токены.
     Логика вынесена в AuthService.
@@ -40,10 +35,7 @@ async def login(
 
 
 @auth_router.post("/refresh", response_model=AuthResponse)
-async def refresh(
-        body: RefreshRequest,
-        auth_service: AuthService = Depends(get_auth_service)
-):
+async def refresh(body: RefreshRequest, auth_service: AuthService = Depends(get_auth_service)):
     """
     Обновляет access токен, если refresh токен валиден.
     Логика вынесена в AuthService.

@@ -45,6 +45,9 @@ jobs:
              timeout=$((timeout-3))
           done
 
+      - name: Check lint
+        run: make check_lint_docker
+
       - name: Run tests
         run: make test
 

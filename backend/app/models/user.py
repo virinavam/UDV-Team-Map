@@ -1,10 +1,10 @@
-from sqlalchemy import Column, String, Boolean, Text, Date, ForeignKey, text, Index, func
-from sqlalchemy.dialects.postgresql import UUID, ENUM
+from sqlalchemy import Boolean, Column, Date, ForeignKey, Index, String, Text, func, text
+from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy.orm import relationship
 
+from app.enums import EmployeeStatusEnum, RoleEnum
 from app.models.base import Base
 from app.models.mixins import TimeStampMixin
-from app.enums import RoleEnum, EmployeeStatusEnum
 from app.models.skills import user_skills_association
 
 
@@ -17,8 +17,12 @@ class User(TimeStampMixin, Base):
     password_hash = Column(String(255), nullable=False)  # Хэш пароля
     position = Column(String(150), nullable=True)  # Должность сотрудника
     department_id = Column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)  # Связь с отделом
-    role = Column(ENUM(RoleEnum), nullable=False, default=RoleEnum.EMPLOYEE.value,
-                  server_default=text(f"'{RoleEnum.EMPLOYEE.value}'"))  # Роль в системе (права доступа)
+    role = Column(
+        ENUM(RoleEnum),
+        nullable=False,
+        default=RoleEnum.EMPLOYEE.value,
+        server_default=text(f"'{RoleEnum.EMPLOYEE.value}'"),
+    )  # Роль в системе (права доступа)
     city = Column(String(100), nullable=True)  # Город, в котором работает сотрудник
     phone = Column(String(50), nullable=True)  # Телефон
     telegram = Column(String(100), nullable=True)  # Аккаунт Telegram
@@ -30,36 +34,27 @@ class User(TimeStampMixin, Base):
     # Активен ли сотрудник в системе (технический флаг)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
 
-    skills = relationship(
-        "Skill",
-        secondary=user_skills_association,
-        back_populates="users",
-        lazy="selectin"
-    )
+    skills = relationship("Skill", secondary=user_skills_association, back_populates="users", lazy="selectin")
 
-    department = relationship(
-        "Department",
-        back_populates="employees",
-        foreign_keys=[department_id]
-    )
+    department = relationship("Department", back_populates="employees", foreign_keys=[department_id])
 
     managed_department = relationship(
-        "Department",
-        back_populates="manager",
-        uselist=False,
-        foreign_keys="Department.manager_id"
+        "Department", back_populates="manager", uselist=False, foreign_keys="Department.manager_id"
     )
 
     __table_args__ = (
         Index(
             "idx_users_fuzzy_search",
             func.lower(
-                func.coalesce(first_name, '') + ' ' +
-                func.coalesce(last_name, '') + ' ' +
-                func.coalesce(position, '') + ' ' +
-                func.coalesce(email, '')
+                func.coalesce(first_name, "")
+                + " "
+                + func.coalesce(last_name, "")
+                + " "
+                + func.coalesce(position, "")
+                + " "
+                + func.coalesce(email, "")
             ),
             postgresql_using="gin",
-            postgresql_ops={"lower": "gin_trgm_ops"}
+            postgresql_ops={"lower": "gin_trgm_ops"},
         ),
     )

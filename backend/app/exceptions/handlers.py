@@ -2,16 +2,24 @@ from typing import Awaitable
 
 from fastapi import Request, status
 from sqlalchemy.exc import IntegrityError
-from app.core.logger import get_logger
-
 from starlette.responses import JSONResponse, Response
 
-from app.exceptions.department import DepartmentError, DepartmentNotFound, DepartmentDeleteError, \
-    InvalidParentDepartment, ManagerConflict
-from app.exceptions.legal_entity import LegalEntityError, LegalEntityNotFound, LegalEntityAlreadyExists, \
-    LegalEntityInUse
-from app.exceptions.skill import SkillError, SkillNotFound, SkillAlreadyExists
-from app.exceptions.user import UserError, UserNotFound, UserAlreadyExists
+from app.core.logger import get_logger
+from app.exceptions.department import (
+    DepartmentDeleteError,
+    DepartmentError,
+    DepartmentNotFound,
+    InvalidParentDepartment,
+    ManagerConflict,
+)
+from app.exceptions.legal_entity import (
+    LegalEntityAlreadyExists,
+    LegalEntityError,
+    LegalEntityInUse,
+    LegalEntityNotFound,
+)
+from app.exceptions.skill import SkillAlreadyExists, SkillError, SkillNotFound
+from app.exceptions.user import UserAlreadyExists, UserError, UserNotFound
 
 logger = get_logger()
 
@@ -31,20 +39,11 @@ async def integrity_error_handler(_: Request, exc: IntegrityError) -> Response |
 
     logger.warning(f"IntegrityError: {error_detail}")
 
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={"detail": error_detail}
-    )
+    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, content={"detail": error_detail})
 
 
 async def _generic_service_error_handler(request: Request, exc: Exception, status_code: int):
-    return JSONResponse(
-        status_code=status_code,
-        content={
-            "error": exc.__class__.__name__,
-            "detail": str(exc)
-        }
-    )
+    return JSONResponse(status_code=status_code, content={"error": exc.__class__.__name__, "detail": str(exc)})
 
 
 async def department_error_handler(request: Request, exc: DepartmentError):

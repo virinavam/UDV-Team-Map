@@ -1,9 +1,11 @@
 from uuid import UUID
+
 from app.exceptions.service import ServiceError
 
 
 class LegalEntityError(ServiceError):
     """Base class for all legal entity related errors."""
+
     pass
 
 

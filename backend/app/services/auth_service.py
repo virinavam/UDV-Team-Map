@@ -31,10 +31,7 @@ class AuthService:
         user = await self.user_repository.get_by_email(str(data.email))
 
         if not user or not verify_password(data.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверный email или пароль"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Неверный email или пароль")
 
         return self._generate_auth_response(user)
 
@@ -43,16 +40,12 @@ class AuthService:
         payload = decode_token(refresh_token)
 
         if payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Ожидался refresh токен"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Ожидался refresh токен")
 
         user_id_str = payload.get("sub")
         if not user_id_str:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Токен не содержит информации о пользователе"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Токен не содержит информации о пользователе"
             )
 
         try:
@@ -60,15 +53,12 @@ class AuthService:
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Токен содержит неверный формат идентификатора пользователя"
+                detail="Токен содержит неверный формат идентификатора пользователя",
             )
 
         user = await self.user_repository.get_by_id(user_id)
         if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Пользователь не найден"
-            )
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Пользователь не найден")
 
         return self._generate_auth_response(user)
 
@@ -77,9 +67,4 @@ class AuthService:
         access_token = create_access_token(user)
         refresh_token = create_refresh_token(user)
 
-        return AuthResponse(
-            access_token=access_token,
-            refresh_token=refresh_token,
-            user_id=user.id,
-            role=user.role
-        )
+        return AuthResponse(access_token=access_token, refresh_token=refresh_token, user_id=user.id, role=user.role)

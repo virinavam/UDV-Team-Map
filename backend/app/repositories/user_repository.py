@@ -1,15 +1,14 @@
 from typing import Sequence
 from uuid import UUID
 
-from sqlalchemy import select, update, func, text
+from sqlalchemy import func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import User
-from app.models.skills import user_skills_association, Skill
-from app.schemas.user import UserRegisterRequest
-
 from app.core.logger import get_logger
+from app.models import User
+from app.models.skills import Skill, user_skills_association
+from app.schemas.user import UserRegisterRequest
 
 logger = get_logger()
 
@@ -28,20 +27,14 @@ class UserRepository:
         result = await self.db.execute(
             select(User)
             .where(User.id == user_id)
-            .options(
-                selectinload(User.managed_department),
-                selectinload(User.skills)
-            )
+            .options(selectinload(User.managed_department), selectinload(User.skills))
         )
         return result.scalar_one_or_none()
 
     async def create_user(self, data: UserRegisterRequest, password_hash: str) -> User:
         """Создает и сохраняет нового пользователя в БД."""
         new_user = User(
-            first_name=data.first_name,
-            last_name=data.last_name,
-            email=str(data.email),
-            password_hash=password_hash
+            first_name=data.first_name, last_name=data.last_name, email=str(data.email), password_hash=password_hash
         )
         self.db.add(new_user)
         await self.db.commit()
@@ -49,16 +42,14 @@ class UserRepository:
 
     async def get_all_users(self) -> Sequence[User]:
         """Получает список всех пользователей."""
-        result = await self.db.execute(select(User)
-        .options(
-            selectinload(User.managed_department),
-            selectinload(User.skills)
-        ))
+        result = await self.db.execute(
+            select(User).options(selectinload(User.managed_department), selectinload(User.skills))
+        )
         return result.scalars().all()
 
     async def get_all_active_users(self) -> Sequence[User]:
         """Получает список всех активных пользователей."""
-        result = await self.db.execute(select(User).where(User.is_active == True))
+        result = await self.db.execute(select(User).where(User.is_active is True))
         return result.scalars().all()
 
     async def update_user(self, user_id: UUID, update_data: dict) -> User | None:
@@ -68,12 +59,7 @@ class UserRepository:
 
         user = await self.get_by_id(user_id)
 
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(**update_data)
-            .returning(User)
-        )
+        stmt = update(User).where(User.id == user_id).values(**update_data).returning(User)
 
         await self.db.execute(stmt)
         await self.db.commit()
@@ -83,12 +69,7 @@ class UserRepository:
 
     async def delete_user(self, user_id: UUID) -> User | None:
         """Пометить пользователя как неактивного."""
-        stmt = (
-            update(User)
-            .where(User.id == user_id)
-            .values(is_active=False)
-            .returning(User)
-        )
+        stmt = update(User).where(User.id == user_id).values(is_active=False).returning(User)
 
         result = await self.db.execute(stmt)
         await self.db.commit()
@@ -102,24 +83,25 @@ class UserRepository:
         await self.db.commit()
         return await self.get_by_id(user_id)
 
-    async def search_users_fuzzy(self, search_query: str, city: str | None = None, skills: list | None = None) -> \
-            Sequence[User]:
+    async def search_users_fuzzy(
+        self, search_query: str, city: str | None = None, skills: list | None = None
+    ) -> Sequence[User]:
         search_query_lower = search_query.lower()
 
         # Объединённая строка, как в GIN TRGM индексе
         combined_field = func.lower(
-            func.coalesce(User.first_name, '') + ' ' +
-            func.coalesce(User.last_name, '') + ' ' +
-            func.coalesce(User.position, '') + ' ' +
-            func.coalesce(User.email, '')
+            func.coalesce(User.first_name, "")
+            + " "
+            + func.coalesce(User.last_name, "")
+            + " "
+            + func.coalesce(User.position, "")
+            + " "
+            + func.coalesce(User.email, "")
         )
 
         similarity_score = func.similarity(combined_field, search_query_lower).label("score")
 
-        stmt = (
-            select(User, similarity_score)
-            .order_by(text("score DESC"))
-        )
+        stmt = select(User, similarity_score).order_by(text("score DESC"))
 
         if city:
             stmt = stmt.filter(func.lower(User.city) == city.lower())

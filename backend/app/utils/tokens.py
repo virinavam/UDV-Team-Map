@@ -1,13 +1,13 @@
-import jwt
-from datetime import timedelta, datetime, timezone
+from datetime import datetime, timedelta, timezone
 
+import jwt
 from fastapi import HTTPException
 from jwt import ExpiredSignatureError, PyJWTError
 from starlette import status
 
 from app.core.config import settings
-from app.models.user import User
 from app.core.logger import get_logger
+from app.models.user import User
 
 logger = get_logger()
 
@@ -47,12 +47,6 @@ def decode_token(token: str) -> dict:
         # logger.info(payload)
         return payload
     except ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
     except PyJWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")

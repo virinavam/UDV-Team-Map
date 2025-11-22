@@ -1,9 +1,15 @@
 from uuid import UUID
+
 from sqlalchemy import Sequence
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.exceptions.department import (InvalidParentDepartment, DepartmentNotFound, DepartmentConflict,
-                                       ManagerConflict, DepartmentDeleteError)
+from app.exceptions.department import (
+    DepartmentConflict,
+    DepartmentDeleteError,
+    DepartmentNotFound,
+    InvalidParentDepartment,
+    ManagerConflict,
+)
 from app.exceptions.user import UserNotFound
 from app.models import Department
 from app.repositories.department_repository import DepartmentRepository
@@ -23,14 +29,10 @@ class DepartmentService:
         if parent_department.legal_entity_id != legal_entity_id:
             raise InvalidParentDepartment(
                 parent_id,
-                f"Parent legal entity ({parent_department.legal_entity_id}) "
-                f"does not match ({legal_entity_id})"
+                f"Parent legal entity ({parent_department.legal_entity_id}) " f"does not match ({legal_entity_id})",
             )
         if current_department_id is not None:
-            is_loop = await self.department_repo.is_descendant(
-                child_id=parent_id,
-                parent_id=current_department_id
-            )
+            is_loop = await self.department_repo.is_descendant(child_id=parent_id, parent_id=current_department_id)
             if is_loop:
                 raise DepartmentConflict("Setting this parent would create a cycle")
 
@@ -68,14 +70,14 @@ class DepartmentService:
         if not department:
             raise DepartmentNotFound(department_id)
 
-        if 'parent_id' in update_data and updates.parent_id is not None:
+        if "parent_id" in update_data and updates.parent_id is not None:
             await self._check_parent_valid(
-                parent_id=update_data['parent_id'],
+                parent_id=update_data["parent_id"],
                 legal_entity_id=department.legal_entity_id,
-                current_department_id=department_id
+                current_department_id=department_id,
             )
 
-        if 'manager_id' in update_data and updates.manager_id is not None:
+        if "manager_id" in update_data and updates.manager_id is not None:
             await self._check_manager(updates.manager_id)
 
         updated_department = await self.department_repo.update_department(department_id, update_data)

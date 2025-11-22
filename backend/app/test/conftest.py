@@ -24,10 +24,7 @@ def db_session():
 
 @pytest.fixture(scope="session")
 def user_credentials():
-    return {
-        "email": settings.ADMIN_DEFAULT_EMAIL,
-        "password": settings.ADMIN_DEFAULT_PASSWORD
-    }
+    return {"email": settings.ADMIN_DEFAULT_EMAIL, "password": settings.ADMIN_DEFAULT_PASSWORD}
 
 
 @pytest.fixture(scope="session")

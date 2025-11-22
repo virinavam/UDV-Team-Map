@@ -1,9 +1,11 @@
 from uuid import UUID
+
 from app.exceptions.service import ServiceError
 
 
 class DepartmentError(ServiceError):
     """Base class for all department-related errors."""
+
     pass
 
 

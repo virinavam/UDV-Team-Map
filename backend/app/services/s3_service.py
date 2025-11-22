@@ -1,6 +1,7 @@
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
+
 class S3Service:
     def __init__(self, endpoint, user, password):
         self.client = boto3.client(

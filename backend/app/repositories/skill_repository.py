@@ -1,11 +1,11 @@
-from typing import Sequence, List
+from typing import List, Sequence
 from uuid import UUID
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.skills import Skill
 from app.core.logger import get_logger
+from app.models.skills import Skill
 
 logger = get_logger()
 

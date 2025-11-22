@@ -8,4 +8,3 @@ def get_s3_service() -> S3Service:
         user=settings.S3_ROOT_USER,
         password=settings.S3_ROOT_PASSWORD,
     )
-

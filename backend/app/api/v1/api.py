@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from app.api.v1.endpoints.auth import auth_router
 from app.api.v1.endpoints.department import department_router
 from app.api.v1.endpoints.employees import employees_router
