@@ -1,9 +1,8 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.deps.department import get_department_service
 from app.enums import RoleEnum
 from app.core.logger import get_logger
 from app.schemas.department import DepartmentCreate, DepartmentReadSmall, DepartmentRead, DepartmentUpdate
@@ -12,11 +11,6 @@ from app.utils.auth import require_roles
 
 department_router = APIRouter()
 logger = get_logger()
-
-
-async def get_department_service(db: AsyncSession = Depends(get_db)) -> DepartmentService:
-    """Зависимость, предоставляющая экземпляр DepartmentService."""
-    return DepartmentService(db)
 
 
 @department_router.get("/",

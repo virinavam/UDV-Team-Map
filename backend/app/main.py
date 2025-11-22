@@ -4,7 +4,6 @@ from fastapi import FastAPI, APIRouter
 from contextlib import asynccontextmanager
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import create_async_engine
 from starlette.middleware.cors import CORSMiddleware
 
 from app.api.v1.api import v1_router
@@ -14,6 +13,7 @@ from app.exceptions.handlers import integrity_error_handler
 from app.core.logger import get_logger
 from app.middlewares.limit_upload import LimitUploadSizeMiddleware
 from app.startup_checks import check_postgres, init_default_admins
+from app.deps.db import engine
 
 logger = get_logger()
 
@@ -21,8 +21,6 @@ logger = get_logger()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await check_postgres()
-
-    engine = create_async_engine(settings.DATABASE_URL_ASYNC)
     try:
         await init_default_admins(engine)
         logger.info("Default administrators initialized.")

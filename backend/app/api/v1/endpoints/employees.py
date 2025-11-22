@@ -2,9 +2,8 @@ from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.deps.user import get_user_service
 from app.enums import RoleEnum
 from app.exceptions.skill import SkillNotFound
 from app.exceptions.user import UserNotFound
@@ -16,11 +15,6 @@ from app.utils.auth import require_roles
 
 employees_router = APIRouter()
 logger = get_logger()
-
-
-async def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
-    """Зависимость, предоставляющая экземпляр UserService."""
-    return UserService(db)
 
 
 @employees_router.get("/",

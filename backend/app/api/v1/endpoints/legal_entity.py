@@ -1,9 +1,8 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.deps.legal_entity import get_le_service
 from app.enums import RoleEnum
 from app.exceptions.legal_entity import LegalEntityNotFound, LegalEntityAlreadyExists
 from app.core.logger import get_logger
@@ -14,11 +13,6 @@ from starlette import status
 
 le_router = APIRouter()
 logger = get_logger()
-
-
-async def get_le_service(db: AsyncSession = Depends(get_db)) -> LegalEntityService:
-    """Зависимость, предоставляющая экземпляр LegalEntityService."""
-    return LegalEntityService(db)
 
 
 @le_router.get("/",

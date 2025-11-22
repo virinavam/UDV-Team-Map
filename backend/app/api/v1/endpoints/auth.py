@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database import get_db
 from app.core.logger import get_logger
+from app.deps.auth import get_auth_service
 from app.models import User
 from app.schemas.auth import AuthResponse, RefreshRequest
 from app.schemas.user import UserLoginRequest, UserRegisterRequest, UserRead
@@ -11,11 +9,6 @@ from app.utils.auth import get_current_user_by_credentials
 
 auth_router = APIRouter()
 logger = get_logger()
-
-
-def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
-    """Зависимость, предоставляющая экземпляр AuthService."""
-    return AuthService(db)
 
 
 @auth_router.post("/register", response_model=AuthResponse)

@@ -1,10 +1,9 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from app.database import get_db
+from app.deps.skill import get_skill_service
 from app.enums import RoleEnum
 from app.exceptions.skill import SkillAlreadyExists, SkillNotFound
 from app.core.logger import get_logger
@@ -14,11 +13,6 @@ from app.utils.auth import require_roles
 
 skills_router = APIRouter()
 logger = get_logger()
-
-
-async def get_skill_service(db: AsyncSession = Depends(get_db)) -> SkillService:
-    """Зависимость, предоставляющая экземпляр SkillService."""
-    return SkillService(db)
 
 
 @skills_router.get("/", response_model=list[SkillRead],
