@@ -1,64 +1,74 @@
+from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import Field
 
-
-# ----------------------------------------------------
-# 1. ОСНОВНЫЕ НАСТРОЙКИ
-# ----------------------------------------------------
 
 class Settings(BaseSettings):
-    # Указываем Pydantic, что нужно искать переменные в файле .env
     model_config = SettingsConfigDict(
         env_file=".env",
-        extra="ignore"  # Игнорировать переменные в .env, которых нет в классе
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
-    # Общие настройки проекта
-    PROJECT_NAME: str = "FastAPI Base Project"
-    VERSION: str = "1.0.0"
+    # --------------------------------------------------------------------------
+    # Основные параметры проекта
+    # --------------------------------------------------------------------------
+    PROJECT_NAME: str = "UDV Team Map API"
+    VERSION: str = "0.0.1"
     SECRET_KEY: str = Field(..., description="Секретный ключ для JWT/сессий")
+    ALGORITHM: str = "HS256"
 
-    # ----------------------------------------------------
-    # 2. НАСТРОЙКИ БАЗЫ ДАННЫХ (PostgreSQL)
-    # ----------------------------------------------------
+    ACCESS_TOKEN_EXPIRE_DAYS: int = 1
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
-    # Pydantic автоматически собирает DSN (строку подключения) из отдельных частей
-    # или использует полную строку, если она задана.
+    ADMIN_DEFAULT_EMAIL: str = "sys.admin@example.com"
+    ADMIN_DEFAULT_PASSWORD: str = "secure_sys_admin_password"
+    HR_DEFAULT_EMAIL: str = "hr.admin@example.com"
+    HR_DEFAULT_PASSWORD: str = "secure_hr_admin_password"
+
+    # --------------------------------------------------------------------------
+    # Настройки PostgreSQL
+    # --------------------------------------------------------------------------
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_DB: str
-    POSTGRES_HOST: str = "db" # Используем имя сервиса 'db' из docker-compose
-    POSTGRES_PORT: int = 5432 # Используем порт сервиса 'db' из docker-compose
+    POSTGRES_HOST: str
+    POSTGRES_PORT: int
 
-    # DSN (Data Source Name) для синхронного и асинхронного подключения
-    # Pydantic Dsn - это валидатор, гарантирующий правильный формат URL.
-    # Это DSN для SQLAlchemy ORM (asyncpg)
-    DATABASE_URL_ASYNC: str = ""  # Будет заполнено в методе __init__
+    # --------------------------------------------------------------------------
+    # Настройки S3
+    # --------------------------------------------------------------------------
+    S3_ROOT_USER: str
+    S3_ROOT_PASSWORD: str
+    S3_HOST: str
+    S3_PORT: int
 
-    # ----------------------------------------------------
-    # 3. НАСТРОЙКИ MINIO
-    # ----------------------------------------------------
-    MINIO_ROOT_USER: str
-    MINIO_ROOT_PASSWORD: str
-    MINIO_HOST: str = "minio"  # Имя сервиса MinIO в docker-compose
-    MINIO_PORT: int = 9000
+    # --------------------------------------------------------------------------
+    # Настройки Prometheus
+    # --------------------------------------------------------------------------
+    PROMETHEUS_HOST: str
+    PROMETHEUS_PORT: int
 
-    # ----------------------------------------------------
-    # 4. НАСТРОЙКИ МОНИТОРИНГА
-    # ----------------------------------------------------
-    PROMETHEUS_HOST: str = "prometheus"
-    PROMETHEUS_PORT: int = 9090
-
-    def __init__(self, **values):
-        super().__init__(**values)
-
-        # Генерируем асинхронный URL после загрузки всех переменных
-        # Используем postgresql+asyncpg:// для асинхронного драйвера
-        self.DATABASE_URL_ASYNC = (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:"
-            f"{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:"
-            f"{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+    @computed_field
+    @property
+    def DATABASE_URL_ASYNC(self) -> str:
+        """Асинхронный URL для SQLAlchemy/Alembic."""
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Синхронный URL для SQLAlchemy."""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @computed_field
+    @property
+    def S3_URL(self) -> str:
+        return f"http://{self.S3_HOST}:{self.S3_PORT}"
 
 
 settings = Settings()

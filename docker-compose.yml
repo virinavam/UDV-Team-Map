@@ -1,5 +1,6 @@
 services:
   db:
+    container_name: postgres
     image: postgres:15-alpine
     restart: always
     environment:
@@ -10,30 +11,43 @@ services:
       - postgres_data:/var/lib/postgresql/data/
     ports:
       - "5432:5432"
-    healthcheck: # Проверка готовности БД перед запуском бэкенда
+    healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 5s
       timeout: 5s
       retries: 5
 
   backend:
-    build: ./backend # Dockerfile из папки backend/
+    container_name: backend
+    build: ./backend
     restart: always
     env_file:
       - .env
     ports:
       - "8000:8000"
     volumes:
-      # код приложения (для Hot Reload)
-      - ./backend/app:/app/app
-      # Alembic (чтобы сгенерированные скрипты появились на хосте)
-      - ./backend/alembic:/app/alembic
-      - ./backend/alembic.ini:/app/alembic.ini
+      - ./backend:/app
     depends_on:
       db:
         condition: service_healthy
 
+  frontend:
+    container_name: frontend
+    build: ./frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app:delegated
+      - /app/node_modules
+    command: [ "npm", "run", "dev", "--", "--host", "0.0.0.0" ]
+    depends_on:
+      - backend
+
   nginx:
+    container_name: nginx
     image: nginx:1.27.5-alpine3.21
     ports:
       - "80:80"
@@ -41,21 +55,23 @@ services:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     depends_on:
       - backend
-#      - frontend
+      - frontend
 
   minio:
+    container_name: minio
     image: minio/minio:RELEASE.2025-05-24T17-08-30Z
     ports:
-      - "9000:9000" # API
-      - "9001:9001" # Console
+      - "9000:9000"
+      - "9001:9001"
     volumes:
       - minio_data:/data
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${S3_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${S3_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
 
   prometheus:
+    container_name: prometheus
     image: prom/prometheus:v3.6.0
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -64,6 +80,7 @@ services:
       - "9090:9090"
 
   grafana:
+    container_name: grafana
     image: grafana/grafana-oss:11.5.8
     volumes:
       - grafana_data:/var/lib/grafana
@@ -74,13 +91,6 @@ services:
       - .env
     depends_on:
       - prometheus
-
-#  frontend:
-#    build: ./frontend # Dockerfile из папки frontend/
-#    restart: always
-#    env_file:
-#        - .env
-#
 
 volumes:
   postgres_data:
