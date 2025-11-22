@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.enums import RoleEnum
-from app.logger import get_logger
+from app.core.logger import get_logger
 from app.schemas.department import DepartmentCreate, DepartmentReadSmall, DepartmentRead, DepartmentUpdate
 from app.services.department_service import DepartmentService
 from app.utils.auth import require_roles

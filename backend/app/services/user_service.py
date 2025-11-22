@@ -10,7 +10,7 @@ from app.repositories.skill_repository import SkillRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.skill import SetSkillsRequest
 from app.schemas.user import UserUpdate
-from app.logger import get_logger
+from app.core.logger import get_logger
 
 logger = get_logger()
 

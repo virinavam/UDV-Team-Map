@@ -5,7 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.skills import Skill
-from app.logger import get_logger
+from app.core.logger import get_logger
 
 logger = get_logger()
 

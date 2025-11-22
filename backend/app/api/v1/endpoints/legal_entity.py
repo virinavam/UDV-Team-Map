@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.enums import RoleEnum
 from app.exceptions.legal_entity import LegalEntityNotFound, LegalEntityAlreadyExists
-from app.logger import get_logger
+from app.core.logger import get_logger
 from app.schemas.legal_entity import LegalEntityRead, LegalEntityCreate, LegalEntityUpdate
 from app.services.legal_entity_service import LegalEntityService
 from app.utils.auth import require_roles

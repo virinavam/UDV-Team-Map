@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.utils.tokens import decode_token
-from app.logger import get_logger
+from app.core.logger import get_logger
 
 security = HTTPBearer()
 logger = get_logger()

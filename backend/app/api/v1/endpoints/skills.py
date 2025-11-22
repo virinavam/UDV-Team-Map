@@ -7,7 +7,7 @@ from starlette import status
 from app.database import get_db
 from app.enums import RoleEnum
 from app.exceptions.skill import SkillAlreadyExists, SkillNotFound
-from app.logger import get_logger
+from app.core.logger import get_logger
 from app.services.skill_service import SkillService
 from app.schemas.skill import SkillCreate, SkillUpdate, SkillRead
 from app.utils.auth import require_roles

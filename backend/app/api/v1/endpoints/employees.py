@@ -8,7 +8,7 @@ from app.database import get_db
 from app.enums import RoleEnum
 from app.exceptions.skill import SkillNotFound
 from app.exceptions.user import UserNotFound
-from app.logger import get_logger
+from app.core.logger import get_logger
 from app.schemas.skill import SetSkillsRequest
 from app.schemas.user import UserRead, UserUpdate
 from app.services.user_service import UserService

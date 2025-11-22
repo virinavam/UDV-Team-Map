@@ -3,7 +3,7 @@ from typing import Awaitable
 
 from fastapi import Request, status
 from sqlalchemy.exc import IntegrityError
-from app.logger import get_logger
+from app.core.logger import get_logger
 
 from starlette.responses import JSONResponse, Response
 

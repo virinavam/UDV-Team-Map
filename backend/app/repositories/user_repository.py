@@ -9,7 +9,7 @@ from app.models import User
 from app.models.skills import user_skills_association, Skill
 from app.schemas.user import UserRegisterRequest
 
-from app.logger import get_logger
+from app.core.logger import get_logger
 
 logger = get_logger()
 
