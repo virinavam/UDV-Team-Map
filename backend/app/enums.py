@@ -14,3 +14,11 @@ class EmployeeStatusEnum(str, Enum):
     SICK = "SICK"  # На больничном
     REMOTE = "REMOTE"  # Работаю удаленно
     TRIP = "TRIP"  # В командировке
+
+
+class AvatarModerationStatusEnum(str, Enum):
+    PENDING = "PENDING"
+    REJECTED = "REJECTED"
+    ACCEPTED = "ACCEPTED"
+    ACTIVE = "ACTIVE"
+    DELETED = "DELETED"

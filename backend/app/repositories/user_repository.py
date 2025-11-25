@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.logger import get_logger
 from app.models import User
-from app.models.skills import Skill, user_skills_association
+from app.models.skill import Skill, user_skills_association
 from app.schemas.user import UserRegisterRequest
 
 logger = get_logger()

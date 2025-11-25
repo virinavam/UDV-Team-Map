@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.exceptions.skill import SkillAlreadyExists, SkillNotFound
-from app.models.skills import Skill
+from app.models.skill import Skill
 from app.repositories.skill_repository import SkillRepository
 from app.schemas.skill import SkillCreate, SkillUpdate
 
