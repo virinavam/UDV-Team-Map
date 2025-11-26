@@ -29,7 +29,7 @@ class User(TimeStampMixin, Base):
     mattermost = Column(String(100), nullable=True)  # Аккаунт Mattermost
     bio = Column(Text, nullable=True)  # Краткое описание / информация о себе
     birthday = Column(Date, nullable=True)  # Дата рождения
-    current_avatar_id = Column(UUID(as_uuid=True), ForeignKey("avatars.id"), nullable=True)
+    current_avatar_id = Column(UUID(as_uuid=True), ForeignKey("avatars.id", ondelete="SET NULL"), nullable=True)
     employee_status = Column(ENUM(EmployeeStatusEnum), nullable=True)  # Редактируемый пользователем статус
     # Активен ли сотрудник в системе (технический флаг)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))

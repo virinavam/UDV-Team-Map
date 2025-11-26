@@ -61,6 +61,16 @@ async def update_employee(user_id: UUID, updates: UserUpdate, user_service: User
     return await user_service.update_user(user_id, updates)
 
 
+ALLOWED_IMAGE_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/heic",
+    "image/heif",
+]
+
+
 @employees_router.post("/{user_id}/avatar/upload", status_code=200,
                        summary="Загрузить новую фотографию профиля",
                        dependencies=[Depends(require_self(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
@@ -72,6 +82,15 @@ async def upload_user_avatar(
         current_user: User = Depends(get_current_user_by_credentials),
         avatar_service: AvatarService = Depends(get_avatar_service),
         user_service: UserService = Depends(get_user_service)):
+    """
+    Supported file types: JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF
+    """
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        allowed_extensions = "JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF"
+        raise HTTPException(
+            status_code=415,
+            detail=f"File type not supported. Expected: {allowed_extensions}"
+        )
     initial_status = AvatarModerationStatusEnum.PENDING
     moderator_id = None
 

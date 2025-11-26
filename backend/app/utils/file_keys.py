@@ -11,5 +11,7 @@ def generate_key(user_id: UUID, filename: str) -> str:
         f"{now.year:04d}_"
         f"{now.month:02d}_"
         f"{now.day:02d}/"
+        f"{now.hour:02d}_"
+        f"{now.minute:02d}_"
         f"{uuid_part}"
     )
