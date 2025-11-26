@@ -1,47 +1,59 @@
 from typing import BinaryIO
 
 import boto3
+from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
 
 
 class S3Service:
-    def __init__(self, endpoint: str, user: str, password: str, region_name: str = "us-east-1"):
-        """
-        Инициализирует клиент S3.
-
-        Args:
-            endpoint: URL конечной точки S3 (например, MinIO или AWS).
-            user: Ключ доступа AWS.
-            password: Секретный ключ AWS.
-            region_name: Имя региона.
-        """
+    def __init__(self, access_key: str, secret_key: str, region: str, endpoint: str,
+                 public_read: bool = True,
+                 use_ssl: bool = True, public_endpoint: str = None):
         self.client = boto3.client(
             "s3",
             endpoint_url=endpoint,
-            aws_access_key_id=user,
-            aws_secret_access_key=password,
-            region_name=region_name,
+            aws_access_key_id=access_key,
+            aws_secret_access_key=secret_key,
+            region_name=region,
+            config=Config(signature_version="s3v4"),
+            use_ssl=use_ssl,
+            verify=use_ssl,
         )
+        self.public_endpoint = public_endpoint or endpoint
+        self.public_read = public_read
 
-    def healthcheck(self):
+    def healthcheck(self, bucket_name: str | None = None) -> bool:
         try:
             self.client.list_buckets()
+
+            if not bucket_name:
+                return True
+
+            self.client.head_bucket(Bucket=bucket_name)
+
             return True
         except (BotoCoreError, ClientError):
             return False
 
     def upload_file_obj(self, file_object: BinaryIO, bucket_name: str, object_key: str) -> str | None:
-        try:
-            self.client.upload_fileobj(
-                Fileobj=file_object,
-                Bucket=bucket_name,
-                Key=object_key,
-                ExtraArgs={
-                    'ContentType': file_object.content_type if hasattr(file_object, 'content_type') else 'image/jpeg'}
-            )
-            return f"{self.client._endpoint.host}/{bucket_name}/{object_key}"
 
-        except ClientError as e:
-            return None
-        except Exception as e:
-            return None
+        extra = {
+            "ContentType": getattr(file_object, "content_type", "application/octet-stream"),
+        }
+
+        if self.public_read:
+            extra["ACL"] = "public-read"
+
+        self.client.upload_fileobj(
+            Fileobj=file_object,
+            Bucket=bucket_name,
+            Key=object_key,
+            ExtraArgs=extra
+        )
+
+    def download_file_obj(self, file_object: BinaryIO, bucket_name: str, object_key: str):
+        self.client.download_fileobj(
+            Bucket=bucket_name,
+            Key=object_key,
+            Fileobj=file_object
+        )

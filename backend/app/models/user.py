@@ -44,8 +44,11 @@ class User(TimeStampMixin, Base):
 
     avatars = relationship("Avatar", back_populates="user", foreign_keys="Avatar.user_id",
                            order_by="desc(Avatar.created_at)")
-
     current_avatar = relationship("Avatar", foreign_keys=[current_avatar_id], uselist=False, remote_side="Avatar.id")
+
+    @property
+    def photo_url(self):
+        return self.current_avatar.url if self.current_avatar else None
 
     __table_args__ = (
         Index(

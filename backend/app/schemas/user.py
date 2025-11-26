@@ -32,7 +32,7 @@ class UserBase(BaseModel):
     bio: Optional[str] = None
     skills: list[SkillRead] = []
     birthday: Optional[date] = None
-    photo_url: Optional[str] = Field(None, max_length=255)
+    photo_url: Optional[str] = None
     employee_status: Optional[EmployeeStatusEnum] = None
     is_active: bool = True
 
@@ -50,6 +50,7 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=50)
     telegram: Optional[str] = Field(None, max_length=100)
     mattermost: Optional[str] = Field(None, max_length=100)
+    employee_status: Optional[EmployeeStatusEnum] = None
     bio: Optional[str] = None
 
 class UserUpdateAdmin(UserUpdate):

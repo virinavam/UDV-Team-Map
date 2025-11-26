@@ -39,8 +39,12 @@ class Settings(BaseSettings):
     # --------------------------------------------------------------------------
     S3_ROOT_USER: str
     S3_ROOT_PASSWORD: str
-    S3_HOST: str
-    S3_PORT: int
+    S3_USER_AVATAR_BUCKET: str
+    S3_USE_SSL: bool = False
+    S3_REGION: str
+    S3_ENDPOINT: str
+    S3_PUBLIC_ENDPOINT: str | None = None
+
 
     # --------------------------------------------------------------------------
     # Настройки Prometheus
@@ -64,11 +68,6 @@ class Settings(BaseSettings):
             f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
-
-    @computed_field
-    @property
-    def S3_URL(self) -> str:
-        return f"http://{self.S3_HOST}:{self.S3_PORT}"
 
 
 settings = Settings()

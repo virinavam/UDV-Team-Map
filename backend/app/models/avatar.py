@@ -18,9 +18,12 @@ class Avatar(TimeStampMixin, Base):
                                )
     moderated_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 
-    url = Column(String(2048), nullable=False)
     s3_key = Column(String(1024), nullable=False, unique=True)
     rejection_reason = Column(String(500), nullable=True)
 
     user = relationship("User", back_populates="avatars", foreign_keys=[user_id])
-    moderated_by = relationship("User", back_populates="moderated_avatars", foreign_keys=[moderated_by_id])
+    moderated_by = relationship("User", foreign_keys=[moderated_by_id])
+
+    @property
+    def url(self) -> str:
+        return f"/api/employees/avatars/{self.s3_key}"

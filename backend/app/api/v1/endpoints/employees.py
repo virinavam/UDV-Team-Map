@@ -1,19 +1,20 @@
+from io import BytesIO
 from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
-from starlette import status
+from starlette.responses import StreamingResponse
 
 from app.core.logger import get_logger
-from app.deps.s3 import get_s3_service
+from app.deps.avatar import get_avatar_service
 from app.deps.user import get_user_service
-from app.enums import RoleEnum
+from app.enums import RoleEnum, AvatarModerationStatusEnum
 from app.models import User
 from app.schemas.skill import SetSkillsRequest
 from app.schemas.user import UserRead, UserUpdate, UserUpdateAdmin
-from app.services.s3_service import S3Service
+from app.services.avatar_service import AvatarService
 from app.services.user_service import UserService
-from app.utils.auth import require_roles, get_current_user_by_credentials, require_self
+from app.utils.auth import require_roles, require_self, get_current_user_by_credentials
 
 employees_router = APIRouter()
 logger = get_logger()
@@ -60,18 +61,47 @@ async def update_employee(user_id: UUID, updates: UserUpdate, user_service: User
     return await user_service.update_user(user_id, updates)
 
 
-@employees_router.post("/{user_id}/avatar/upload", status_code=201, summary="Загрузить новую фотографию профиля",
+@employees_router.post("/{user_id}/avatar/upload", status_code=200,
+                       summary="Загрузить новую фотографию профиля",
                        dependencies=[Depends(require_self(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def upload_user_avatar(
         user_id: UUID,
         file: UploadFile = File(...),
-        no_moderation: bool = Query(False, description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."),
-        s3_service: S3Service = Depends(get_s3_service)):
-    s3_key = generate_key(user_id, file.filename)
-    avatar_url = s3_service.upload_file_obj(
-        file_object=file.file,
-        bucket_name=S3_BUCKET_NAME,
-        object_key=s3_key
+        no_moderation: bool = Query(False,
+                                    description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."),
+        current_user: User = Depends(get_current_user_by_credentials),
+        avatar_service: AvatarService = Depends(get_avatar_service),
+        user_service: UserService = Depends(get_user_service)):
+    initial_status = AvatarModerationStatusEnum.PENDING
+    moderator_id = None
+
+    if no_moderation:
+        if current_user.role in [RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN]:
+            initial_status = AvatarModerationStatusEnum.ACTIVE
+            moderator_id = current_user.id
+        else:
+            raise HTTPException(
+                status_code=403,
+                detail="Для флага 'no_moderation' требуются права HR_ADMIN или SYSTEM_ADMIN."
+            )
+    user = await user_service.get_user(user_id)
+    await avatar_service.upload_and_activate(user, file, initial_status, moderator_id)
+    return
+
+
+@employees_router.get("/avatars/{s3_key:path}", response_class=StreamingResponse, summary="Возвращает аватар по ключу",
+                      dependencies=[
+                          Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def get_s3_file(s3_key: str, avatar_service: AvatarService = Depends(get_avatar_service)):
+    logger.info(f"s3_key: {s3_key}")
+    file_buffer = BytesIO()
+
+    await avatar_service.download(s3_key, file_buffer)
+    file_buffer.seek(0)
+
+    return StreamingResponse(
+        content=file_buffer,
+        media_type="image/jpeg",
     )
 
 
