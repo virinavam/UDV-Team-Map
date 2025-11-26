@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 
 import httpx
+from fastapi import HTTPException
 
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -49,5 +50,13 @@ class PrometheusHealthMonitor(BaseHealthMonitor):
         return response.status_code == 200
 
 
-s3_monitor = S3HealthMonitor()
+def check_s3_health():
+    if not s3_monitor.status:
+        raise HTTPException(
+            status_code=503,
+            detail=f"S3 is down (last checked: {s3_monitor.last_check})."
+        )
+
+
+s3_monitor = S3HealthMonitor() # TODO: сделать асинхронным
 prometheus_monitor = PrometheusHealthMonitor()

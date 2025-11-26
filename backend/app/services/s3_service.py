@@ -15,9 +15,11 @@ class S3Service:
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name=region,
-            config=Config(signature_version="s3v4"),
+            config=Config(signature_version="s3v4", connect_timeout=2.0,
+                          retries={'max_attempts': 1, 'mode': 'standard'}),
             use_ssl=use_ssl,
             verify=use_ssl,
+
         )
         self.public_endpoint = public_endpoint or endpoint
         self.public_read = public_read

@@ -2,14 +2,17 @@ from io import BytesIO
 from typing import Optional
 from uuid import UUID
 
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File
 from starlette.responses import StreamingResponse
 
 from app.core.logger import get_logger
 from app.deps.avatar import get_avatar_service
+from app.services.health_monitor import check_s3_health
 from app.deps.user import get_user_service
 from app.enums import RoleEnum, AvatarModerationStatusEnum
 from app.models import User
+from app.schemas.avatar import AvatarModeration, AvatarRead
 from app.schemas.skill import SetSkillsRequest
 from app.schemas.user import UserRead, UserUpdate, UserUpdateAdmin
 from app.services.avatar_service import AvatarService
@@ -81,7 +84,8 @@ async def upload_user_avatar(
                                     description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."),
         current_user: User = Depends(get_current_user_by_credentials),
         avatar_service: AvatarService = Depends(get_avatar_service),
-        user_service: UserService = Depends(get_user_service)):
+        user_service: UserService = Depends(get_user_service),
+        _: None = Depends(check_s3_health)):
     """
     Supported file types: JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF
     """
@@ -108,26 +112,45 @@ async def upload_user_avatar(
     return
 
 
+@employees_router.get("/avatars/pending", status_code=200,
+                      summary="Получить список аватаров, ожидающих модерации",
+                      response_model=list[AvatarRead],
+                      dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def get_pending_avatars(
+        avatar_service: AvatarService = Depends(get_avatar_service)):
+    pending_avatars = await avatar_service.get_pending_list()
+    return pending_avatars
+
+
 @employees_router.get("/avatars/{s3_key:path}", response_class=StreamingResponse, summary="Возвращает аватар по ключу",
                       dependencies=[
                           Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
-async def get_s3_file(s3_key: str, avatar_service: AvatarService = Depends(get_avatar_service)):
+async def get_s3_file(s3_key: str, avatar_service: AvatarService = Depends(get_avatar_service),
+                      _: None = Depends(check_s3_health)):
     file_buffer = BytesIO()
+    try:
+        await avatar_service.download(s3_key, file_buffer)
+        file_buffer.seek(0)
 
-    await avatar_service.download(s3_key, file_buffer)
-    file_buffer.seek(0)
+        return StreamingResponse(
+            content=file_buffer,
+            media_type="image/jpeg",
+        )
+    except ClientError as e:
+        error_code = e.response['Error']['Code']
+        if error_code == '404':
+            raise HTTPException(
+                status_code=404,
+                detail=f"Avatar with key '{s3_key}' not found in S3."
+            )
 
-    return StreamingResponse(
-        content=file_buffer,
-        media_type="image/jpeg",
-    )
 
-
-@employees_router.put("/avatars/{avatar_id}/moderate", dependencies=[
-    Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
-async def get_moderate_avatar(avatar_id: UUID, avatar_service: AvatarService = Depends(get_user_service),
-                              current_user: User = Depends(get_current_user_by_credentials)):
-    pass
+@employees_router.put("/avatars/{avatar_id}/moderate",
+                      dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def moderate_avatar(avatar_id: UUID, payload: AvatarModeration,
+                          avatar_service: AvatarService = Depends(get_avatar_service),
+                          current_user: User = Depends(get_current_user_by_credentials)):
+    return await avatar_service.moderate(avatar_id, payload.status, current_user.id, payload.rejection_reason)
 
 
 @employees_router.put(

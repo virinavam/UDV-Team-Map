@@ -34,7 +34,7 @@ async def lifespan(_: FastAPI):
         await init_default_admins(engine)
         logger.info("Default administrators initialized.")
 
-        asyncio.create_task(s3_monitor.healthcheck_loop())
+        asyncio.create_task(s3_monitor.healthcheck_loop(10))
         logger.info("Started S3  health monitoring")
         asyncio.create_task(prometheus_monitor.healthcheck_loop())
         logger.info("Started Prometheus health monitoring")

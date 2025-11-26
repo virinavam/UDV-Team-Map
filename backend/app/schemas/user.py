@@ -32,6 +32,7 @@ class UserBase(BaseModel):
     bio: Optional[str] = None
     skills: list[SkillRead] = []
     birthday: Optional[date] = None
+    current_avatar_id: Optional[UUID] = None
     photo_url: Optional[str] = None
     employee_status: Optional[EmployeeStatusEnum] = None
     is_active: bool = True
