@@ -1,16 +1,17 @@
 from io import BytesIO
-from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import UploadFile, HTTPException
 from uuid import UUID
 
+from fastapi import HTTPException, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.core.config import settings
+from app.enums import AvatarModerationStatusEnum as AMSEnum
 from app.models.avatar import Avatar
-from app.services.s3_service import S3Service
+from app.models.user import User
 from app.repositories.avatar_repository import AvatarRepository
+from app.services.s3_service import S3Service
 from app.services.user_service import UserService
 from app.utils.file_keys import generate_key
-from app.models.user import User
-from app.enums import AvatarModerationStatusEnum as AMSEnum
 
 
 class AvatarService:
@@ -23,11 +24,9 @@ class AvatarService:
         self.user_service = UserService(db)
         self.s3_service = s3_service
 
-    async def upload_and_activate(self,
-                                  target_user: User,
-                                  file: UploadFile,
-                                  initial_status: AMSEnum,
-                                  moderator_id: UUID | None):
+    async def upload_and_activate(
+        self, target_user: User, file: UploadFile, initial_status: AMSEnum, moderator_id: UUID | None
+    ):
 
         s3_key = generate_key(target_user.id, file.filename)
         self.s3_service.upload_file_obj(
@@ -37,10 +36,7 @@ class AvatarService:
         )
 
         new_avatar = await self.avatar_repository.create_avatar(
-            user_id=target_user.id,
-            s3_key=s3_key,
-            status=initial_status,
-            moderated_by_id=moderator_id
+            user_id=target_user.id, s3_key=s3_key, status=initial_status, moderated_by_id=moderator_id
         )
 
         if initial_status == AMSEnum.ACTIVE:
@@ -66,11 +62,13 @@ class AvatarService:
         if avatar.moderation_status != AMSEnum.PENDING:
             raise HTTPException(status_code=400, detail="Avatar is not pending review.")
         if status not in [AMSEnum.REJECTED, AMSEnum.ACCEPTED]:
-            raise HTTPException(status_code=400,
-                                detail=f"Invalid status '{status.value}' for moderation. Use ACCEPTED or REJECTED.")
+            raise HTTPException(
+                status_code=400, detail=f"Invalid status '{status.value}' for moderation. Use ACCEPTED or REJECTED."
+            )
         if status == AMSEnum.PENDING and not rejection_reason:
-            raise HTTPException(status_code=400,
-                                detail="A rejection reason is required when setting status to REJECTED.")
+            raise HTTPException(
+                status_code=400, detail="A rejection reason is required when setting status to REJECTED."
+            )
         moderator = await self.user_service.get_user(moderator_id)
         await self.avatar_repository.set_avatar_status(avatar, status, moderator, rejection_reason)
         return {"message": f"Статус аватара {avatar_id} обновлен до {status.value}"}

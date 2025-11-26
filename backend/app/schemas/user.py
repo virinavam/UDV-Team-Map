@@ -54,6 +54,7 @@ class UserUpdate(BaseModel):
     employee_status: Optional[EmployeeStatusEnum] = None
     bio: Optional[str] = None
 
+
 class UserUpdateAdmin(UserUpdate):
     first_name: Optional[str] = Field(None, max_length=100, description="Имя сотрудника")
     last_name: Optional[str] = Field(None, max_length=100, description="Фамилия сотрудника")

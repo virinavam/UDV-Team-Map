@@ -10,5 +10,5 @@ def get_s3_service() -> S3Service:
         region=settings.S3_REGION,
         public_read=True,
         use_ssl=settings.S3_USE_SSL,
-        public_endpoint=settings.S3_PUBLIC_ENDPOINT
+        public_endpoint=settings.S3_PUBLIC_ENDPOINT,
     )

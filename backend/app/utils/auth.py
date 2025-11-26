@@ -44,7 +44,7 @@ async def get_user_by_token(access_token: str, db: AsyncSession) -> User:
 
 
 async def get_current_user_by_credentials(
-        credentials: HTTPAuthorizationCredentials = Depends(security), db: AsyncSession = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security), db: AsyncSession = Depends(get_db)
 ) -> User:
     """
     Получает текущего пользователя из токена доступа.

@@ -27,8 +27,9 @@ class UserRepository:
         result = await self.db.execute(
             select(User)
             .where(User.id == user_id)
-            .options(selectinload(User.managed_department), selectinload(User.skills),
-                     selectinload(User.current_avatar))
+            .options(
+                selectinload(User.managed_department), selectinload(User.skills), selectinload(User.current_avatar)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -44,16 +45,21 @@ class UserRepository:
     async def get_all_users(self) -> Sequence[User]:
         """Получает список всех пользователей."""
         result = await self.db.execute(
-            select(User).options(selectinload(User.managed_department), selectinload(User.skills),
-                                 selectinload(User.current_avatar))
+            select(User).options(
+                selectinload(User.managed_department), selectinload(User.skills), selectinload(User.current_avatar)
+            )
         )
         return result.scalars().all()
 
     async def get_all_active_users(self) -> Sequence[User]:
         """Получает список всех активных пользователей."""
         result = await self.db.execute(
-            select(User).options(selectinload(User.managed_department), selectinload(User.skills),
-                                 selectinload(User.current_avatar)).where(User.is_active is True))
+            select(User)
+            .options(
+                selectinload(User.managed_department), selectinload(User.skills), selectinload(User.current_avatar)
+            )
+            .where(User.is_active is True)
+        )
         return result.scalars().all()
 
     async def update_user(self, user_id: UUID, update_data: dict) -> User | None:
@@ -88,7 +94,7 @@ class UserRepository:
         return await self.get_by_id(user_id)
 
     async def search_users_fuzzy(
-            self, search_query: str, city: str | None = None, skills: list | None = None
+        self, search_query: str, city: str | None = None, skills: list | None = None
     ) -> Sequence[User]:
         search_query_lower = search_query.lower()
 

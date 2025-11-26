@@ -42,8 +42,9 @@ class User(TimeStampMixin, Base):
         "Department", back_populates="manager", uselist=False, foreign_keys="Department.manager_id"
     )
 
-    avatars = relationship("Avatar", back_populates="user", foreign_keys="Avatar.user_id",
-                           order_by="desc(Avatar.created_at)")
+    avatars = relationship(
+        "Avatar", back_populates="user", foreign_keys="Avatar.user_id", order_by="desc(Avatar.created_at)"
+    )
     current_avatar = relationship("Avatar", foreign_keys=[current_avatar_id], uselist=False, remote_side="Avatar.id")
 
     @property
