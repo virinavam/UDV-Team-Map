@@ -4,6 +4,7 @@ from fastapi import UploadFile
 from uuid import UUID
 
 from app.core.config import settings
+from app.models.avatar import Avatar
 from app.services.s3_service import S3Service
 from app.repositories.avatar_repository import AvatarRepository
 from app.utils.file_keys import generate_key
@@ -48,3 +49,9 @@ class AvatarService:
     async def download(self, s3_key: str, file_object: BytesIO):
         self.s3_service.download_file_obj(file_object, settings.S3_USER_AVATAR_BUCKET, s3_key)
         file_object.seek(0)
+
+    async def get_avatar_model_by_id(self, avatar_id: UUID):
+        return self.avatar_repository.get_by_id(avatar_id)
+
+    async def moderate(self, avatar_id: UUID, status, moderator_id):
+        pass

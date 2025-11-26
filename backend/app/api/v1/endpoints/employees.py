@@ -112,7 +112,6 @@ async def upload_user_avatar(
                       dependencies=[
                           Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
 async def get_s3_file(s3_key: str, avatar_service: AvatarService = Depends(get_avatar_service)):
-    logger.info(f"s3_key: {s3_key}")
     file_buffer = BytesIO()
 
     await avatar_service.download(s3_key, file_buffer)
@@ -122,6 +121,13 @@ async def get_s3_file(s3_key: str, avatar_service: AvatarService = Depends(get_a
         content=file_buffer,
         media_type="image/jpeg",
     )
+
+
+@employees_router.put("/avatars/{avatar_id}/moderate", dependencies=[
+    Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))])
+async def get_moderate_avatar(avatar_id: UUID, avatar_service: AvatarService = Depends(get_user_service),
+                              current_user: User = Depends(get_current_user_by_credentials)):
+    pass
 
 
 @employees_router.put(

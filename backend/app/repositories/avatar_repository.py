@@ -1,5 +1,9 @@
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
+
+from sqlalchemy.orm import selectinload
+
 from app.models.avatar import Avatar
 from app.models.user import User
 from app.enums import AvatarModerationStatusEnum
@@ -16,6 +20,10 @@ class AvatarRepository:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def get_by_id(self, avatar_id: UUID):
+        result = await self.db.execute(select(Avatar).options(selectinload(Avatar.user), selectinload(Avatar.moderated_by)).where(Avatar.id == avatar_id))
+        return result.scalar_one_or_none()
 
     async def create_avatar(self, user_id: UUID, s3_key: str, status: AvatarModerationStatusEnum,
                             moderated_by_id: UUID | None) -> Avatar:
