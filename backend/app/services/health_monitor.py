@@ -1,6 +1,7 @@
 import asyncio
 from abc import ABC, abstractmethod
 from datetime import datetime
+from typing import ClassVar
 
 import httpx
 from fastapi import HTTPException
@@ -24,30 +25,35 @@ class BaseHealthMonitor(ABC):
         self.last_check = datetime.utcnow()
 
     @abstractmethod
-    def check(self) -> bool:
-        """Синхронная проверка сервиса, возвращает True/False"""
+    async def check(self) -> bool:
+        """Асинхронная проверка сервиса, возвращает True/False"""
         pass
 
     async def healthcheck_loop(self, interval: int = 30):
         while True:
             try:
-                self.set_status(self.check())
+                self.set_status(await self.check())
             except Exception:
                 self.set_status(False)
             await asyncio.sleep(interval)
 
 
 class S3HealthMonitor(BaseHealthMonitor):
-    def check(self) -> bool:
+    async def check(self) -> bool:
         s3 = get_s3_service()
-        return s3.healthcheck()
+        return await s3.healthcheck()
 
 
 class PrometheusHealthMonitor(BaseHealthMonitor):
-    def check(self) -> bool:
+    client: ClassVar[httpx.AsyncClient] = httpx.AsyncClient(timeout=2.0)
+
+    async def check(self) -> bool:
         url = f"http://{settings.PROMETHEUS_HOST}:{settings.PROMETHEUS_PORT}/-/ready"
-        response = httpx.get(url, timeout=2.0)
-        return response.status_code == 200
+        try:
+            response = await self.client.get(url)
+            return response.status_code == 200
+        except httpx.HTTPError:
+            return False
 
 
 def check_s3_health():
@@ -55,5 +61,5 @@ def check_s3_health():
         raise HTTPException(status_code=503, detail=f"S3 is down (last checked: {s3_monitor.last_check}).")
 
 
-s3_monitor = S3HealthMonitor()  # TODO: сделать асинхронным
+s3_monitor = S3HealthMonitor()
 prometheus_monitor = PrometheusHealthMonitor()

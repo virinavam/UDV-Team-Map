@@ -1,9 +1,9 @@
 from app.core.config import settings
-from app.services.s3_service import S3Service
+from app.services.s3_service import AsyncS3Service
 
 
-def get_s3_service() -> S3Service:
-    return S3Service(
+def get_s3_service() -> AsyncS3Service:
+    return AsyncS3Service(
         endpoint=settings.S3_ENDPOINT,
         access_key=settings.S3_ROOT_USER,
         secret_key=settings.S3_ROOT_PASSWORD,

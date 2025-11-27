@@ -9,7 +9,7 @@ from app.enums import AvatarModerationStatusEnum as AMSEnum
 from app.models.avatar import Avatar
 from app.models.user import User
 from app.repositories.avatar_repository import AvatarRepository
-from app.services.s3_service import S3Service
+from app.services.s3_service import AsyncS3Service
 from app.services.user_service import UserService
 from app.utils.file_keys import generate_key
 
@@ -19,7 +19,7 @@ class AvatarService:
     Сервис для обработки бизнес-логики, связанной с аватарами (S3 + DB).
     """
 
-    def __init__(self, db: AsyncSession, s3_service: S3Service):
+    def __init__(self, db: AsyncSession, s3_service: AsyncS3Service):
         self.avatar_repository = AvatarRepository(db)
         self.user_service = UserService(db)
         self.s3_service = s3_service
@@ -29,7 +29,7 @@ class AvatarService:
     ):
 
         s3_key = generate_key(target_user.id, file.filename)
-        self.s3_service.upload_file_obj(
+        await self.s3_service.upload_file_obj(
             file_object=file.file,
             object_key=s3_key,
             bucket_name=settings.S3_USER_AVATAR_BUCKET,
@@ -45,7 +45,7 @@ class AvatarService:
             await self.avatar_repository.db.commit()
 
     async def download(self, s3_key: str, file_object: BytesIO):
-        self.s3_service.download_file_obj(file_object, settings.S3_USER_AVATAR_BUCKET, s3_key)
+        await self.s3_service.download_file_obj(file_object, settings.S3_USER_AVATAR_BUCKET, s3_key)
         file_object.seek(0)
 
     async def get_avatar_model_by_id(self, avatar_id: UUID) -> Avatar:
