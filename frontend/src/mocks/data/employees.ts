@@ -1,6 +1,6 @@
-import type { OrgNode, Employee } from "../types/types";
+import type { Employee } from "../../types/types";
 
-export const mockEmployees: Employee[] = [
+export const employeesDb: Employee[] = [
   {
     id: "e1",
     name: "Иванов Сергей",
@@ -201,45 +201,25 @@ export const mockEmployees: Employee[] = [
   },
 ];
 
-export const mockOrgTree: OrgNode[] = [
-  {
-    id: "c1",
-    name: "UDV Group",
-    type: "company",
-    children: [
-      {
-        id: "le1",
-        name: "UDV Digital Transforamtion",
-        type: "legal_entity",
-        children: [
-          {
-            id: "d1",
-            name: "ТриниДата",
-            type: "department",
-            children: [
-              {
-                id: "t1",
-                name: "Основное подразделение",
-                type: "team",
-                children: [
-                  {
-                    id: "e1",
-                    name: "Иванов Сергей",
-                    type: "employee",
-                    employeeId: "e1",
-                  },
-                  {
-                    id: "e2",
-                    name: "Смирнова Анна",
-                    type: "employee",
-                    employeeId: "e2",
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ],
-  },
-];
+export function findEmployeeById(id: string) {
+  return employeesDb.find((employee) => employee.id === id);
+}
+
+export function upsertEmployee(payload: Employee) {
+  const index = employeesDb.findIndex((employee) => employee.id === payload.id);
+  if (index === -1) {
+    employeesDb.push(payload);
+  } else {
+    employeesDb[index] = { ...employeesDb[index], ...payload };
+  }
+  return employeesDb[index] ?? payload;
+}
+
+export function deleteEmployee(id: string) {
+  const index = employeesDb.findIndex((employee) => employee.id === id);
+  if (index !== -1) {
+    employeesDb.splice(index, 1);
+    return true;
+  }
+  return false;
+}

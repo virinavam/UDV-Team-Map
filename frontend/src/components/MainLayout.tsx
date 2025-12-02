@@ -1,6 +1,16 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Box, Flex, Text, HStack, useColorModeValue } from "@chakra-ui/react";
+import {
+  Avatar,
+  Box,
+  Button,
+  Flex,
+  HStack,
+  Text,
+  useColorModeValue,
+} from "@chakra-ui/react";
+import { authAPI } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -22,6 +32,7 @@ const navItems: NavItem[] = [
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, setUser } = useAuth();
   const activeColor = "#763186";
   const inactiveColor = useColorModeValue("gray.500", "gray.400");
 
@@ -36,6 +47,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       return location.pathname === "/team-map";
     }
     return location.pathname.startsWith(path);
+  };
+
+  const handleLogout = async () => {
+    await authAPI.logout();
+    setUser(null);
+    navigate("/login");
   };
 
   return (
@@ -92,10 +109,18 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           </HStack>
 
           {/* User Profile */}
-          <HStack spacing={2}>
+          <HStack spacing={3}>
+            <Avatar
+              size="sm"
+              name={user ? `${user.first_name} ${user.last_name}` : "Профиль"}
+              src={user?.photo_url}
+            />
             <Text color={activeColor} fontWeight="medium">
-              Ольга Лебедева
+              {user ? `${user.first_name} ${user.last_name}` : "—"}
             </Text>
+            <Button size="sm" variant="ghost" onClick={handleLogout}>
+              Выйти
+            </Button>
           </HStack>
         </Flex>
       </Box>

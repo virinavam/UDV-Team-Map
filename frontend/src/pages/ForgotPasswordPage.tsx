@@ -1,19 +1,8 @@
-import React, { useCallback } from "react";
+import React from "react";
 import { Box, Heading, Text, VStack, Image } from "@chakra-ui/react";
-import { useNavigate } from "react-router-dom";
-import LoginForm from "../components/auth/LoginForm";
-import { useAuth } from "../context/AuthContext";
-import { ROUTES } from "../routes/paths";
+import ForgotPasswordForm from "../components/auth/ForgotPasswordForm";
 
-export default function LoginPage() {
-  const { refreshSession } = useAuth();
-  const navigate = useNavigate();
-
-  const handleAuthenticated = useCallback(async () => {
-    await refreshSession();
-    navigate(ROUTES.employees);
-  }, [refreshSession, navigate]);
-
+const ForgotPasswordPage: React.FC = () => {
   return (
     <Box
       minH="100vh"
@@ -24,11 +13,10 @@ export default function LoginPage() {
       justifyContent="flex-start"
       pt={8}
     >
-      {/* Логотип */}
       <Image
         src="/logo.png"
         alt="UDV Group"
-        boxSize="270px"
+        boxSize="220px"
         objectFit="contain"
         mb={4}
       />
@@ -42,19 +30,22 @@ export default function LoginPage() {
         p={8}
         spacing={6}
       >
-        {/* Заголовок */}
         <VStack spacing={2} textAlign="center" w="100%">
           <Heading size="lg" fontWeight="bold" color="gray.800">
-            UDV Team Map
+            Восстановление доступа
           </Heading>
           <Text color="gray.600" fontSize="md">
-            Войдите в аккаунт для получения доступа к сервису
+            Укажите корпоративный email — мы отправим ссылку для восстановления
           </Text>
         </VStack>
 
-        <LoginForm onAuthenticated={handleAuthenticated} />
+        <ForgotPasswordForm />
       </VStack>
     </Box>
   );
-}
+};
+
+export default ForgotPasswordPage;
+
+
 

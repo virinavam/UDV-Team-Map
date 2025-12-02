@@ -1,6 +1,29 @@
-// lib/api.ts
+import type { Employee, OrgNode } from "../types/types";
+
 const API_BASE_URL =
-  (import.meta as any).env.VITE_API_URL || "http://localhost:8000/api";
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api";
+
+const jsonRequest = async <T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+    ...options,
+  });
+
+  if (!response.ok) {
+    const message = await response
+      .json()
+      .catch(() => ({ message: "Request failed" }));
+    throw new Error(message?.detail || message?.message || "Request failed");
+  }
+
+  return (await response.json()) as T;
+};
 
 // ======================= Типы =======================
 interface LoginRequest {
@@ -22,7 +45,7 @@ interface LoginResponse {
   };
 }
 
-interface User {
+export interface User {
   id: string;
   email: string;
   first_name: string;
@@ -117,20 +140,12 @@ export const authAPI = {
       const token = this.getToken();
       if (!token) return null;
 
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      return await jsonRequest<User>("/auth/me", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
       });
-
-      if (!response.ok) {
-        if (response.status === 401) await this.logout();
-        return null;
-      }
-
-      return (await response.json()) as User;
     } catch (error) {
       console.error("Get current user error:", error);
       return null;
@@ -141,17 +156,14 @@ export const authAPI = {
     data: ForgotPasswordRequest
   ): Promise<ForgotPasswordResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const resData = await response.json();
-      if (!response.ok)
-        return { success: false, message: resData.message || "Ошибка" };
-
-      return { success: true, message: resData.message || "Письмо отправлено" };
+      const resData = await jsonRequest<ForgotPasswordResponse>(
+        "/auth/forgot-password",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        }
+      );
+      return resData;
     } catch (error) {
       console.error("Forgot password API error:", error);
       return { success: false, message: "Ошибка подключения к серверу" };
@@ -160,23 +172,92 @@ export const authAPI = {
 
   async setPassword(data: SetPasswordRequest): Promise<SetPasswordResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/set-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const resData = await response.json();
-      if (!response.ok)
-        return { success: false, message: resData.message || "Ошибка" };
-
-      return {
-        success: true,
-        message: resData.message || "Пароль успешно изменен",
-      };
+      const resData = await jsonRequest<SetPasswordResponse>(
+        "/auth/set-password",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        }
+      );
+      return resData;
     } catch (error) {
       console.error("Set password API error:", error);
       return { success: false, message: "Ошибка подключения к серверу" };
     }
+  },
+};
+
+type EmployeeListResponse = { items: Employee[] };
+
+export const employeesAPI = {
+  async list(params?: {
+    search?: string;
+    city?: string;
+    skills?: string[];
+  }) {
+    const url = new URL(`${API_BASE_URL}/employees`);
+    if (params?.search) url.searchParams.set("search", params.search);
+    if (params?.city) url.searchParams.set("city", params.city);
+    params?.skills?.forEach((skill) => url.searchParams.append("skills", skill));
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error("Не удалось загрузить сотрудников");
+    }
+    const data = (await response.json()) as EmployeeListResponse;
+    return data.items;
+  },
+
+  async getById(id: string) {
+    return jsonRequest<Employee>(`/employees/${id}`, { method: "GET" });
+  },
+
+  async update(id: string, payload: Partial<Employee>) {
+    return jsonRequest<Employee>(`/employees/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async uploadAvatar(id: string, file: File) {
+    const formData = new FormData();
+    formData.append("avatar", file);
+    const response = await fetch(`${API_BASE_URL}/employees/${id}/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+    if (!response.ok) {
+      throw new Error("Не удалось загрузить аватар");
+    }
+    return (await response.json()) as { photoUrl: string };
+  },
+
+  async remove(id: string) {
+    const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error("Не удалось удалить сотрудника");
+    }
+    return true;
+  },
+};
+
+export const filtersAPI = {
+  async getOptions() {
+    return jsonRequest<{
+      cities: string[];
+      skills: string[];
+      legalEntities: string[];
+      departments: string[];
+      groups: string[];
+      positions: string[];
+    }>("/filters/options", { method: "GET" });
+  },
+};
+
+export const orgAPI = {
+  async getTree() {
+    return jsonRequest<{ tree: OrgNode[] }>("/org-tree", { method: "GET" });
   },
 };

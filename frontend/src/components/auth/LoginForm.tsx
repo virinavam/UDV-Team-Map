@@ -14,10 +14,28 @@ import {
 } from "@chakra-ui/react";
 import { useNavigate } from "react-router-dom";
 import { authAPI } from "../../lib/api";
+import { ROUTES } from "../../routes/paths";
+
+const trimValue = (value?: string | null) => value?.trim() ?? "";
 
 const schema = yup.object().shape({
-  email: yup.string().email("Некорректный email").required("Email обязателен"),
-  password: yup.string().required("Пароль обязателен"),
+  email: yup
+    .string()
+    .transform((value) => trimValue(value))
+    .email("Некорректный email")
+    .max(64, "Email не должен превышать 64 символа")
+    .required("Email обязателен"),
+  password: yup
+    .string()
+    .transform((value) => trimValue(value))
+    .min(6, "Минимум 6 символов")
+    .max(64, "Пароль не должен превышать 64 символа")
+    .test(
+      "not-empty",
+      "Пароль не может состоять только из пробелов",
+      (value) => Boolean(value?.trim())
+    )
+    .required("Пароль обязателен"),
 });
 
 interface LoginFormData {
@@ -57,10 +75,9 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
 
         if (response.isTemporaryPassword) {
           // Редирект на установку нового пароля
-          navigate("/set-password", { state: { token: response.token } });
+          navigate(ROUTES.setPassword, { state: { token: response.token } });
         } else {
-          // Редирект в основное приложение (на страницу сотрудников)
-          navigate("/employees");
+          navigate(ROUTES.employees);
         }
       } else {
         setError(response.message || "Неверный email или пароль");
@@ -162,7 +179,7 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
             color="#763186"
             fontSize="sm"
             fontWeight="normal"
-            onClick={() => navigate("/forgot-password")}
+            onClick={() => navigate(ROUTES.forgotPassword)}
             _hover={{ textDecoration: "underline" }}
           >
             Забыли пароль?

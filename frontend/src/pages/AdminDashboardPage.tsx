@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   HStack,
@@ -15,18 +15,21 @@ import {
   ModalFooter,
   useDisclosure,
   Text,
+  useToast,
 } from "@chakra-ui/react";
 import { SearchIcon, AddIcon } from "@chakra-ui/icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
 import AdminEmployeeTable from "../components/AdminEmployeeTable";
 import FilterDropdown from "../components/FilterDropdown";
 import EmployeeEditModal from "../components/EmployeeEditModal";
-import { mockEmployees } from "../lib/mock-data";
 import type { Employee } from "../types/types";
+import { employeesAPI } from "../lib/api";
+import AppliedFiltersBar from "../components/AppliedFiltersBar";
 
 const AdminDashboardPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [employees, setEmployees] = useState<Employee[]>(mockEmployees);
+  const [employees, setEmployees] = useState<Employee[]>([]);
   const [selectedLegalEntity, setSelectedLegalEntity] = useState<string[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string[]>([]);
@@ -36,6 +39,17 @@ const AdminDashboardPage: React.FC = () => {
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(
     null
   );
+
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  const { data: employeesData = [], isLoading } = useQuery({
+    queryKey: ["employees", { scope: "admin" }],
+    queryFn: () => employeesAPI.list(),
+  });
+
+  useEffect(() => {
+    setEmployees(employeesData);
+  }, [employeesData]);
 
   const {
     isOpen: isEditModalOpen,
@@ -95,12 +109,14 @@ const AdminDashboardPage: React.FC = () => {
   // Фильтрация сотрудников
   const filteredEmployees = useMemo(() => {
     return employees.filter((employee) => {
-      // Поиск
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const searchableText =
-          `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
-        if (!searchableText.includes(query)) {
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase().trim();
+        const searchableText = `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
+        const matches = query
+          .split(" ")
+          .filter(Boolean)
+          .every((word) => searchableText.includes(word));
+        if (!matches) {
           return false;
         }
       }
@@ -174,30 +190,50 @@ const AdminDashboardPage: React.FC = () => {
     onDeleteDialogOpen();
   };
 
-  const confirmDelete = () => {
-    if (deletingEmployee) {
-      setEmployees(employees.filter((e) => e.id !== deletingEmployee.id));
+  const confirmDelete = async () => {
+    if (!deletingEmployee) return;
+    try {
+      await employeesAPI.remove(deletingEmployee.id);
+      setEmployees((prev) =>
+        prev.filter((employee) => employee.id !== deletingEmployee.id)
+      );
+      toast({
+        status: "success",
+        title: "Сотрудник удален",
+      });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    } catch (error) {
+      toast({
+        status: "error",
+        title: "Не удалось удалить сотрудника",
+      });
+    } finally {
       onDeleteDialogClose();
       setDeletingEmployee(null);
     }
   };
 
-  const handleSaveEmployee = (employeeData: Employee) => {
-    if (editingEmployee) {
-      // Обновление существующего сотрудника
-      setEmployees(
-        employees.map((e) => (e.id === editingEmployee.id ? employeeData : e))
-      );
-    } else {
-      // Добавление нового сотрудника
-      const newEmployee = {
-        ...employeeData,
-        id: `e${Date.now()}`,
-      };
-      setEmployees([...employees, newEmployee]);
+  const handleSaveEmployee = async (employeeData: Employee) => {
+    try {
+      const updated = await employeesAPI.update(employeeData.id, employeeData);
+      setEmployees((prev) => {
+        const exists = prev.some((employee) => employee.id === updated.id);
+        return exists
+          ? prev.map((employee) =>
+              employee.id === updated.id ? updated : employee
+            )
+          : [...prev, updated];
+      });
+      toast({ status: "success", title: "Данные сохранены" });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      onEditModalClose();
+      setEditingEmployee(null);
+    } catch (error) {
+      toast({
+        status: "error",
+        title: "Не удалось сохранить изменения",
+      });
     }
-    onEditModalClose();
-    setEditingEmployee(null);
   };
 
   return (
@@ -221,10 +257,76 @@ const AdminDashboardPage: React.FC = () => {
               leftIcon={<AddIcon />}
               colorScheme="#763186"
               onClick={handleAddEmployee}
+              isDisabled={isLoading}
             >
               Добавить нового сотрудника
             </Button>
           </HStack>
+
+          <AppliedFiltersBar
+            filters={[
+              ...selectedLegalEntity.map((entity) => ({
+                id: `entity-${entity}`,
+                label: "Юрлицо",
+                value: entity,
+                onRemove: () =>
+                  setSelectedLegalEntity((prev) =>
+                    prev.filter((item) => item !== entity)
+                  ),
+              })),
+              ...selectedDepartment.map((dep) => ({
+                id: `dep-${dep}`,
+                label: "Подразделение",
+                value: dep,
+                onRemove: () =>
+                  setSelectedDepartment((prev) =>
+                    prev.filter((item) => item !== dep)
+                  ),
+              })),
+              ...selectedGroup.map((group) => ({
+                id: `group-${group}`,
+                label: "Группа",
+                value: group,
+                onRemove: () =>
+                  setSelectedGroup((prev) =>
+                    prev.filter((item) => item !== group)
+                  ),
+              })),
+              ...selectedPosition.map((pos) => ({
+                id: `pos-${pos}`,
+                label: "Должность",
+                value: pos,
+                onRemove: () =>
+                  setSelectedPosition((prev) =>
+                    prev.filter((item) => item !== pos)
+                  ),
+              })),
+              ...selectedCity.map((city) => ({
+                id: `city-${city}`,
+                label: "Город",
+                value: city,
+                onRemove: () =>
+                  setSelectedCity((prev) =>
+                    prev.filter((item) => item !== city)
+                  ),
+              })),
+            ]}
+            onClear={
+              selectedLegalEntity.length ||
+              selectedDepartment.length ||
+              selectedGroup.length ||
+              selectedPosition.length ||
+              selectedCity.length
+                ? () => {
+                    setSelectedLegalEntity([]);
+                    setSelectedDepartment([]);
+                    setSelectedGroup([]);
+                    setSelectedPosition([]);
+                    setSelectedCity([]);
+                  }
+                : undefined
+            }
+          />
 
           {/* Фильтры */}
           <HStack spacing={4} flexWrap="wrap">
@@ -270,6 +372,7 @@ const AdminDashboardPage: React.FC = () => {
             employees={filteredEmployees}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            isLoading={isLoading}
           />
         </VStack>
       </Box>
