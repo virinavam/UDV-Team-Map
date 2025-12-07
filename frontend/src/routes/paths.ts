@@ -6,6 +6,7 @@ export const ROUTES = {
   admin: "/admin",
   adminPanel: "/admin-panel",
   hrData: "/hr-data",
+  addEmployee: "/add-employee",
   profile: "/profile/:id",
   profileBase: "/profile",
   setPassword: "/set-password",

@@ -100,7 +100,7 @@ const AvatarUploader: React.FC<AvatarUploaderProps> = ({
       {/* Требования к фото */}
       <VStack align="start" spacing={1} fontSize="xs" color="gray.600">
         <Text fontWeight="semibold">Требования к фото:</Text>
-        <Text>1. На фото запечатлено Ваше лицо</Text>
+        <Text>1. На фото запечатлено лицо сотрудника</Text>
         <Text>2. Хорошее качество</Text>
         <Text>3. Нейтральный фон</Text>
       </VStack>

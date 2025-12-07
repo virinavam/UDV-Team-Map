@@ -53,6 +53,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     email: "",
     phone: "",
   });
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
     if (employee) {
@@ -93,7 +94,11 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     handleFieldChange("skills", skills);
   };
 
-  const handleSave = () => {
+  const handleSaveClick = () => {
+    setShowSaveConfirm(true);
+  };
+
+  const handleConfirmSave = () => {
     const employeeData: Employee = {
       id: employee?.id || `e${Date.now()}`,
       name:
@@ -109,6 +114,11 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     };
 
     onSave(employeeData);
+    setShowSaveConfirm(false);
+  };
+
+  const handleCancelSave = () => {
+    setShowSaveConfirm(false);
   };
 
   const skillsText = Array.isArray(formData.skills)
@@ -466,7 +476,13 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
           </VStack>
         </ModalBody>
         <ModalFooter>
-          <Button colorScheme="#763186" mr={3} onClick={handleSave}>
+          <Button
+            bg="#763186"
+            color="white"
+            _hover={{ bg: "#5e2770" }}
+            mr={3}
+            onClick={handleSaveClick}
+          >
             Сохранить
           </Button>
           <Button variant="ghost" onClick={onClose}>
@@ -474,6 +490,36 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
           </Button>
         </ModalFooter>
       </ModalContent>
+
+      {/* Модальное окно подтверждения сохранения */}
+      <Modal
+        isOpen={showSaveConfirm}
+        onClose={handleCancelSave}
+        isCentered
+        size="md"
+      >
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Сохранить изменения?</ModalHeader>
+          <ModalBody>
+            <Text>Вы уверены, что хотите применить изменения?</Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              bg="#763186"
+              color="white"
+              _hover={{ bg: "#5e2770" }}
+              mr={3}
+              onClick={handleConfirmSave}
+            >
+              Да
+            </Button>
+            <Button variant="ghost" onClick={handleCancelSave}>
+              Нет
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Modal>
   );
 };

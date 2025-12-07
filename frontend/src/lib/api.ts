@@ -223,6 +223,13 @@ export const employeesAPI = {
     return jsonRequest<Employee>(`/employees/${id}`, { method: "GET" });
   },
 
+  async create(payload: Partial<Employee>) {
+    return jsonRequest<Employee>(`/employees`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
   async update(id: string, payload: Partial<Employee>) {
     return jsonRequest<Employee>(`/employees/${id}`, {
       method: "PATCH",

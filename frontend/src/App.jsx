@@ -7,6 +7,7 @@ import ProfilePage from "./pages/ProfilePage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminPanelPage from "./pages/AdminPanelPage";
 import HRDataPage from "./pages/HRDataPage";
+import AddEmployeePage from "./pages/AddEmployeePage";
 import LoginPage from "./pages/LoginPage";
 import SetNewPasswordPage from "./pages/SetNewPasswordPage";
 import ProtectedRoute from "./routes/ProtectedRoute";
@@ -75,6 +76,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <HRDataPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.addEmployee}
+          element={
+            <ProtectedRoute>
+              <AddEmployeePage />
             </ProtectedRoute>
           }
         />

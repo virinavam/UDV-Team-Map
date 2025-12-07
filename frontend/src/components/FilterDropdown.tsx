@@ -5,13 +5,15 @@ import {
   Menu,
   MenuButton,
   MenuList,
-  MenuItem,
   Checkbox,
   VStack,
   HStack,
+  Input,
+  InputGroup,
+  InputLeftElement,
   useDisclosure,
 } from "@chakra-ui/react";
-import { ChevronDownIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon, SearchIcon } from "@chakra-ui/icons";
 
 interface FilterOption {
   value: string;
@@ -35,11 +37,19 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tempSelection, setTempSelection] = useState<string[]>(selectedValues);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Синхронизация временного выбора с внешними selectedValues
   useEffect(() => {
     setTempSelection(selectedValues);
   }, [selectedValues]);
+
+  // Сброс поиска при закрытии меню
+  useEffect(() => {
+    if (!isOpen) {
+      setSearchQuery("");
+    }
+  }, [isOpen]);
 
   // Переключение выбора
   const handleToggle = (value: string) => {
@@ -61,6 +71,11 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     onClose();
   };
 
+  // Фильтрация опций по поисковому запросу
+  const filteredOptions = options.filter((option) =>
+    option.label.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   // Отображение количества выбранных опций
   const count = selectedValues.length;
   const displayLabel = showCount && count > 0 ? `${label} (${count})` : label;
@@ -80,6 +95,19 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 
       <MenuList minW="200px" p={4}>
         <VStack align="stretch" spacing={3}>
+          <InputGroup size="sm">
+            <InputLeftElement pointerEvents="none">
+              <SearchIcon color="gray.300" />
+            </InputLeftElement>
+            <Input
+              placeholder="Поиск..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              bg="white"
+              autoComplete="off"
+            />
+          </InputGroup>
+
           <HStack justify="space-between">
             <Button
               size="sm"
@@ -96,17 +124,28 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
           </HStack>
 
           <Box maxH="300px" overflowY="auto">
-            {options.map((option) => (
-              <MenuItem key={option.value} cursor="default">
-                <Checkbox
-                  isChecked={tempSelection.includes(option.value)}
-                  onChange={() => handleToggle(option.value)}
-                  mr={2}
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => (
+                <Box
+                  key={option.value}
+                  p={2}
+                  _hover={{ bg: "gray.50" }}
+                  borderRadius="md"
+                  cursor="pointer"
                 >
-                  {option.label}
-                </Checkbox>
-              </MenuItem>
-            ))}
+                  <Checkbox
+                    isChecked={tempSelection.includes(option.value)}
+                    onChange={() => handleToggle(option.value)}
+                  >
+                    {option.label}
+                  </Checkbox>
+                </Box>
+              ))
+            ) : (
+              <Box p={2} textAlign="center" color="gray.500" fontSize="sm">
+                Ничего не найдено
+              </Box>
+            )}
           </Box>
         </VStack>
       </MenuList>

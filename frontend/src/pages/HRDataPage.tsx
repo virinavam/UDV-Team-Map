@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Avatar,
   Box,
@@ -17,24 +18,52 @@ import {
   Tr,
   VStack,
   useToast,
+  useDisclosure,
 } from "@chakra-ui/react";
-import { SearchIcon, EditIcon, DeleteIcon } from "@chakra-ui/icons";
-import { useQuery } from "@tanstack/react-query";
+import {
+  SearchIcon,
+  EditIcon,
+  DeleteIcon,
+  AddIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+} from "@chakra-ui/icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
 import FilterDropdown from "../components/FilterDropdown";
 import AppliedFiltersBar from "../components/AppliedFiltersBar";
+import EmployeeEditModal from "../components/EmployeeEditModal";
+import EmployeeDeleteModal from "../components/EmployeeDeleteModal";
 import type { Employee } from "../types/types";
 import { employeesAPI } from "../lib/api";
 import { searchEmployees } from "../lib/search-utils";
+import { ROUTES } from "../routes/paths";
+
+type SortDirection = "asc" | "desc" | null;
 
 const HRDataPage: React.FC = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLegalEntity, setSelectedLegalEntity] = useState<string[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string[]>([]);
+  const [sortDirection, setSortDirection] = useState<SortDirection>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+  const {
+    isOpen: isEditModalOpen,
+    onOpen: onEditModalOpen,
+    onClose: onEditModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isDeleteModalOpen,
+    onOpen: onDeleteModalOpen,
+    onClose: onDeleteModalClose,
+  } = useDisclosure();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const {
     data: employees = [],
@@ -155,40 +184,108 @@ const HRDataPage: React.FC = () => {
     selectedCity,
   ]);
 
-  const handleExportToExcel = () => {
-    const csvContent = [
-      [
-        "ФИО",
-        "Должность",
-        "Дата найма",
-        "Оклад",
-        "Статус",
-        "Номер договора",
-        "Юридическое лицо",
-        "Подразделение",
-      ],
-      ...filteredEmployees.map((emp) => [
-        `${emp.lastName} ${emp.firstName} ${emp.middleName}`,
-        emp.position || "",
-        emp.hireDate || "",
-        emp.salary?.toString() || "",
-        emp.employmentStatus || "",
-        emp.contractNumber || "",
-        emp.legalEntity || "",
-        emp.department || "",
-      ]),
-    ]
-      .map((row) => row.map((cell) => `"${cell}"`).join(","))
-      .join("\n");
+  // Сортировка по ФИО
+  const sortedEmployees = useMemo(() => {
+    if (!sortDirection) {
+      return filteredEmployees;
+    }
 
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.download = "hr_data.csv";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const sorted = [...filteredEmployees].sort((a, b) => {
+      const fullNameA = `${a.lastName || ""} ${a.firstName || ""} ${a.middleName || ""}`.trim().toLowerCase();
+      const fullNameB = `${b.lastName || ""} ${b.firstName || ""} ${b.middleName || ""}`.trim().toLowerCase();
+      
+      if (sortDirection === "asc") {
+        return fullNameA.localeCompare(fullNameB, "ru");
+      } else {
+        return fullNameB.localeCompare(fullNameA, "ru");
+      }
+    });
+
+    return sorted;
+  }, [filteredEmployees, sortDirection]);
+
+  const handleSortToggle = () => {
+    if (sortDirection === null) {
+      setSortDirection("asc");
+    } else if (sortDirection === "asc") {
+      setSortDirection("desc");
+    } else {
+      setSortDirection(null);
+    }
+  };
+
+  const handleAddEmployee = () => {
+    navigate(ROUTES.addEmployee);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    onEditModalOpen();
+  };
+
+  const handleDeleteEmployee = (employee: Employee) => {
+    setDeletingEmployee(employee);
+    onDeleteModalOpen();
+  };
+
+  const handleSaveEmployee = async (employeeData: Employee) => {
+    try {
+      if (editingEmployee?.id) {
+        await employeesAPI.update(editingEmployee.id, employeeData);
+        toast({
+          status: "success",
+          title: "Данные сохранены",
+          description: "Изменения успешно применены",
+          duration: 3000,
+          isClosable: true,
+        });
+      } else {
+        await employeesAPI.create(employeeData);
+        toast({
+          status: "success",
+          title: "Сотрудник добавлен",
+          description: "Новый сотрудник успешно добавлен",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      onEditModalClose();
+      setEditingEmployee(null);
+    } catch (error) {
+      toast({
+        status: "error",
+        title: "Ошибка",
+        description: "Не удалось сохранить изменения",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingEmployee) return;
+    try {
+      await employeesAPI.remove(deletingEmployee.id);
+      toast({
+        status: "success",
+        title: "Сотрудник удален",
+        description: "Сотрудник успешно удален из системы",
+        duration: 3000,
+        isClosable: true,
+      });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      onDeleteModalClose();
+      setDeletingEmployee(null);
+    } catch (error) {
+      toast({
+        status: "error",
+        title: "Ошибка",
+        description: "Не удалось удалить сотрудника",
+        duration: 5000,
+        isClosable: true,
+      });
+    }
   };
 
   const appliedFilters = useMemo(() => {
@@ -201,10 +298,10 @@ const HRDataPage: React.FC = () => {
         onRemove: () => setSearchQuery(""),
       });
     }
-    filters.push(
+      filters.push(
       ...selectedLegalEntity.map((value) => ({
         id: `entity-${value}`,
-        label: "Юрлицо",
+        label: "Юридическое лицо",
         value,
         onRemove: () =>
           setSelectedLegalEntity((prev) =>
@@ -284,8 +381,12 @@ const HRDataPage: React.FC = () => {
                 autoComplete="off"
               />
             </InputGroup>
-            <Button colorScheme="purple" onClick={handleExportToExcel}>
-              📥 Экспорт в Excel
+            <Button
+              colorScheme="purple"
+              leftIcon={<AddIcon />}
+              onClick={handleAddEmployee}
+            >
+              Добавить сотрудника
             </Button>
           </HStack>
 
@@ -339,17 +440,36 @@ const HRDataPage: React.FC = () => {
             borderRadius="md"
             bg="white"
           >
-            <Table variant="simple" size="md" minW="1200px">
+            <Table variant="simple" size="md" minW="800px">
               <Thead bg="gray.50">
                 <Tr>
                   <Th>Фото</Th>
-                  <Th>ФИО</Th>
+                  <Th>
+                    <HStack
+                      spacing={1}
+                      cursor="pointer"
+                      onClick={handleSortToggle}
+                      _hover={{ color: "purple.500" }}
+                    >
+                      <Text>ФИО</Text>
+                      <VStack spacing={0} ml={1}>
+                        <ArrowUpIcon
+                          boxSize={2.5}
+                          color={
+                            sortDirection === "asc" ? "purple.500" : "gray.400"
+                          }
+                        />
+                        <ArrowDownIcon
+                          boxSize={2.5}
+                          color={
+                            sortDirection === "desc" ? "purple.500" : "gray.400"
+                          }
+                        />
+                      </VStack>
+                    </HStack>
+                  </Th>
                   <Th>Должность</Th>
-                  <Th>Дата найма</Th>
-                  <Th>Оклад</Th>
-                  <Th>Статус</Th>
-                  <Th>Номер договора</Th>
-                  <Th>Юрлицо</Th>
+                  <Th>Юридическое лицо</Th>
                   <Th>Подразделение</Th>
                   <Th>Действия</Th>
                 </Tr>
@@ -357,7 +477,7 @@ const HRDataPage: React.FC = () => {
               <Tbody>
                 {isLoading ? (
                   <Tr>
-                    <Td colSpan={10}>
+                    <Td colSpan={6}>
                       <Text textAlign="center" py={6}>
                         Загрузка данных...
                       </Text>
@@ -365,7 +485,7 @@ const HRDataPage: React.FC = () => {
                   </Tr>
                 ) : isError ? (
                   <Tr>
-                    <Td colSpan={10}>
+                    <Td colSpan={6}>
                       <Text textAlign="center" py={6} color="red.500">
                         Ошибка загрузки данных. Проверьте консоль для деталей.
                       </Text>
@@ -373,7 +493,7 @@ const HRDataPage: React.FC = () => {
                   </Tr>
                 ) : filteredEmployees.length === 0 ? (
                   <Tr>
-                    <Td colSpan={10}>
+                    <Td colSpan={6}>
                       <Text textAlign="center" py={6} color="gray.500">
                         {employees.length === 0
                           ? "Нет данных для отображения"
@@ -382,7 +502,7 @@ const HRDataPage: React.FC = () => {
                     </Td>
                   </Tr>
                 ) : (
-                  filteredEmployees.map((employee) => (
+                  sortedEmployees.map((employee) => (
                     <Tr key={employee.id} _hover={{ bg: "gray.50" }}>
                       <Td>
                         <Avatar
@@ -398,14 +518,6 @@ const HRDataPage: React.FC = () => {
                         </Text>
                       </Td>
                       <Td>{employee.position}</Td>
-                      <Td>{employee.hireDate || "-"}</Td>
-                      <Td>
-                        {employee.salary
-                          ? `${employee.salary.toLocaleString()} ₽`
-                          : "-"}
-                      </Td>
-                      <Td>{employee.employmentStatus || "Работает"}</Td>
-                      <Td>{employee.contractNumber || "-"}</Td>
                       <Td>
                         {employee.legalEntity ||
                           employee.departmentFull?.split(" / ")[0] ||
@@ -424,6 +536,7 @@ const HRDataPage: React.FC = () => {
                             size="sm"
                             colorScheme="purple"
                             variant="ghost"
+                            onClick={() => handleEditEmployee(employee)}
                           />
                           <IconButton
                             aria-label="Удалить"
@@ -431,6 +544,7 @@ const HRDataPage: React.FC = () => {
                             size="sm"
                             colorScheme="red"
                             variant="ghost"
+                            onClick={() => handleDeleteEmployee(employee)}
                           />
                         </HStack>
                       </Td>
@@ -442,6 +556,22 @@ const HRDataPage: React.FC = () => {
           </Box>
         </VStack>
       </Box>
+
+      {/* Модальное окно редактирования сотрудника */}
+      <EmployeeEditModal
+        isOpen={isEditModalOpen}
+        onClose={onEditModalClose}
+        employee={editingEmployee}
+        onSave={handleSaveEmployee}
+      />
+
+      {/* Модальное окно удаления сотрудника */}
+      <EmployeeDeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={onDeleteModalClose}
+        employee={deletingEmployee}
+        onConfirm={handleConfirmDelete}
+      />
     </MainLayout>
   );
 };
