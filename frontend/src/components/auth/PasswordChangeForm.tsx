@@ -117,8 +117,3 @@ const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
 };
 
 export default PasswordChangeForm;
-
-
-
-
-

@@ -30,10 +30,8 @@ const schema = yup.object().shape({
     .transform((value) => trimValue(value))
     .min(6, "Минимум 6 символов")
     .max(64, "Пароль не должен превышать 64 символа")
-    .test(
-      "not-empty",
-      "Пароль не может состоять только из пробелов",
-      (value) => Boolean(value?.trim())
+    .test("not-empty", "Пароль не может состоять только из пробелов", (value) =>
+      Boolean(value?.trim())
     )
     .required("Пароль обязателен"),
 });
