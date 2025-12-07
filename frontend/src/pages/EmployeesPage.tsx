@@ -6,6 +6,7 @@ import SearchAndFilters from "../components/SearchAndFilters";
 import EmployeeCard from "../components/EmployeeCard";
 import { employeesAPI, filtersAPI } from "../lib/api";
 import AppliedFiltersBar from "../components/AppliedFiltersBar";
+import { searchEmployees } from "../lib/search-utils";
 
 const EmployeesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -18,21 +19,40 @@ const EmployeesPage: React.FC = () => {
   });
 
   const {
-    data: employees = [],
+    data: allEmployees = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: [
-      "employees",
-      { searchQuery, selectedCity, selectedSkills: selectedSkills.join("|") },
-    ],
-    queryFn: () =>
-      employeesAPI.list({
-        search: searchQuery.trim() || undefined,
-        city: selectedCity || undefined,
-        skills: selectedSkills,
-      }),
+    queryKey: ["employees", { scope: "list" }],
+    queryFn: () => employeesAPI.list(),
   });
+
+  // Применяем клиентскую фильтрацию с новой логикой поиска
+  const employees = useMemo(() => {
+    let filtered = [...allEmployees];
+
+    // Универсальный поиск с fuzzy matching
+    if (searchQuery.trim()) {
+      filtered = searchEmployees(filtered, searchQuery, {
+        fuzzyThreshold: 0.5,
+        matchAllTokens: false,
+      });
+    }
+
+    // Фильтр по городу
+    if (selectedCity) {
+      filtered = filtered.filter((emp) => emp.city === selectedCity);
+    }
+
+    // Фильтр по навыкам
+    if (selectedSkills.length > 0) {
+      filtered = filtered.filter((emp) =>
+        selectedSkills.some((skill) => emp.skills?.includes(skill))
+      );
+    }
+
+    return filtered;
+  }, [allEmployees, searchQuery, selectedCity, selectedSkills]);
 
   const appliedFilters = useMemo(() => {
     const chips = [];

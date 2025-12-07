@@ -46,8 +46,3 @@ const ForgotPasswordPage: React.FC = () => {
 };
 
 export default ForgotPasswordPage;
-
-
-
-
-

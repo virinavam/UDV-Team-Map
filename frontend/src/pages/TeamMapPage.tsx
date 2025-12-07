@@ -52,6 +52,7 @@ const TeamMapPage: React.FC = () => {
 
   const nodeTypes = useMemo(() => ({ custom: OrgChartNode }), []);
 
+  // Поиск работает мгновенно при вводе каждой буквы
   const handleSearch = useCallback(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) {
@@ -68,6 +69,11 @@ const TeamMapPage: React.FC = () => {
       }))
     );
   }, [initialNodes, searchQuery, setNodes]);
+
+  // Автоматически выполняем поиск при изменении запроса
+  useEffect(() => {
+    handleSearch();
+  }, [searchQuery, handleSearch]);
 
   const onNodeClick = useCallback((_e: any, node: any) => {
     if (node.data.type === "employee" && node.data.employeeId) {
@@ -87,12 +93,12 @@ const TeamMapPage: React.FC = () => {
             <Input
               placeholder="Поиск по оргструктуре"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onBlur={handleSearch}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSearch();
+              onChange={(e) => {
+                // Поиск работает мгновенно при вводе каждой буквы
+                setSearchQuery(e.target.value);
               }}
               bg="white"
+              autoComplete="off"
             />
             <InputRightElement>
               <SearchIcon color="gray.500" />

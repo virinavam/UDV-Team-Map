@@ -26,6 +26,7 @@ import EmployeeEditModal from "../components/EmployeeEditModal";
 import type { Employee } from "../types/types";
 import { employeesAPI } from "../lib/api";
 import AppliedFiltersBar from "../components/AppliedFiltersBar";
+import { searchEmployees } from "../lib/search-utils";
 
 const AdminDashboardPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -106,65 +107,59 @@ const AdminDashboardPage: React.FC = () => {
     return Array.from(groupSet).map((g) => ({ value: g, label: g }));
   }, [employees]);
 
-  // Фильтрация сотрудников
+  // Фильтрация сотрудников с новой логикой поиска
   const filteredEmployees = useMemo(() => {
-    return employees.filter((employee) => {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const searchableText = `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
-        const matches = query
-          .split(" ")
-          .filter(Boolean)
-          .every((word) => searchableText.includes(word));
-        if (!matches) {
-          return false;
-        }
-      }
+    let filtered = [...employees];
 
-      // Фильтр по юридическому лицу
-      if (selectedLegalEntity.length > 0) {
+    // Универсальный поиск с fuzzy matching
+    if (searchQuery.trim()) {
+      filtered = searchEmployees(filtered, searchQuery, {
+        fuzzyThreshold: 0.5,
+        matchAllTokens: false,
+      });
+    }
+
+    // Фильтр по юридическому лицу
+    if (selectedLegalEntity.length > 0) {
+      filtered = filtered.filter((employee) => {
         const entity =
           employee.legalEntity || employee.departmentFull?.split(" / ")[0];
-        if (!entity || !selectedLegalEntity.includes(entity)) {
-          return false;
-        }
-      }
+        return entity && selectedLegalEntity.includes(entity);
+      });
+    }
 
-      // Фильтр по подразделению
-      if (selectedDepartment.length > 0) {
+    // Фильтр по подразделению
+    if (selectedDepartment.length > 0) {
+      filtered = filtered.filter((employee) => {
         const dep =
           employee.departmentFull?.split(" / ")[2] || employee.department;
-        if (!dep || !selectedDepartment.includes(dep)) {
-          return false;
-        }
-      }
+        return dep && selectedDepartment.includes(dep);
+      });
+    }
 
-      // Фильтр по группе
-      if (selectedGroup.length > 0) {
-        if (!employee.group || !selectedGroup.includes(employee.group)) {
-          return false;
-        }
-      }
+    // Фильтр по группе
+    if (selectedGroup.length > 0) {
+      filtered = filtered.filter(
+        (employee) => employee.group && selectedGroup.includes(employee.group)
+      );
+    }
 
-      // Фильтр по должности
-      if (selectedPosition.length > 0) {
-        if (
-          !employee.position ||
-          !selectedPosition.includes(employee.position)
-        ) {
-          return false;
-        }
-      }
+    // Фильтр по должности
+    if (selectedPosition.length > 0) {
+      filtered = filtered.filter(
+        (employee) =>
+          employee.position && selectedPosition.includes(employee.position)
+      );
+    }
 
-      // Фильтр по городу
-      if (selectedCity.length > 0) {
-        if (!employee.city || !selectedCity.includes(employee.city)) {
-          return false;
-        }
-      }
+    // Фильтр по городу
+    if (selectedCity.length > 0) {
+      filtered = filtered.filter(
+        (employee) => employee.city && selectedCity.includes(employee.city)
+      );
+    }
 
-      return true;
-    });
+    return filtered;
   }, [
     employees,
     searchQuery,
@@ -247,10 +242,14 @@ const AdminDashboardPage: React.FC = () => {
                 <SearchIcon color="gray.300" />
               </InputLeftElement>
               <Input
-                placeholder="Поиск сотрудников..."
+                placeholder="Поиск: фамилия, имя, должность, навыки (например: 'Иванов React Senior')"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  // Поиск работает мгновенно при вводе каждой буквы
+                  setSearchQuery(e.target.value);
+                }}
                 bg="white"
+                autoComplete="off"
               />
             </InputGroup>
             <Button
@@ -265,6 +264,16 @@ const AdminDashboardPage: React.FC = () => {
 
           <AppliedFiltersBar
             filters={[
+              ...(searchQuery.trim()
+                ? [
+                    {
+                      id: "search",
+                      label: "Поиск",
+                      value: searchQuery.trim(),
+                      onRemove: () => setSearchQuery(""),
+                    },
+                  ]
+                : []),
               ...selectedLegalEntity.map((entity) => ({
                 id: `entity-${entity}`,
                 label: "Юрлицо",
@@ -312,12 +321,14 @@ const AdminDashboardPage: React.FC = () => {
               })),
             ]}
             onClear={
+              searchQuery.trim() ||
               selectedLegalEntity.length ||
               selectedDepartment.length ||
               selectedGroup.length ||
               selectedPosition.length ||
               selectedCity.length
                 ? () => {
+                    setSearchQuery("");
                     setSelectedLegalEntity([]);
                     setSelectedDepartment([]);
                     setSelectedGroup([]);

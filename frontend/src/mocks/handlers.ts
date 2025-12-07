@@ -6,6 +6,7 @@ import {
   deleteEmployee,
 } from "./data/employees";
 import { orgTree } from "./data/orgTree";
+import { searchEmployees } from "../lib/search-utils";
 
 const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms));
 const AUTH_TOKEN = "mock-access-token";
@@ -27,7 +28,10 @@ const unauthorized = () =>
 
 export const handlers = [
   http.post("*/auth/login", async ({ request }) => {
-    const body = (await request.json()) as { email?: string; password?: string };
+    const body = (await request.json()) as {
+      email?: string;
+      password?: string;
+    };
     if (!body.email || !body.password) {
       return HttpResponse.json(
         { success: false, message: "Введите email и пароль" },
@@ -75,19 +79,17 @@ export const handlers = [
 
   http.get("*/employees", async ({ request }) => {
     const url = new URL(request.url);
-    const search = (url.searchParams.get("search") || "").toLowerCase();
+    const search = url.searchParams.get("search") || "";
     const city = url.searchParams.get("city");
     const skills = url.searchParams.getAll("skills");
 
     let result = [...employeesDb];
 
+    // Используем новую универсальную логику поиска с fuzzy matching
     if (search) {
-      result = result.filter((employee) => {
-        const searchable = `${employee.name} ${employee.position} ${employee.email}`.toLowerCase();
-        return search
-          .split(" ")
-          .filter(Boolean)
-          .every((word) => searchable.includes(word));
+      result = searchEmployees(result, search, {
+        fuzzyThreshold: 0.5,
+        matchAllTokens: false, // хотя бы один токен должен совпасть
       });
     }
 
@@ -144,10 +146,7 @@ export const handlers = [
     const formData = await request.formData();
     const file = formData.get("avatar");
     if (!(file instanceof File)) {
-      return HttpResponse.json(
-        { message: "Файл не найден" },
-        { status: 400 }
-      );
+      return HttpResponse.json({ message: "Файл не найден" }, { status: 400 });
     }
 
     const buffer = await file.arrayBuffer();
@@ -181,10 +180,14 @@ export const handlers = [
       cities: unique(employeesDb.map((emp) => emp.city)).sort(),
       skills: unique(employeesDb.flatMap((emp) => emp.skills)).sort(),
       legalEntities: unique(
-        employeesDb.map((emp) => emp.legalEntity || emp.departmentFull?.split(" / ")[0])
+        employeesDb.map(
+          (emp) => emp.legalEntity || emp.departmentFull?.split(" / ")[0]
+        )
       ).sort(),
       departments: unique(
-        employeesDb.map((emp) => emp.departmentFull?.split(" / ")[2] || emp.department)
+        employeesDb.map(
+          (emp) => emp.departmentFull?.split(" / ")[2] || emp.department
+        )
       ).sort(),
       groups: unique(employeesDb.map((emp) => emp.group)).sort(),
       positions: unique(employeesDb.map((emp) => emp.position)).sort(),
@@ -196,4 +199,3 @@ export const handlers = [
     return HttpResponse.json({ tree: orgTree });
   }),
 ];
-

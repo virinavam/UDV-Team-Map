@@ -5,11 +5,18 @@ import {
   Button,
   Center,
   HStack,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Spinner,
   Text,
+  useDisclosure,
   useToast,
 } from "@chakra-ui/react";
-import { ArrowBackIcon, EditIcon } from "@chakra-ui/icons";
+import { ArrowBackIcon, EditIcon, CloseIcon } from "@chakra-ui/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
 import ProfileView from "../components/profile/ProfileView";
@@ -27,6 +34,14 @@ const ProfilePage: React.FC = () => {
   const [editedEmployee, setEditedEmployee] = useState<Employee | null>(null);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Модальные окна подтверждения
+  const { isOpen: isSaveConfirmOpen, onOpen: onSaveConfirmOpen, onClose: onSaveConfirmClose } = useDisclosure();
+  const { isOpen: isFinalConfirmOpen, onOpen: onFinalConfirmOpen, onClose: onFinalConfirmClose } = useDisclosure();
+  const { isOpen: isCancelConfirmOpen, onOpen: onCancelConfirmOpen, onClose: onCancelConfirmClose } = useDisclosure();
+  
+  // Тип подтверждения: 'save' для сохранения, 'cancel' для отмены
+  const [confirmType, setConfirmType] = useState<'save' | 'cancel'>('save');
 
   const {
     data: employee,
@@ -58,8 +73,26 @@ const ProfilePage: React.FC = () => {
     );
   };
 
-  const handleSave = async () => {
+  const handleSaveClick = () => {
+    setConfirmType('save');
+    onSaveConfirmOpen();
+  };
+
+  const handleSaveConfirmYes = () => {
+    onSaveConfirmClose();
+    setConfirmType('save');
+    onFinalConfirmOpen();
+  };
+
+  const handleSaveConfirmNo = () => {
+    onSaveConfirmClose();
+    setConfirmType('cancel');
+    onCancelConfirmOpen();
+  };
+
+  const handleFinalConfirm = async () => {
     if (!editedEmployee) return;
+    onFinalConfirmClose();
     setIsSaving(true);
     try {
       let payload: Partial<Employee> = { ...editedEmployee };
@@ -77,7 +110,11 @@ const ProfilePage: React.FC = () => {
       setIsEditMode(false);
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.setQueryData(["employee", editedEmployee.id], updated);
-      toast({ status: "success", title: "Профиль обновлен" });
+      toast({ 
+        status: "success", 
+        title: "Изменения отправлены на проверку модератору",
+        duration: 5000,
+      });
     } catch (err) {
       toast({
         status: "error",
@@ -87,6 +124,13 @@ const ProfilePage: React.FC = () => {
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCancelConfirmYes = () => {
+    onCancelConfirmClose();
+    setEditedEmployee(employee || null);
+    setPendingAvatarFile(null);
+    setIsEditMode(false);
   };
 
   const handleCancel = () => {
@@ -120,19 +164,29 @@ const ProfilePage: React.FC = () => {
 
   return (
     <MainLayout>
-      <Box p={6}>
+      <Box p={6} bg="gray.50" minH="100vh">
         <HStack spacing={4} mb={6} justify="space-between">
           <Button
             leftIcon={<ArrowBackIcon />}
             variant="ghost"
+            colorScheme="purple"
             onClick={() => navigate(-1)}
           >
-            Назад
+            ← Назад
           </Button>
-          {!isEditMode && (
+          {isEditMode ? (
+            <Button
+              leftIcon={<CloseIcon />}
+              variant="ghost"
+              colorScheme="purple"
+              onClick={handleCancel}
+            >
+              Закрыть
+            </Button>
+          ) : (
             <Button
               leftIcon={<EditIcon />}
-              variant="outline"
+              colorScheme="purple"
               onClick={() => setIsEditMode(true)}
             >
               Редактировать
@@ -140,26 +194,119 @@ const ProfilePage: React.FC = () => {
           )}
         </HStack>
 
-        <Box bg="white" borderRadius="lg" p={8} boxShadow="sm">
-          {isEditMode && editedEmployee ? (
+        {isEditMode && editedEmployee ? (
+          <Box
+            bg="white"
+            borderRadius="lg"
+            p={8}
+            boxShadow="sm"
+            border="1px solid"
+            borderColor="gray.200"
+          >
             <ProfileEditForm
               employee={editedEmployee}
               onFieldChange={handleFieldChange}
               onAvatarSelect={handleAvatarSelect}
               onCancel={handleCancel}
-              onSave={handleSave}
+              onSave={handleSaveClick}
               isSaving={isSaving}
             />
-          ) : (
-            <ProfileView employee={employee} />
-          )}
-        </Box>
+          </Box>
+        ) : (
+          <ProfileView employee={employee} />
+        )}
       </Box>
+
+      {/* Первое модальное окно подтверждения */}
+      <Modal isOpen={isSaveConfirmOpen} onClose={onSaveConfirmClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Сохранить изменения?</ModalHeader>
+          <ModalBody>
+            <Text>
+              Примененные изменения будут отправлены на проверку модератору
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={handleSaveConfirmNo}
+            >
+              Нет
+            </Button>
+            <Button
+              colorScheme="purple"
+              onClick={handleSaveConfirmYes}
+            >
+              Да
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Второе модальное окно подтверждения для сохранения */}
+      <Modal isOpen={isFinalConfirmOpen && confirmType === 'save'} onClose={onFinalConfirmClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Уверены ли вы?</ModalHeader>
+          <ModalBody>
+            <Text>
+              Вы уверены, что хотите отправить изменения на проверку?
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={onFinalConfirmClose}
+            >
+              Нет
+            </Button>
+            <Button
+              colorScheme="purple"
+              onClick={handleFinalConfirm}
+              isLoading={isSaving}
+            >
+              Да
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Второе модальное окно подтверждения для отмены */}
+      <Modal isOpen={isCancelConfirmOpen} onClose={onCancelConfirmClose} isCentered>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Вы уверены, что не хотите сохранять изменения?</ModalHeader>
+          <ModalBody>
+            <Text>
+              Все внесенные изменения будут потеряны
+            </Text>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="ghost"
+              mr={3}
+              onClick={onCancelConfirmClose}
+            >
+              Нет
+            </Button>
+            <Button
+              colorScheme="purple"
+              onClick={handleCancelConfirmYes}
+            >
+              Да
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </MainLayout>
   );
 };
 
 export default ProfilePage;
+
 
 
 

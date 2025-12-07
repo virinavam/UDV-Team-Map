@@ -25,6 +25,7 @@ import FilterDropdown from "../components/FilterDropdown";
 import AppliedFiltersBar from "../components/AppliedFiltersBar";
 import type { Employee } from "../types/types";
 import { employeesAPI } from "../lib/api";
+import { searchEmployees } from "../lib/search-utils";
 
 const HRDataPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -33,26 +34,34 @@ const HRDataPage: React.FC = () => {
   const [selectedGroup, setSelectedGroup] = useState<string[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
   const toast = useToast();
 
-  const { data: employeesData = [], isLoading, isError } = useQuery({
+  const {
+    data: employees = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["employees", { scope: "hr" }],
     queryFn: () => employeesAPI.list(),
+    retry: 1,
   });
 
   useEffect(() => {
-    setEmployees(employeesData);
-  }, [employeesData]);
-
-  useEffect(() => {
     if (isError) {
+      console.error("Ошибка загрузки кадровых данных:", error);
       toast({
         status: "error",
         title: "Не удалось загрузить данные",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Проверьте подключение к серверу",
+        duration: 5000,
+        isClosable: true,
       });
     }
-  }, [isError, toast]);
+  }, [isError, error, toast]);
 
   const createOptions = (getter: (emp: Employee) => string | undefined) => {
     const items = new Set<string>();
@@ -77,60 +86,65 @@ const HRDataPage: React.FC = () => {
       ),
     [employees]
   );
-  const groups = useMemo(
-    () => createOptions((emp) => emp.group),
-    [employees]
-  );
+  const groups = useMemo(() => createOptions((emp) => emp.group), [employees]);
   const positions = useMemo(
     () => createOptions((emp) => emp.position),
     [employees]
   );
-  const cities = useMemo(
-    () => createOptions((emp) => emp.city),
-    [employees]
-  );
+  const cities = useMemo(() => createOptions((emp) => emp.city), [employees]);
 
   const filteredEmployees = useMemo(() => {
-    return employees.filter((employee) => {
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const searchableText = `${employee.lastName} ${employee.firstName} ${employee.middleName} ${employee.position} ${employee.email}`.toLowerCase();
-        const matches = query
-          .split(" ")
-          .filter(Boolean)
-          .every((word) => searchableText.includes(word));
-        if (!matches) return false;
-      }
+    let filtered = [...employees];
 
-      if (selectedLegalEntity.length) {
+    // Универсальный поиск с fuzzy matching
+    if (searchQuery.trim()) {
+      filtered = searchEmployees(filtered, searchQuery, {
+        fuzzyThreshold: 0.5,
+        matchAllTokens: false,
+      });
+    }
+
+    // Фильтр по юридическому лицу
+    if (selectedLegalEntity.length) {
+      filtered = filtered.filter((employee) => {
         const entity =
           employee.legalEntity || employee.departmentFull?.split(" / ")[0];
-        if (!entity || !selectedLegalEntity.includes(entity)) return false;
-      }
+        return entity && selectedLegalEntity.includes(entity);
+      });
+    }
 
-      if (selectedDepartment.length) {
+    // Фильтр по подразделению
+    if (selectedDepartment.length) {
+      filtered = filtered.filter((employee) => {
         const dep =
           employee.departmentFull?.split(" / ")[2] || employee.department;
-        if (!dep || !selectedDepartment.includes(dep)) return false;
-      }
+        return dep && selectedDepartment.includes(dep);
+      });
+    }
 
-      if (selectedGroup.length) {
-        if (!employee.group || !selectedGroup.includes(employee.group))
-          return false;
-      }
+    // Фильтр по группе
+    if (selectedGroup.length) {
+      filtered = filtered.filter(
+        (employee) => employee.group && selectedGroup.includes(employee.group)
+      );
+    }
 
-      if (selectedPosition.length) {
-        if (!employee.position || !selectedPosition.includes(employee.position))
-          return false;
-      }
+    // Фильтр по должности
+    if (selectedPosition.length) {
+      filtered = filtered.filter(
+        (employee) =>
+          employee.position && selectedPosition.includes(employee.position)
+      );
+    }
 
-      if (selectedCity.length) {
-        if (!employee.city || !selectedCity.includes(employee.city))
-          return false;
-      }
+    // Фильтр по городу
+    if (selectedCity.length) {
+      filtered = filtered.filter(
+        (employee) => employee.city && selectedCity.includes(employee.city)
+      );
+    }
 
-      return true;
-    });
+    return filtered;
   }, [
     employees,
     searchQuery,
@@ -177,47 +191,71 @@ const HRDataPage: React.FC = () => {
     document.body.removeChild(link);
   };
 
-  const appliedFilters = [
-    ...selectedLegalEntity.map((value) => ({
-      id: `entity-${value}`,
-      label: "Юрлицо",
-      value,
-      onRemove: () =>
-        setSelectedLegalEntity((prev) => prev.filter((item) => item !== value)),
-    })),
-    ...selectedDepartment.map((value) => ({
-      id: `dep-${value}`,
-      label: "Подразделение",
-      value,
-      onRemove: () =>
-        setSelectedDepartment((prev) => prev.filter((item) => item !== value)),
-    })),
-    ...selectedGroup.map((value) => ({
-      id: `group-${value}`,
-      label: "Группа",
-      value,
-      onRemove: () =>
-        setSelectedGroup((prev) => prev.filter((item) => item !== value)),
-    })),
-    ...selectedPosition.map((value) => ({
-      id: `pos-${value}`,
-      label: "Должность",
-      value,
-      onRemove: () =>
-        setSelectedPosition((prev) => prev.filter((item) => item !== value)),
-    })),
-    ...selectedCity.map((value) => ({
-      id: `city-${value}`,
-      label: "Город",
-      value,
-      onRemove: () =>
-        setSelectedCity((prev) => prev.filter((item) => item !== value)),
-    })),
-  ];
+  const appliedFilters = useMemo(() => {
+    const filters = [];
+    if (searchQuery.trim()) {
+      filters.push({
+        id: "search",
+        label: "Поиск",
+        value: searchQuery.trim(),
+        onRemove: () => setSearchQuery(""),
+      });
+    }
+    filters.push(
+      ...selectedLegalEntity.map((value) => ({
+        id: `entity-${value}`,
+        label: "Юрлицо",
+        value,
+        onRemove: () =>
+          setSelectedLegalEntity((prev) =>
+            prev.filter((item) => item !== value)
+          ),
+      })),
+      ...selectedDepartment.map((value) => ({
+        id: `dep-${value}`,
+        label: "Подразделение",
+        value,
+        onRemove: () =>
+          setSelectedDepartment((prev) =>
+            prev.filter((item) => item !== value)
+          ),
+      })),
+      ...selectedGroup.map((value) => ({
+        id: `group-${value}`,
+        label: "Группа",
+        value,
+        onRemove: () =>
+          setSelectedGroup((prev) => prev.filter((item) => item !== value)),
+      })),
+      ...selectedPosition.map((value) => ({
+        id: `pos-${value}`,
+        label: "Должность",
+        value,
+        onRemove: () =>
+          setSelectedPosition((prev) => prev.filter((item) => item !== value)),
+      })),
+      ...selectedCity.map((value) => ({
+        id: `city-${value}`,
+        label: "Город",
+        value,
+        onRemove: () =>
+          setSelectedCity((prev) => prev.filter((item) => item !== value)),
+      }))
+    );
+    return filters;
+  }, [
+    searchQuery,
+    selectedLegalEntity,
+    selectedDepartment,
+    selectedGroup,
+    selectedPosition,
+    selectedCity,
+  ]);
 
   const clearAllFilters =
     appliedFilters.length > 0
       ? () => {
+          setSearchQuery("");
           setSelectedLegalEntity([]);
           setSelectedDepartment([]);
           setSelectedGroup([]);
@@ -236,10 +274,14 @@ const HRDataPage: React.FC = () => {
                 <SearchIcon color="gray.300" />
               </InputLeftElement>
               <Input
-                placeholder="Поиск сотрудников..."
+                placeholder="Поиск: фамилия, имя, должность, навыки (например: 'Иванов React Senior')"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  // Поиск работает мгновенно при вводе каждой буквы
+                  setSearchQuery(e.target.value);
+                }}
                 bg="white"
+                autoComplete="off"
               />
             </InputGroup>
             <Button colorScheme="purple" onClick={handleExportToExcel}>
@@ -247,7 +289,10 @@ const HRDataPage: React.FC = () => {
             </Button>
           </HStack>
 
-          <AppliedFiltersBar filters={appliedFilters} onClear={clearAllFilters} />
+          <AppliedFiltersBar
+            filters={appliedFilters}
+            onClear={clearAllFilters}
+          />
 
           <HStack spacing={4} flexWrap="wrap">
             <FilterDropdown
@@ -315,6 +360,24 @@ const HRDataPage: React.FC = () => {
                     <Td colSpan={10}>
                       <Text textAlign="center" py={6}>
                         Загрузка данных...
+                      </Text>
+                    </Td>
+                  </Tr>
+                ) : isError ? (
+                  <Tr>
+                    <Td colSpan={10}>
+                      <Text textAlign="center" py={6} color="red.500">
+                        Ошибка загрузки данных. Проверьте консоль для деталей.
+                      </Text>
+                    </Td>
+                  </Tr>
+                ) : filteredEmployees.length === 0 ? (
+                  <Tr>
+                    <Td colSpan={10}>
+                      <Text textAlign="center" py={6} color="gray.500">
+                        {employees.length === 0
+                          ? "Нет данных для отображения"
+                          : "Сотрудники не найдены по заданным фильтрам"}
                       </Text>
                     </Td>
                   </Tr>
