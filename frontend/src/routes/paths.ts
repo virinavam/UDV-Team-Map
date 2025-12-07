@@ -4,14 +4,10 @@ export const ROUTES = {
   employees: "/employees",
   teamMap: "/team-map",
   admin: "/admin",
+  adminPanel: "/admin-panel",
   hrData: "/hr-data",
   profile: "/profile/:id",
   profileBase: "/profile",
   setPassword: "/set-password",
   forgotPassword: "/forgot-password",
 };
-
-
-
-
-
