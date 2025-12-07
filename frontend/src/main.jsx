@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { ChakraProvider } from "@chakra-ui/react";
 import { BrowserRouter } from "react-router-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import App from "./App.jsx";
 import "./index.css";
 import { queryClient } from "./lib/queryClient";
@@ -16,13 +15,27 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 
 const enableMocking = async () => {
+  // MSW и мок-данные загружаются только в development режиме
+  // В production они не попадают в бандл благодаря условию и динамическому импорту
   if (import.meta.env.DEV) {
-    const { worker } = await import("./mocks/browser");
-    await worker.start({ onUnhandledRequest: "bypass" });
+    try {
+      const { worker } = await import("./mocks/browser");
+      await worker.start({ onUnhandledRequest: "bypass" });
+    } catch (error) {
+      console.warn("Failed to start MSW worker:", error);
+    }
   }
 };
 
 const renderApp = () => {
+  const DevTools = import.meta.env.DEV
+    ? React.lazy(() =>
+        import("@tanstack/react-query-devtools").then((mod) => ({
+          default: mod.ReactQueryDevtools,
+        }))
+      )
+    : null;
+
   root.render(
     <React.StrictMode>
       <BrowserRouter>
@@ -32,7 +45,11 @@ const renderApp = () => {
               <App />
             </AuthProvider>
           </ChakraProvider>
-          <ReactQueryDevtools initialIsOpen={false} />
+          {DevTools && (
+            <React.Suspense fallback={null}>
+              <DevTools initialIsOpen={false} />
+            </React.Suspense>
+          )}
         </QueryClientProvider>
       </BrowserRouter>
     </React.StrictMode>

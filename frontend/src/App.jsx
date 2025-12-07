@@ -5,6 +5,7 @@ import EmployeesPage from "./pages/EmployeesPage";
 import TeamMapPage from "./pages/TeamMapPage";
 import ProfilePage from "./pages/ProfilePage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AdminPanelPage from "./pages/AdminPanelPage";
 import HRDataPage from "./pages/HRDataPage";
 import LoginPage from "./pages/LoginPage";
 import SetNewPasswordPage from "./pages/SetNewPasswordPage";
@@ -27,10 +28,7 @@ export default function App() {
       <Routes>
         <Route path={ROUTES.login} element={<LoginPage />} />
         <Route path={ROUTES.setPassword} element={<SetNewPasswordPage />} />
-        <Route
-          path={ROUTES.forgotPassword}
-          element={<ForgotPasswordPage />}
-        />
+        <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
 
         <Route
           path={ROUTES.employees}
@@ -61,6 +59,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AdminDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.adminPanel}
+          element={
+            <ProtectedRoute>
+              <AdminPanelPage />
             </ProtectedRoute>
           }
         />
