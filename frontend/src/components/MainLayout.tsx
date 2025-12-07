@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   Avatar,
@@ -9,8 +9,11 @@ import {
   Text,
   useColorModeValue,
 } from "@chakra-ui/react";
-import { authAPI } from "../lib/api";
+import { ViewIcon, AtSignIcon } from "@chakra-ui/icons";
+import { authAPI, employeesAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { ROUTES } from "../routes/paths";
+import { useQuery } from "@tanstack/react-query";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -20,13 +23,34 @@ type NavItem = {
   key: string;
   label: string;
   path: string;
-  icon?: string;
+  icon?: React.ReactNode;
 };
 
 const navItems: NavItem[] = [
-  { key: "team-map", label: "Team Map", path: "/team-map" },
-  { key: "employees", label: "Сотрудники", path: "/employees" },
-  { key: "admin", label: "Кадровые данные", path: "/admin" },
+  {
+    key: "team-map",
+    label: "Team Map",
+    path: ROUTES.teamMap,
+    icon: <Text fontSize="lg">🌐</Text>,
+  },
+  {
+    key: "employees",
+    label: "Сотрудники",
+    path: ROUTES.employees,
+    icon: <Text fontSize="lg">👥</Text>,
+  },
+  {
+    key: "admin-panel",
+    label: "Админ-панель",
+    path: ROUTES.adminPanel,
+    icon: <ViewIcon boxSize={4} />,
+  },
+  {
+    key: "hr-data",
+    label: "Кадровые данные",
+    path: ROUTES.hrData,
+    icon: <AtSignIcon boxSize={4} />,
+  },
 ];
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
@@ -36,15 +60,32 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const activeColor = "#763186";
   const inactiveColor = useColorModeValue("gray.500", "gray.400");
 
+  // Найти ID сотрудника по email пользователя
+  const { data: currentUserEmployee } = useQuery({
+    queryKey: ["current-user-employee", user?.email],
+    queryFn: async () => {
+      if (!user?.email) return null;
+      const employees = await employeesAPI.list();
+      return employees.find((emp) => emp.email === user.email) || null;
+    },
+    enabled: Boolean(user?.email),
+  });
+
   const handleNavigate = (path: string) => {
     if (location.pathname !== path) {
       navigate(path);
     }
   };
 
+  const handleProfileClick = () => {
+    if (currentUserEmployee?.id) {
+      navigate(`${ROUTES.profileBase}/${currentUserEmployee.id}`);
+    }
+  };
+
   const isActive = (path: string) => {
-    if (path === "/team-map") {
-      return location.pathname === "/team-map";
+    if (path === ROUTES.teamMap) {
+      return location.pathname === ROUTES.teamMap;
     }
     return location.pathname.startsWith(path);
   };
@@ -52,7 +93,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const handleLogout = async () => {
     await authAPI.logout();
     setUser(null);
-    navigate("/login");
+    navigate(ROUTES.login);
   };
 
   return (
@@ -83,14 +124,21 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                   onClick={() => handleNavigate(item.path)}
                   position="relative"
                   pb={2}
-                  _hover={{ color: activeColor }}
+                  px={3}
+                  py={1}
+                  borderRadius="md"
+                  bg={active ? "purple.50" : "transparent"}
+                  _hover={{
+                    color: activeColor,
+                    bg: active ? "purple.50" : "gray.50",
+                  }}
                   color={active ? activeColor : inactiveColor}
                   fontWeight={active ? "semibold" : "normal"}
                   transition="all 0.2s"
                   cursor="pointer"
                 >
                   <HStack spacing={2}>
-                    {item.icon && <Text>{item.icon}</Text>}
+                    {item.icon}
                     <Text>{item.label}</Text>
                   </HStack>
                   {active && (
@@ -113,9 +161,15 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             <Avatar
               size="sm"
               name={user ? `${user.first_name} ${user.last_name}` : "Профиль"}
-              src={user?.photo_url}
+              src={user?.photo_url || currentUserEmployee?.photoUrl}
             />
-            <Text color={activeColor} fontWeight="medium">
+            <Text
+              color={activeColor}
+              fontWeight="medium"
+              cursor="pointer"
+              _hover={{ textDecoration: "underline" }}
+              onClick={handleProfileClick}
+            >
               {user ? `${user.first_name} ${user.last_name}` : "—"}
             </Text>
             <Button size="sm" variant="ghost" onClick={handleLogout}>

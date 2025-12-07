@@ -1,5 +1,11 @@
 import React from "react";
-import { HStack, Tag, TagLabel, TagCloseButton, Button } from "@chakra-ui/react";
+import {
+  HStack,
+  Tag,
+  TagLabel,
+  TagCloseButton,
+  Button,
+} from "@chakra-ui/react";
 
 export interface AppliedFilterChip {
   id: string;
@@ -46,8 +52,3 @@ const AppliedFiltersBar: React.FC<AppliedFiltersBarProps> = ({
 };
 
 export default AppliedFiltersBar;
-
-
-
-
-

@@ -114,12 +114,16 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
             <SearchIcon color="gray.400" />
           </InputLeftElement>
           <Input
-            placeholder="Поиск сотрудника по ФИО, должности и почте..."
+            placeholder="Поиск: фамилия, имя, должность, навыки (например: 'Иванов React Senior Engineer')"
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => {
+              // Поиск работает мгновенно при вводе каждой буквы
+              onSearchChange(e.target.value);
+            }}
             bg="white"
             borderColor="gray.300"
             h="44px"
+            autoComplete="off"
           />
         </InputGroup>
       </Box>
