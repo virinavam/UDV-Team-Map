@@ -190,21 +190,32 @@ export const authAPI = {
 type EmployeeListResponse = { items: Employee[] };
 
 export const employeesAPI = {
-  async list(params?: {
-    search?: string;
-    city?: string;
-    skills?: string[];
-  }) {
+  async list(params?: { search?: string; city?: string; skills?: string[] }) {
     const url = new URL(`${API_BASE_URL}/employees`);
     if (params?.search) url.searchParams.set("search", params.search);
     if (params?.city) url.searchParams.set("city", params.city);
-    params?.skills?.forEach((skill) => url.searchParams.append("skills", skill));
+    params?.skills?.forEach((skill) =>
+      url.searchParams.append("skills", skill)
+    );
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Fetching employees from: ${url.toString()}`);
+    }
 
     const response = await fetch(url.toString());
     if (!response.ok) {
-      throw new Error("Не удалось загрузить сотрудников");
+      const errorText = await response.text();
+      console.error(`[API] Error ${response.status}: ${errorText}`);
+      throw new Error(
+        `Не удалось загрузить сотрудников: ${response.status} ${response.statusText}`
+      );
     }
     const data = (await response.json()) as EmployeeListResponse;
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Loaded ${data.items.length} employees`);
+    }
+
     return data.items;
   },
 
