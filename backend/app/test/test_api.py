@@ -85,7 +85,7 @@ def test_update_employee(auth_header, auth_tokens):
         "phone": "+79991234567",
     }
 
-    r = requests.patch(f"{BASE_URL}/api/employees/{user_id}", headers=auth_header, json=update_data)
+    r = requests.put(f"{BASE_URL}/api/employees/{user_id}", headers=auth_header, json=update_data)
     assert r.status_code == 200
     data = r.json()
     assert data["first_name"] == "UpdatedName"

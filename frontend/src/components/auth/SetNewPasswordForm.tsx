@@ -12,14 +12,16 @@ import {
   Text,
   Box,
 } from "@chakra-ui/react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { authAPI } from "../../lib/api";
 
 // Валидация пароля: минимум 8 символов, буквы и цифры
 const passwordSchema = yup
   .string()
+  .transform((value) => value?.trim() ?? "")
   .required("Пароль обязателен")
   .min(8, "Пароль должен содержать минимум 8 символов")
+  .max(64, "Пароль должен быть короче 64 символов")
   .test(
     "has-letters-and-numbers",
     "Пароль должен содержать буквы и цифры",
@@ -35,6 +37,7 @@ const schema = yup.object().shape({
   password: passwordSchema,
   confirmPassword: yup
     .string()
+    .transform((value) => value?.trim() ?? "")
     .required("Подтверждение пароля обязательно")
     .oneOf([yup.ref("password")], "Пароли не совпадают"),
 });
@@ -51,7 +54,6 @@ interface SetNewPasswordFormProps {
 export default function SetNewPasswordForm({
   onAuthenticated,
 }: SetNewPasswordFormProps) {
-  const navigate = useNavigate();
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

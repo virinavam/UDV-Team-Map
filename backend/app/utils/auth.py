@@ -1,12 +1,13 @@
 from uuid import UUID
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Path
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from app.core.logger import get_logger
 from app.deps.db import get_db
+from app.enums import RoleEnum
 from app.models import User
 from app.repositories.user_repository import UserRepository
 from app.utils.tokens import decode_token
@@ -68,5 +69,15 @@ def require_roles(*roles):
         if user.role not in role_values:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
         return user
+
+    return dependency
+
+
+def require_self(*roles):
+    async def dependency(user: User = Depends(get_current_user_by_credentials), user_id: UUID = Path(...)):
+        role_values = [role.value if hasattr(role, "value") else str(role) for role in roles]
+        if user_id == user.id or user.role in role_values:
+            return None
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied")
 
     return dependency

@@ -1,0 +1,175 @@
+/**
+ * Хук для управления редактированием профиля сотрудника
+ */
+
+import { useState, useCallback } from "react";
+import { useToast } from "@chakra-ui/react";
+import { useQueryClient } from "@tanstack/react-query";
+import type { Employee } from "../types/types";
+import { employeesAPI } from "../lib/api";
+import {
+  trimAndValidate,
+  isNotEmpty,
+  validateMaxLength,
+  validateEmail,
+  validatePhone,
+  FIELD_MAX_LENGTHS,
+} from "../lib/validation";
+
+interface UseProfileEditOptions {
+  employeeId: string;
+  onSuccess?: () => void;
+}
+
+export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions) => {
+  const toast = useToast();
+  const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+
+  const validateEmployeeData = useCallback((employee: Employee): string | null => {
+    if (!isNotEmpty(employee.firstName)) {
+      return "Имя обязательно для заполнения";
+    }
+    if (!isNotEmpty(employee.lastName)) {
+      return "Фамилия обязательна для заполнения";
+    }
+    if (!isNotEmpty(employee.email)) {
+      return "Email обязателен для заполнения";
+    }
+    if (!validateEmail(employee.email)) {
+      return "Некорректный email адрес";
+    }
+    if (employee.firstName && !validateMaxLength(employee.firstName, FIELD_MAX_LENGTHS.firstName)) {
+      return `Имя не должно превышать ${FIELD_MAX_LENGTHS.firstName} символов`;
+    }
+    if (employee.lastName && !validateMaxLength(employee.lastName, FIELD_MAX_LENGTHS.lastName)) {
+      return `Фамилия не должна превышать ${FIELD_MAX_LENGTHS.lastName} символов`;
+    }
+    if (employee.email && !validateMaxLength(employee.email, FIELD_MAX_LENGTHS.email)) {
+      return `Email не должен превышать ${FIELD_MAX_LENGTHS.email} символов`;
+    }
+    if (employee.phone && !validatePhone(employee.phone)) {
+      return "Некорректный формат телефона";
+    }
+    if (employee.phone && !validateMaxLength(employee.phone, FIELD_MAX_LENGTHS.phone)) {
+      return `Телефон не должен превышать ${FIELD_MAX_LENGTHS.phone} символов`;
+    }
+    return null;
+  }, []);
+
+  const saveEmployee = useCallback(async (editedEmployee: Employee): Promise<Employee | false> => {
+    // Валидация перед сохранением
+    const validationError = validateEmployeeData(editedEmployee);
+    if (validationError) {
+      toast({
+        status: "error",
+        title: "Ошибка валидации",
+        description: validationError,
+        duration: 5000,
+        isClosable: true,
+      });
+      return false;
+    }
+
+    setIsSaving(true);
+    try {
+      // Обрезаем пробелы из всех строковых полей
+      let payload: Partial<Employee> = {
+        ...editedEmployee,
+        firstName: trimAndValidate(editedEmployee.firstName),
+        lastName: trimAndValidate(editedEmployee.lastName),
+        middleName: trimAndValidate(editedEmployee.middleName),
+        email: trimAndValidate(editedEmployee.email),
+        phone: trimAndValidate(editedEmployee.phone),
+        city: trimAndValidate(editedEmployee.city),
+        position: trimAndValidate(editedEmployee.position),
+        telegram: trimAndValidate(editedEmployee.telegram),
+        mattermost: trimAndValidate(editedEmployee.mattermost),
+        managerName: trimAndValidate(editedEmployee.managerName),
+      };
+
+      // Загружаем аватар, если он был выбран
+      if (pendingAvatarFile) {
+        try {
+          toast({
+            status: "info",
+            title: "Загрузка аватара...",
+            description: "Пожалуйста, подождите",
+            duration: 2000,
+            isClosable: true,
+          });
+
+          const { photoUrl } = await employeesAPI.uploadAvatar(
+            editedEmployee.id,
+            pendingAvatarFile
+          );
+          payload = { ...payload, photoUrl };
+
+          toast({
+            status: "success",
+            title: "Аватар загружен",
+            duration: 2000,
+            isClosable: true,
+          });
+        } catch (avatarError) {
+          toast({
+            status: "error",
+            title: "Ошибка загрузки аватара",
+            description:
+              avatarError instanceof Error
+                ? avatarError.message
+                : "Не удалось загрузить аватар",
+            duration: 5000,
+            isClosable: true,
+          });
+          // Продолжаем сохранение без аватара
+        }
+      }
+
+      // Обновляем данные сотрудника
+      const updated = await employeesAPI.update(editedEmployee.id, payload);
+      
+      // Инвалидируем кэш и обновляем данные
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.setQueryData(["employee", editedEmployee.id], updated);
+
+      setPendingAvatarFile(null);
+
+      toast({
+        status: "success",
+        title: "Изменения сохранены",
+        description: "Изменения отправлены на проверку модератору",
+        duration: 5000,
+        isClosable: true,
+      });
+
+      onSuccess?.();
+      return updated;
+    } catch (err) {
+      toast({
+        status: "error",
+        title: "Не удалось сохранить изменения",
+        description:
+          err instanceof Error
+            ? err.message
+            : "Произошла ошибка при сохранении",
+        duration: 5000,
+        isClosable: true,
+      });
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [pendingAvatarFile, validateEmployeeData, toast, queryClient, onSuccess, employeeId]);
+
+  return {
+    isSaving,
+    pendingAvatarFile,
+    setPendingAvatarFile,
+    saveEmployee,
+    validateEmployeeData,
+  };
+};
+
+

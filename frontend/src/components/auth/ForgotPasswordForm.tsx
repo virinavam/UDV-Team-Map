@@ -17,7 +17,12 @@ import { useNavigate } from "react-router-dom";
 import { authAPI } from "../../lib/api";
 
 const schema = yup.object().shape({
-  email: yup.string().email("Некорректный email").required("Email обязателен"),
+  email: yup
+    .string()
+    .transform((value) => value?.trim() ?? "")
+    .email("Некорректный email")
+    .max(64, "Не более 64 символов")
+    .required("Email обязателен"),
 });
 
 interface ForgotPasswordFormData {
