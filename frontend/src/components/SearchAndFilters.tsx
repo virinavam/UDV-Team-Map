@@ -13,10 +13,6 @@ import {
   VStack,
   HStack,
   Checkbox,
-  Radio,
-  RadioGroup,
-  Text,
-  Icon,
 } from "@chakra-ui/react";
 import { SearchIcon, ChevronDownIcon } from "@chakra-ui/icons";
 
@@ -58,6 +54,12 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
       setTempSkills(selectedSkills);
     }
   }, [isSkillsOpen, selectedSkills]);
+
+  // Обработчик выбора города (только один выбор)
+  const handleCityToggle = (city: string) => {
+    // Если выбран тот же город, снимаем выбор, иначе выбираем новый
+    setTempCity(tempCity === city ? "" : city);
+  };
 
   const handleCityApply = () => {
     onCityChange(tempCity);
@@ -116,10 +118,14 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
           <Input
             placeholder="Поиск сотрудника по ФИО, должности и почте..."
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => {
+              // Поиск работает мгновенно при вводе каждой буквы
+              onSearchChange(e.target.value);
+            }}
             bg="white"
             borderColor="gray.300"
             h="44px"
+            autoComplete="off"
           />
         </InputGroup>
       </Box>
@@ -203,18 +209,23 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
                   </Button>
                 </Flex>
                 <Box p={3}>
-                  <RadioGroup
-                    value={tempCity}
-                    onChange={(value) => setTempCity(value)}
-                  >
+                  {cities.length === 0 ? (
+                    <Box p={2} color="gray.500" fontSize="sm">
+                      Нет доступных городов
+                    </Box>
+                  ) : (
                     <VStack align="start" spacing={2}>
                       {cities.map((city) => (
-                        <Radio key={city} value={city}>
+                        <Checkbox
+                          key={city}
+                          isChecked={tempCity === city}
+                          onChange={() => handleCityToggle(city)}
+                        >
                           {city}
-                        </Radio>
+                        </Checkbox>
                       ))}
                     </VStack>
-                  </RadioGroup>
+                  )}
                 </Box>
               </VStack>
             </PopoverBody>
@@ -301,17 +312,23 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
                   </Button>
                 </Flex>
                 <Box p={3}>
-                  <VStack align="start" spacing={2}>
-                    {skills.map((skill) => (
-                      <Checkbox
-                        key={skill}
-                        isChecked={tempSkills.includes(skill)}
-                        onChange={() => handleSkillToggle(skill)}
-                      >
-                        {skill}
-                      </Checkbox>
-                    ))}
-                  </VStack>
+                  {skills.length === 0 ? (
+                    <Box p={2} color="gray.500" fontSize="sm">
+                      Нет доступных навыков
+                    </Box>
+                  ) : (
+                    <VStack align="start" spacing={2}>
+                      {skills.map((skill) => (
+                        <Checkbox
+                          key={skill}
+                          isChecked={tempSkills.includes(skill)}
+                          onChange={() => handleSkillToggle(skill)}
+                        >
+                          {skill}
+                        </Checkbox>
+                      ))}
+                    </VStack>
+                  )}
                 </Box>
               </VStack>
             </PopoverBody>

@@ -19,12 +19,14 @@ interface AdminEmployeeTableProps {
   employees: Employee[];
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
+  isLoading?: boolean;
 }
 
 const AdminEmployeeTable: React.FC<AdminEmployeeTableProps> = ({
   employees,
   onEdit,
   onDelete,
+  isLoading = false,
 }) => {
   return (
     <Box
@@ -51,53 +53,64 @@ const AdminEmployeeTable: React.FC<AdminEmployeeTableProps> = ({
           </Tr>
         </Thead>
         <Tbody>
-          {employees.map((employee) => (
-            <Tr key={employee.id} _hover={{ bg: "gray.50" }}>
-              <Td>
-                <Avatar
-                  size="sm"
-                  name={employee.name}
-                  src={employee.photoUrl}
-                />
-              </Td>
-              <Td>
-                <Text fontWeight="medium">
-                  {employee.lastName} {employee.firstName} {employee.middleName}
+          {isLoading ? (
+            <Tr>
+              <Td colSpan={6}>
+                <Text textAlign="center" py={4}>
+                  Загрузка сотрудников...
                 </Text>
               </Td>
-              <Td>{employee.position}</Td>
-              <Td>
-                {employee.legalEntity ||
-                  employee.departmentFull?.split(" / ")[0] ||
-                  "-"}
-              </Td>
-              <Td>
-                {employee.departmentFull?.split(" / ")[2] ||
-                  employee.department ||
-                  "-"}
-              </Td>
-              <Td>
-                <HStack spacing={2}>
-                  <IconButton
-                    aria-label="Редактировать"
-                    icon={<EditIcon />}
-                    size="sm"
-                    colorScheme="#763186"
-                    variant="ghost"
-                    onClick={() => onEdit(employee)}
-                  />
-                  <IconButton
-                    aria-label="Удалить"
-                    icon={<DeleteIcon />}
-                    size="sm"
-                    colorScheme="red"
-                    variant="ghost"
-                    onClick={() => onDelete(employee)}
-                  />
-                </HStack>
-              </Td>
             </Tr>
-          ))}
+          ) : (
+            employees.map((employee) => (
+              <Tr key={employee.id} _hover={{ bg: "gray.50" }}>
+                <Td>
+                  <Avatar
+                    size="sm"
+                    name={employee.name}
+                    src={employee.photoUrl}
+                  />
+                </Td>
+                <Td>
+                  <Text fontWeight="medium">
+                    {employee.lastName} {employee.firstName}{" "}
+                    {employee.middleName}
+                  </Text>
+                </Td>
+                <Td>{employee.position}</Td>
+                <Td>
+                  {employee.legalEntity ||
+                    employee.departmentFull?.split(" / ")[0] ||
+                    "-"}
+                </Td>
+                <Td>
+                  {employee.departmentFull?.split(" / ")[2] ||
+                    employee.department ||
+                    "-"}
+                </Td>
+                <Td>
+                  <HStack spacing={2}>
+                    <IconButton
+                      aria-label="Редактировать"
+                      icon={<EditIcon />}
+                      size="sm"
+                      colorScheme="#763186"
+                      variant="ghost"
+                      onClick={() => onEdit(employee)}
+                    />
+                    <IconButton
+                      aria-label="Удалить"
+                      icon={<DeleteIcon />}
+                      size="sm"
+                      colorScheme="red"
+                      variant="ghost"
+                      onClick={() => onDelete(employee)}
+                    />
+                  </HStack>
+                </Td>
+              </Tr>
+            ))
+          )}
         </Tbody>
       </Table>
     </Box>

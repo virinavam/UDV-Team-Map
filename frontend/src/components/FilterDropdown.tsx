@@ -61,19 +61,44 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     onClose();
   };
 
-  // Отображение количества выбранных опций
+  // Отображение выбранных опций
   const count = selectedValues.length;
-  const displayLabel = showCount && count > 0 ? `${label} (${count})` : label;
+  const hasSelection = count > 0;
+
+  // Получаем метки выбранных значений
+  const selectedLabels = selectedValues
+    .map((value) => options.find((opt) => opt.value === value)?.label)
+    .filter(Boolean) as string[];
+
+  // Формируем текст для отображения
+  let displayLabel = label;
+  if (hasSelection) {
+    if (showCount) {
+      // Показываем количество и первые 2 значения
+      const preview = selectedLabels.slice(0, 2).join(", ");
+      const more = count > 2 ? ` +${count - 2}` : "";
+      displayLabel = `${label}: ${preview}${more}`;
+    } else {
+      // Показываем только количество
+      displayLabel = `${label} (${count})`;
+    }
+  }
 
   return (
     <Menu isOpen={isOpen} onOpen={onOpen} onClose={onClose}>
       <MenuButton
         as={Button}
         rightIcon={<ChevronDownIcon />}
-        variant="outline"
+        variant={hasSelection ? "solid" : "outline"}
+        colorScheme={hasSelection ? "purple" : undefined}
         size="md"
-        bg="white"
-        _hover={{ bg: "gray.50" }}
+        bg={hasSelection ? "#763186" : "white"}
+        color={hasSelection ? "white" : undefined}
+        _hover={{
+          bg: hasSelection ? "#5e2770" : "gray.50",
+        }}
+        borderColor={hasSelection ? "#763186" : "gray.200"}
+        borderWidth="1px"
       >
         {displayLabel}
       </MenuButton>

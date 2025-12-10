@@ -1,77 +1,152 @@
-import React, { useState, useMemo } from "react";
-import { Box, SimpleGrid } from "@chakra-ui/react";
+import React, { useMemo, useState } from "react";
+import { Box, SimpleGrid, Spinner, Center, Text } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
 import SearchAndFilters from "../components/SearchAndFilters";
 import EmployeeCard from "../components/EmployeeCard";
-import { mockEmployees } from "../lib/mock-data";
+import { employeesAPI, filtersAPI } from "../lib/api";
+import AppliedFiltersBar from "../components/AppliedFiltersBar";
+import { searchEmployees } from "../lib/search-utils";
 
-interface EmployeesPageProps {}
-
-const EmployeesPage: React.FC<EmployeesPageProps> = () => {
+const EmployeesPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCity, setSelectedCity] = useState("");
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
 
-  const cities = useMemo(() => {
-    const citySet = new Set(mockEmployees.map((e) => e.city));
-    return Array.from(citySet).sort();
-  }, []);
+  const { data: filtersData, isLoading: isLoadingFilters, isError: isFiltersError, error: filtersError } = useQuery({
+    queryKey: ["filter-options"],
+    queryFn: () => filtersAPI.getOptions(),
+    retry: 2,
+  });
 
-  const skills = useMemo(() => {
-    const skillSet = new Set<string>();
-    mockEmployees.forEach((e) => {
-      e.skills.forEach((skill) => skillSet.add(skill));
-    });
-    return Array.from(skillSet).sort();
-  }, []);
+  // Логирование для отладки
+  React.useEffect(() => {
+    if (filtersData) {
+      console.log("[EmployeesPage] Filters data loaded:", filtersData);
+      console.log("[EmployeesPage] Cities:", filtersData.cities?.length || 0);
+      console.log("[EmployeesPage] Skills:", filtersData.skills?.length || 0);
+    }
+    if (isFiltersError) {
+      console.error("[EmployeesPage] Error loading filters:", filtersError);
+    }
+  }, [filtersData, isFiltersError, filtersError]);
 
-  const filteredEmployees = useMemo(() => {
-    return mockEmployees.filter((employee) => {
-      // Search filter
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        const searchableText =
-          `${employee.name} ${employee.position} ${employee.email}`.toLowerCase();
-        if (searchQuery) {
-          const queryWords = searchQuery
-            .toLowerCase()
-            .split(" ")
-            .filter(Boolean); // убираем пустые строки
+  // Двухуровневая фильтрация:
+  // 1. Серверная фильтрация - для фильтров по городу и навыкам (работает с БД, логика AND для навыков)
+  // 2. Клиентская фильтрация - для поиска с fuzzy matching (быстрый отклик)
+  
+  // Определяем, нужно ли использовать серверную фильтрацию
+  // Серверная фильтрация используется, если есть фильтры по городу или навыкам
+  const hasServerFilters = selectedCity || selectedSkills.length > 0;
+  
+  // Загружаем данные: либо всех сотрудников (для клиентской фильтрации),
+  // либо с серверными фильтрами (город, навыки с логикой AND)
+  const {
+    data: allEmployees = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: [
+      "employees",
+      {
+        scope: hasServerFilters ? "filtered" : "all",
+        city: selectedCity || undefined,
+        skills: selectedSkills.length > 0 ? selectedSkills : undefined,
+      },
+    ],
+    queryFn: () =>
+      employeesAPI.list({
+        // На сервере передаем только фильтры (город, навыки с логикой AND)
+        // Поиск делаем на клиенте для быстрого отклика
+        city: selectedCity || undefined,
+        skills: selectedSkills.length > 0 ? selectedSkills : undefined,
+      }),
+    enabled: true, // Всегда включен
+  });
 
-          const searchableText =
-            `${employee.name} ${employee.position} ${employee.email}`.toLowerCase();
+  // Клиентская фильтрация: применяем поиск с fuzzy matching
+  // Фильтрация по навыкам на клиенте (когда нет серверных фильтров) использует логику OR
+  const employees = useMemo(() => {
+    let filtered = [...allEmployees];
 
-          // проверяем, что каждое слово встречается где-то в searchableText
-          // сейчас, например, "Смирнова Product" → разделяется на ["смирнова", "product"]
-          const matches = queryWords.every((word) =>
-            searchableText.includes(word)
-          );
-          if (!matches) return false;
-        }
-      }
+    // Поиск с fuzzy matching (клиентская фильтрация)
+    // Ищет по ФИО, должности, email и навыкам
+    if (searchQuery.trim()) {
+      filtered = searchEmployees(filtered, searchQuery, {
+        fuzzyThreshold: 0.5,
+        matchAllTokens: false,
+      });
+    }
 
-      // City filter
-      if (selectedCity && employee.city !== selectedCity) {
-        return false;
-      }
+    return filtered;
+  }, [allEmployees, searchQuery]);
 
-      // Skills filter
-      if (selectedSkills.length > 0) {
-        const hasSelectedSkill = selectedSkills.some((skill) =>
-          employee.skills.includes(skill)
-        );
-        if (!hasSelectedSkill) {
-          return false;
-        }
-      }
+  const appliedFilters = useMemo(() => {
+    const chips = [];
+    if (selectedCity) {
+      chips.push({
+        id: "city",
+        label: "Город",
+        value: selectedCity,
+        onRemove: () => setSelectedCity(""),
+      });
+    }
+    selectedSkills.forEach((skill) =>
+      chips.push({
+        id: `skill-${skill}`,
+        label: "Навык",
+        value: skill,
+        onRemove: () =>
+          setSelectedSkills((prev) => prev.filter((item) => item !== skill)),
+      })
+    );
+    if (searchQuery.trim()) {
+      chips.push({
+        id: "search",
+        label: "Поиск",
+        value: searchQuery.trim(),
+        onRemove: () => setSearchQuery(""),
+      });
+    }
+    return chips;
+  }, [selectedCity, selectedSkills, searchQuery]);
 
-      return true;
-    });
-  }, [searchQuery, selectedCity, selectedSkills]);
+  const handleClearFilters = () => {
+    setSelectedCity("");
+    setSelectedSkills([]);
+    setSearchQuery("");
+  };
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <Center h="70vh">
+          <Spinner size="lg" color="purple.500" />
+        </Center>
+      </MainLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <MainLayout>
+        <Center h="70vh">
+          <Text color="red.500">Не удалось загрузить сотрудников</Text>
+        </Center>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
       <Box p={6}>
+        {isFiltersError && (
+          <Box mb={4} p={3} bg="red.50" border="1px solid" borderColor="red.200" borderRadius="md">
+            <Text color="red.600" fontSize="sm">
+              Ошибка загрузки фильтров. Проверьте подключение к серверу.
+            </Text>
+          </Box>
+        )}
         <SearchAndFilters
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -79,16 +154,20 @@ const EmployeesPage: React.FC<EmployeesPageProps> = () => {
           onCityChange={setSelectedCity}
           selectedSkills={selectedSkills}
           onSkillsChange={setSelectedSkills}
-          cities={cities}
-          skills={skills}
+          cities={filtersData?.cities || []}
+          skills={filtersData?.skills || []}
+        />
+        <AppliedFiltersBar
+          filters={appliedFilters}
+          onClear={appliedFilters.length ? handleClearFilters : undefined}
         />
         <Box mt={6}>
           <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={6}>
-            {filteredEmployees.map((employee) => (
+            {employees.map((employee) => (
               <EmployeeCard key={employee.id} employee={employee} />
             ))}
           </SimpleGrid>
-          {filteredEmployees.length === 0 && (
+          {employees.length === 0 && (
             <Box textAlign="center" py={8}>
               Сотрудники не найдены
             </Box>
@@ -98,7 +177,5 @@ const EmployeesPage: React.FC<EmployeesPageProps> = () => {
     </MainLayout>
   );
 };
-
-interface EmployeesPageProps {}
 
 export default EmployeesPage;

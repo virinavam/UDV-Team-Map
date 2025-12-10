@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Box, Heading, Text, VStack, Image } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
 import SetNewPasswordForm from "../components/auth/SetNewPasswordForm";
+import { useAuth } from "../context/AuthContext";
+import { ROUTES } from "../routes/paths";
 
-interface SetNewPasswordPageProps {
-  onAuthenticated: () => void;
-}
+export default function SetNewPasswordPage() {
+  const { refreshSession } = useAuth();
+  const navigate = useNavigate();
 
-export default function SetNewPasswordPage({ onAuthenticated }: SetNewPasswordPageProps) {
+  const handleAuthenticated = useCallback(async () => {
+    await refreshSession();
+    navigate(ROUTES.employees);
+  }, [refreshSession, navigate]);
   return (
     <Box
       minH="100vh"
@@ -49,9 +55,8 @@ export default function SetNewPasswordPage({ onAuthenticated }: SetNewPasswordPa
         </VStack>
 
         {/* Форма установки нового пароля */}
-        <SetNewPasswordForm onAuthenticated={onAuthenticated} />
+        <SetNewPasswordForm onAuthenticated={handleAuthenticated} />
       </VStack>
     </Box>
   );
 }
-
