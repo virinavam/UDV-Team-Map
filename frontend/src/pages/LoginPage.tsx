@@ -1,12 +1,19 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Box, Heading, Text, VStack, Image } from "@chakra-ui/react";
+import { useNavigate } from "react-router-dom";
 import LoginForm from "../components/auth/LoginForm";
+import { useAuth } from "../context/AuthContext";
+import { ROUTES } from "../routes/paths";
 
-interface LoginPageProps {
-  onAuthenticated: () => void;
-}
+export default function LoginPage() {
+  const { refreshSession } = useAuth();
+  const navigate = useNavigate();
 
-export default function LoginPage({ onAuthenticated }: LoginPageProps) {
+  const handleAuthenticated = useCallback(async () => {
+    await refreshSession();
+    navigate(ROUTES.employees);
+  }, [refreshSession, navigate]);
+
   return (
     <Box
       minH="100vh"
@@ -45,9 +52,8 @@ export default function LoginPage({ onAuthenticated }: LoginPageProps) {
           </Text>
         </VStack>
 
-        <LoginForm onAuthenticated={onAuthenticated} />
+        <LoginForm onAuthenticated={handleAuthenticated} />
       </VStack>
     </Box>
   );
 }
-

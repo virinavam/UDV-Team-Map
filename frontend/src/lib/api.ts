@@ -1,6 +1,42 @@
-// lib/api.ts
+import type { Employee, OrgNode } from "../types/types";
+import {
+  mapBackendUserToEmployee,
+  mapEmployeeToBackendUser,
+  type BackendUser,
+} from "./api-mapper";
+
 const API_BASE_URL =
-  (import.meta as any).env.VITE_API_URL || "http://localhost:8000/api";
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api";
+
+const jsonRequest = async <T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> => {
+  const token = localStorage.getItem("authToken");
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+
+  // Добавляем токен авторизации, если он есть и не был передан явно
+  if (token && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    headers,
+    ...options,
+  });
+
+  if (!response.ok) {
+    const message = await response
+      .json()
+      .catch(() => ({ message: "Request failed" }));
+    throw new Error(message?.detail || message?.message || "Request failed");
+  }
+
+  return (await response.json()) as T;
+};
 
 // ======================= Типы =======================
 interface LoginRequest {
@@ -22,7 +58,7 @@ interface LoginResponse {
   };
 }
 
-interface User {
+export interface User {
   id: string;
   email: string;
   first_name: string;
@@ -92,9 +128,14 @@ export const authAPI = {
         refresh_token: data.refresh_token,
         isTemporaryPassword: false,
         user: {
-          id: data.user_id,
-          email: data.email,
-          name: data.name || "",
+          id: data.user_id || data.user?.id || "",
+          email: data.email || data.user?.email || "",
+          name:
+            data.name ||
+            `${data.user?.first_name || ""} ${
+              data.user?.last_name || ""
+            }`.trim() ||
+            "",
         },
       };
     } catch (error) {
@@ -117,20 +158,20 @@ export const authAPI = {
       const token = this.getToken();
       if (!token) return null;
 
-      const response = await fetch(`${API_BASE_URL}/auth/me`, {
+      const userData = await jsonRequest<BackendUser>("/auth/me", {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
         },
       });
 
-      if (!response.ok) {
-        if (response.status === 401) await this.logout();
-        return null;
-      }
-
-      return (await response.json()) as User;
+      return {
+        id: userData.id || "",
+        email: userData.email || "",
+        firstName: userData.first_name || "",
+        lastName: userData.last_name || "",
+        role: userData.role || "employee",
+      };
     } catch (error) {
       console.error("Get current user error:", error);
       return null;
@@ -141,17 +182,14 @@ export const authAPI = {
     data: ForgotPasswordRequest
   ): Promise<ForgotPasswordResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const resData = await response.json();
-      if (!response.ok)
-        return { success: false, message: resData.message || "Ошибка" };
-
-      return { success: true, message: resData.message || "Письмо отправлено" };
+      const resData = await jsonRequest<ForgotPasswordResponse>(
+        "/auth/forgot-password",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        }
+      );
+      return resData;
     } catch (error) {
       console.error("Forgot password API error:", error);
       return { success: false, message: "Ошибка подключения к серверу" };
@@ -160,23 +198,168 @@ export const authAPI = {
 
   async setPassword(data: SetPasswordRequest): Promise<SetPasswordResponse> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/set-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      const resData = await response.json();
-      if (!response.ok)
-        return { success: false, message: resData.message || "Ошибка" };
-
-      return {
-        success: true,
-        message: resData.message || "Пароль успешно изменен",
-      };
+      const resData = await jsonRequest<SetPasswordResponse>(
+        "/auth/set-password",
+        {
+          method: "POST",
+          body: JSON.stringify(data),
+        }
+      );
+      return resData;
     } catch (error) {
       console.error("Set password API error:", error);
       return { success: false, message: "Ошибка подключения к серверу" };
     }
+  },
+};
+
+type EmployeeListResponse = { items: Employee[] };
+
+export const employeesAPI = {
+  async list(params?: { search?: string; city?: string; skills?: string[] }) {
+    let url: URL;
+
+    // Если есть параметры поиска или фильтры, используем эндпоинт /search/
+    const hasSearch = params?.search && params.search.trim();
+    const hasFilters =
+      params?.city || (params?.skills && params.skills.length > 0);
+
+    if (hasSearch || hasFilters) {
+      url = new URL(`${API_BASE_URL}/employees/search/`);
+      // Если есть поисковый запрос, передаем его, иначе пустую строку
+      url.searchParams.set("q", params?.search?.trim() || "");
+      if (params?.city) url.searchParams.set("city", params.city);
+      if (params?.skills && params.skills.length > 0) {
+        params.skills.forEach((skill) =>
+          url.searchParams.append("skills", skill)
+        );
+      }
+    } else {
+      // Иначе используем обычный эндпоинт /employees/
+      url = new URL(`${API_BASE_URL}/employees/`);
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Fetching employees from: ${url.toString()}`);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[API] Error ${response.status}: ${errorText}`);
+      throw new Error(
+        `Не удалось загрузить сотрудников: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // Бэкенд возвращает массив напрямую, а не объект с items
+    const backendUsers = (await response.json()) as BackendUser[];
+    const employees = backendUsers.map(mapBackendUserToEmployee);
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Loaded ${employees.length} employees`);
+    }
+
+    return employees;
+  },
+
+  async getById(id: string) {
+    const backendUser = await jsonRequest<BackendUser>(`/employees/${id}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+    });
+    return mapBackendUserToEmployee(backendUser);
+  },
+
+  async create(payload: Partial<Employee>) {
+    const backendPayload = mapEmployeeToBackendUser(payload);
+    const backendUser = await jsonRequest<BackendUser>(`/employees`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+      body: JSON.stringify(backendPayload),
+    });
+    return mapBackendUserToEmployee(backendUser);
+  },
+
+  async update(id: string, payload: Partial<Employee>) {
+    const backendPayload = mapEmployeeToBackendUser(payload);
+    const backendUser = await jsonRequest<BackendUser>(`/employees/${id}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+      body: JSON.stringify(backendPayload),
+    });
+    return mapBackendUserToEmployee(backendUser);
+  },
+
+  async uploadAvatar(id: string, file: File) {
+    // Валидация размера файла на клиенте
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error("Размер файла не должен превышать 5MB");
+    }
+
+    // Валидация типа файла
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Файл должен быть изображением");
+    }
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    const token = localStorage.getItem("authToken");
+    const response = await fetch(`${API_BASE_URL}/employees/${id}/avatar`, {
+      method: "POST",
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || "Не удалось загрузить аватар");
+    }
+
+    return (await response.json()) as { photoUrl: string };
+  },
+
+  async remove(id: string) {
+    const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) {
+      throw new Error("Не удалось удалить сотрудника");
+    }
+    return true;
+  },
+};
+
+export const filtersAPI = {
+  async getOptions() {
+    return jsonRequest<{
+      cities: string[];
+      skills: string[];
+      legalEntities: string[];
+      departments: string[];
+      groups: string[];
+      positions: string[];
+    }>("/filters/options", { method: "GET" });
+  },
+};
+
+export const orgAPI = {
+  async getTree() {
+    return jsonRequest<{ tree: OrgNode[] }>("/org-tree", { method: "GET" });
   },
 };
