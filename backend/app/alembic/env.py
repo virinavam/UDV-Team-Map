@@ -17,7 +17,8 @@ from app.models.base import Base
 from app.models.user import User
 from app.models.department import Department
 from app.models.legal_entity import LegalEntity
-from app.models.skills import Skill, user_skills_association
+from app.models.skill import Skill, user_skills_association
+from app.models.avatar import Avatar
 from app.core.config import settings
 
 target_metadata = Base.metadata

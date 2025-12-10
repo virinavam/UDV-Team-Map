@@ -23,8 +23,11 @@ jobs:
           echo "POSTGRES_PORT=5432" >> .env
           echo "S3_ROOT_USER=minio" >> .env
           echo "S3_ROOT_PASSWORD=minio123" >> .env
-          echo "S3_HOST=minio" >> .env
-          echo "S3_PORT=9000" >> .env
+          echo "S3_ENDPOINT=http://minio:9000" >> .env
+          echo "S3_PUBLIC_ENDPOINT=http://localhost:9000" >> .env
+          echo "S3_REGION=us-east-1" >> .env
+          echo "S3_USER_AVATAR_BUCKET=udv-team-map-avatar-bucket" >> .env
+          echo "S3_USE_SSL=false" >> .env
           echo "PROMETHEUS_HOST=prometheus" >> .env
           echo "PROMETHEUS_PORT=9090" >> .env
           echo "SECRET_KEY=testsecretkey" >> .env

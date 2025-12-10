@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.logger import get_logger
 from app.models import User
-from app.models.skills import Skill, user_skills_association
+from app.models.skill import Skill, user_skills_association
 from app.schemas.user import UserRegisterRequest
 
 logger = get_logger()
@@ -27,7 +27,9 @@ class UserRepository:
         result = await self.db.execute(
             select(User)
             .where(User.id == user_id)
-            .options(selectinload(User.managed_department), selectinload(User.skills))
+            .options(
+                selectinload(User.managed_department), selectinload(User.skills), selectinload(User.current_avatar)
+            )
         )
         return result.scalar_one_or_none()
 
@@ -43,13 +45,21 @@ class UserRepository:
     async def get_all_users(self) -> Sequence[User]:
         """Получает список всех пользователей."""
         result = await self.db.execute(
-            select(User).options(selectinload(User.managed_department), selectinload(User.skills))
+            select(User).options(
+                selectinload(User.managed_department), selectinload(User.skills), selectinload(User.current_avatar)
+            )
         )
         return result.scalars().all()
 
     async def get_all_active_users(self) -> Sequence[User]:
         """Получает список всех активных пользователей."""
-        result = await self.db.execute(select(User).where(User.is_active is True))
+        result = await self.db.execute(
+            select(User)
+            .options(
+                selectinload(User.managed_department), selectinload(User.skills), selectinload(User.current_avatar)
+            )
+            .where(User.is_active is True)
+        )
         return result.scalars().all()
 
     async def update_user(self, user_id: UUID, update_data: dict) -> User | None:

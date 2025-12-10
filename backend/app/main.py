@@ -30,17 +30,19 @@ logger = get_logger()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await check_postgres()
-    try:
-        await init_default_admins(engine)
-        logger.info("Default administrators initialized.")
+    await init_default_admins(engine)
+    logger.info("Default administrators initialized.")
 
-        asyncio.create_task(s3_monitor.healthcheck_loop())
-        logger.info("Started S3  health monitoring")
-        asyncio.create_task(prometheus_monitor.healthcheck_loop())
-        logger.info("Started Prometheus health monitoring")
-        yield
-    finally:
-        await engine.dispose()
+    s3_task = asyncio.create_task(s3_monitor.healthcheck_loop(10))
+    logger.info("Started S3  health monitoring")
+    prometheus_task = asyncio.create_task(prometheus_monitor.healthcheck_loop())
+    logger.info("Started Prometheus health monitoring")
+    yield
+    s3_task.cancel()
+    prometheus_task.cancel()
+    await prometheus_monitor.client.aclose()
+    await engine.dispose()
+    logger.info("Application shutdown complete.")
 
 
 app = FastAPI(
@@ -59,6 +61,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://localhost:8000",
     ],
     allow_credentials=True,
     allow_methods=["*"],

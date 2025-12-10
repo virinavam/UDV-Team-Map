@@ -1,0 +1,81 @@
+from io import BytesIO
+from uuid import UUID
+
+from fastapi import HTTPException, UploadFile
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.config import settings
+from app.enums import AvatarModerationStatusEnum as AMSEnum
+from app.models.avatar import Avatar
+from app.models.user import User
+from app.repositories.avatar_repository import AvatarRepository
+from app.services.s3_service import AsyncS3Service
+from app.services.user_service import UserService
+from app.utils.file_keys import generate_key
+
+
+class AvatarService:
+    """
+    Сервис для обработки бизнес-логики, связанной с аватарами (S3 + DB).
+    """
+
+    def __init__(self, db: AsyncSession, s3_service: AsyncS3Service):
+        self.avatar_repository = AvatarRepository(db)
+        self.user_service = UserService(db)
+        self.s3_service = s3_service
+
+    async def upload_and_activate(
+        self, target_user: User, file: UploadFile, initial_status: AMSEnum, moderator_id: UUID | None
+    ):
+
+        s3_key = generate_key(target_user.id, file.filename)
+        await self.s3_service.upload_file_obj(
+            file_object=file.file,
+            object_key=s3_key,
+            bucket_name=settings.S3_USER_AVATAR_BUCKET,
+        )
+
+        new_avatar = await self.avatar_repository.create_avatar(
+            user_id=target_user.id, s3_key=s3_key, status=initial_status, moderated_by_id=moderator_id
+        )
+
+        if initial_status == AMSEnum.ACTIVE:
+            await self.avatar_repository.set_current_avatar(target_user, new_avatar)
+        else:
+            await self.avatar_repository.db.commit()
+
+    async def download(self, s3_key: str, file_object: BytesIO):
+        await self.s3_service.download_file_obj(file_object, settings.S3_USER_AVATAR_BUCKET, s3_key)
+        file_object.seek(0)
+
+    async def get_avatar_model_by_id(self, avatar_id: UUID) -> Avatar:
+        avatar = await self.avatar_repository.get_by_id(avatar_id)
+        if not avatar:
+            raise HTTPException(status_code=404, detail=f"Avatar not found: {avatar_id}")
+        return avatar
+
+    async def get_pending_list(self):
+        return await self.avatar_repository.get_pending_list()
+
+    async def moderate(self, avatar_id: UUID, status: AMSEnum, moderator_id: UUID, rejection_reason: str = None):
+        avatar = await self.get_avatar_model_by_id(avatar_id)
+        if avatar.moderation_status != AMSEnum.PENDING:
+            raise HTTPException(status_code=400, detail="Avatar is not pending review.")
+        if status not in [AMSEnum.REJECTED, AMSEnum.ACCEPTED]:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid status '{status.value}' for moderation. Use ACCEPTED or REJECTED."
+            )
+        if status == AMSEnum.PENDING and not rejection_reason:
+            raise HTTPException(
+                status_code=400, detail="A rejection reason is required when setting status to REJECTED."
+            )
+        moderator = await self.user_service.get_user(moderator_id)
+        await self.avatar_repository.set_avatar_status(avatar, status, moderator, rejection_reason)
+        return {"message": f"Статус аватара {avatar_id} обновлен до {status.value}"}
+
+    async def delete(self, avatar_id: UUID):
+        avatar = await self.get_avatar_model_by_id(avatar_id)
+        user = avatar.user
+        new_avatar = await self.avatar_repository.get_previous_avatar(user)
+        await self.avatar_repository.set_current_avatar(user, new_avatar)
+        await self.avatar_repository.delete_avatar(avatar)

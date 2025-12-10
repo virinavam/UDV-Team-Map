@@ -5,7 +5,7 @@ from sqlalchemy.orm import relationship
 from app.enums import EmployeeStatusEnum, RoleEnum
 from app.models.base import Base
 from app.models.mixins import TimeStampMixin
-from app.models.skills import user_skills_association
+from app.models.skill import user_skills_association
 
 
 class User(TimeStampMixin, Base):
@@ -29,7 +29,7 @@ class User(TimeStampMixin, Base):
     mattermost = Column(String(100), nullable=True)  # Аккаунт Mattermost
     bio = Column(Text, nullable=True)  # Краткое описание / информация о себе
     birthday = Column(Date, nullable=True)  # Дата рождения
-    photo_url = Column(String(255), nullable=True)  # Ссылка на фото сотрудника
+    current_avatar_id = Column(UUID(as_uuid=True), ForeignKey("avatars.id", ondelete="SET NULL"), nullable=True)
     employee_status = Column(ENUM(EmployeeStatusEnum), nullable=True)  # Редактируемый пользователем статус
     # Активен ли сотрудник в системе (технический флаг)
     is_active = Column(Boolean, nullable=False, default=True, server_default=text("true"))
@@ -41,6 +41,15 @@ class User(TimeStampMixin, Base):
     managed_department = relationship(
         "Department", back_populates="manager", uselist=False, foreign_keys="Department.manager_id"
     )
+
+    avatars = relationship(
+        "Avatar", back_populates="user", foreign_keys="Avatar.user_id", order_by="desc(Avatar.created_at)"
+    )
+    current_avatar = relationship("Avatar", foreign_keys=[current_avatar_id], uselist=False, remote_side="Avatar.id")
+
+    @property
+    def photo_url(self):
+        return self.current_avatar.url if self.current_avatar else None
 
     __table_args__ = (
         Index(
