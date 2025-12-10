@@ -59,8 +59,12 @@ class UserService:
         return updated_user
 
     async def search_users(
-        self, search_query: str, cities: list[str] | None = None, skills: list[str] | None = None,
-            departments: list[UUID] | None = None, legal_entities: list[UUID] | None = None
+        self,
+        search_query: str,
+        cities: list[str] | None = None,
+        skills: list[str] | None = None,
+        departments: list[UUID] | None = None,
+        legal_entities: list[UUID] | None = None,
     ) -> Sequence[User]:
         """
         Выполняет нечеткий поиск по имени, фамилии, должности и email.
@@ -70,8 +74,13 @@ class UserService:
         returns:
             Sequence[User]: Список пользователей, соответствующих критериям поиска.
         """
-        users = await self.user_repository.search_users_fuzzy(search_query=search_query, cities=cities, skills=skills,
-                                                              departments=departments, legal_entities=legal_entities)
+        users = await self.user_repository.search_users_fuzzy(
+            search_query=search_query,
+            cities=cities,
+            skills=skills,
+            departments=departments,
+            legal_entities=legal_entities,
+        )
         return users
 
     async def set_skills(self, user_id: UUID, payload: SetSkillsRequest) -> User:
@@ -85,3 +94,6 @@ class UserService:
             raise SkillNotFound(list(unknown_skills))
         user = await self.user_repository.set_skills(user_id=user_id, skills=skills_in_db)
         return user
+
+    async def get_cities(self) -> Sequence[str]:
+        return await self.user_repository.get_cities()

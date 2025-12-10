@@ -4,7 +4,9 @@ from uuid import UUID
 
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from sqlalchemy.util import await_only
 from starlette.responses import StreamingResponse
+from watchfiles import awatch
 
 from app.core.logger import get_logger
 from app.deps.avatar import get_avatar_service
@@ -51,7 +53,7 @@ async def read_employee(user_id: UUID, user_service: UserService = Depends(get_u
     dependencies=[Depends(require_roles(RoleEnum.SYSTEM_ADMIN, RoleEnum.HR_ADMIN))],
 )
 async def update_employee(
-        user_id: UUID, updates: UserUpdateAdmin, user_service: UserService = Depends(get_user_service)
+    user_id: UUID, updates: UserUpdateAdmin, user_service: UserService = Depends(get_user_service)
 ):
     """Обновляет данные сотрудника.
     Доступно только для SYSTEM_ADMIN и HR_ADMIN."""
@@ -65,7 +67,7 @@ async def update_employee(
     dependencies=[Depends(require_self(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
 )
 async def update_employee_self(
-        user_id: UUID, updates: UserUpdate, user_service: UserService = Depends(get_user_service)
+    user_id: UUID, updates: UserUpdate, user_service: UserService = Depends(get_user_service)
 ):
     """Обновляет свои данные."""
     return await user_service.update_user(user_id, updates)
@@ -88,15 +90,15 @@ ALLOWED_IMAGE_TYPES = [
     dependencies=[Depends(require_self(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
 )
 async def upload_user_avatar(
-        user_id: UUID,
-        file: UploadFile = File(...),
-        no_moderation: bool = Query(
-            False, description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."
-        ),
-        current_user: User = Depends(get_current_user_by_credentials),
-        avatar_service: AvatarService = Depends(get_avatar_service),
-        user_service: UserService = Depends(get_user_service),
-        _: None = Depends(check_s3_health),
+    user_id: UUID,
+    file: UploadFile = File(...),
+    no_moderation: bool = Query(
+        False, description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."
+    ),
+    current_user: User = Depends(get_current_user_by_credentials),
+    avatar_service: AvatarService = Depends(get_avatar_service),
+    user_service: UserService = Depends(get_user_service),
+    _: None = Depends(check_s3_health),
 ):
     """
     Supported file types: JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF
@@ -139,7 +141,7 @@ async def get_pending_avatars(avatar_service: AvatarService = Depends(get_avatar
     dependencies=[Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
 )
 async def get_s3_file(
-        s3_key: str, avatar_service: AvatarService = Depends(get_avatar_service), _: None = Depends(check_s3_health)
+    s3_key: str, avatar_service: AvatarService = Depends(get_avatar_service), _: None = Depends(check_s3_health)
 ):
     file_buffer = BytesIO()
     try:
@@ -160,10 +162,10 @@ async def get_s3_file(
     "/avatars/{avatar_id}/moderate", dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))]
 )
 async def moderate_avatar(
-        avatar_id: UUID,
-        payload: AvatarModeration,
-        avatar_service: AvatarService = Depends(get_avatar_service),
-        current_user: User = Depends(get_current_user_by_credentials),
+    avatar_id: UUID,
+    payload: AvatarModeration,
+    avatar_service: AvatarService = Depends(get_avatar_service),
+    current_user: User = Depends(get_current_user_by_credentials),
 ):
     return await avatar_service.moderate(avatar_id, payload.status, current_user.id, payload.rejection_reason)
 
@@ -175,7 +177,7 @@ async def moderate_avatar(
     dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
 )
 async def add_skills_to_user(
-        user_id: UUID, payload: SetSkillsRequest, user_service: UserService = Depends(get_user_service)
+    user_id: UUID, payload: SetSkillsRequest, user_service: UserService = Depends(get_user_service)
 ):
     return await user_service.set_skills(user_id, payload)
 
@@ -192,21 +194,39 @@ async def deactivate_employee(user_id: UUID, user_service: UserService = Depends
     return await user_service.deactivate_user(user_id)
 
 
-@employees_router.get("/active/", response_model=list[UserRead], summary="Получить всех активных сотрудников")
+@employees_router.get(
+    "/active/",
+    response_model=list[UserRead],
+    summary="Получить всех активных сотрудников",
+    dependencies=[Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
+)
 async def read_active_employees(user_service: UserService = Depends(get_user_service)):
     return await user_service.get_all_active_users()
 
 
 @employees_router.get(
-    "/search/", response_model=list[UserRead], summary="Поиск сотрудников по имени, фамилии, должности или email"
+    "/cities/",
+    response_model=list[str],
+    summary="Получить все города",
+    dependencies=[Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
+)
+async def read_cities(user_service: UserService = Depends(get_user_service)):
+    return await user_service.get_cities()
+
+
+@employees_router.get(
+    "/search/",
+    response_model=list[UserRead],
+    summary="Поиск сотрудников по имени, фамилии, должности или email",
+    dependencies=[Depends(require_roles(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
 )
 async def search_employees(
-        q: str = Query(...),
-        cities: list[str] = Query(default=None),
-        departments: list[UUID] = Query(default=None),
-        legal_entities: list[UUID] = Query(default=None),
-        skills: list[str] = Query(default=None),
-        user_service: UserService = Depends(get_user_service),
+    q: str = Query(...),
+    cities: list[str] = Query(default=None),
+    departments: list[UUID] = Query(default=None),
+    legal_entities: list[UUID] = Query(default=None),
+    skills: list[str] = Query(default=None),
+    user_service: UserService = Depends(get_user_service),
 ):
     """
     Выполняет нечеткий поиск по имени, фамилии, должности и email.
@@ -216,5 +236,6 @@ async def search_employees(
     returns:
         Sequence[User]: Список пользователей, соответствующих критериям поиска.
     """
-    return await user_service.search_users(search_query=q, cities=cities, skills=skills, departments=departments,
-                                           legal_entities=legal_entities)
+    return await user_service.search_users(
+        search_query=q, cities=cities, skills=skills, departments=departments, legal_entities=legal_entities
+    )

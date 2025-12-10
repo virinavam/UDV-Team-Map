@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.logger import get_logger
-from app.models import User, Department
+from app.models import Department, User
 from app.models.skill import Skill, user_skills_association
 from app.schemas.user import UserRegisterRequest
 
@@ -51,6 +51,13 @@ class UserRepository:
         )
         return result.scalars().all()
 
+    async def get_cities(self) -> Sequence[str]:
+        """Получает список всех городов пользователей."""
+        stmt = select(User.city).where(User.city.isnot(None)).distinct()
+        result = await self.db.execute(stmt)
+        cities = result.scalars().all()
+        return sorted(cities, key=str.lower)
+
     async def get_all_active_users(self) -> Sequence[User]:
         """Получает список всех активных пользователей."""
         result = await self.db.execute(
@@ -94,35 +101,36 @@ class UserRepository:
         return await self.get_by_id(user_id)
 
     async def search_users_fuzzy(
-            self, search_query: str, cities: list[str] | None = None, skills: list[str] | None = None,
-            departments: list[UUID] | None = None, legal_entities: list[UUID] | None = None
+        self,
+        search_query: str,
+        cities: list[str] | None = None,
+        skills: list[str] | None = None,
+        departments: list[UUID] | None = None,
+        legal_entities: list[UUID] | None = None,
     ) -> Sequence[User]:
         search_query_lower = search_query.lower()
 
         combined_field = func.lower(
-            func.coalesce(User.first_name, "") + " "
-            + func.coalesce(User.last_name, "") + " "
-            + func.coalesce(User.position, "") + " "
+            func.coalesce(User.first_name, "")
+            + " "
+            + func.coalesce(User.last_name, "")
+            + " "
+            + func.coalesce(User.position, "")
+            + " "
             + func.coalesce(User.email, "")
         )
         similarity_score = func.similarity(combined_field, search_query_lower).label("score")
 
         stmt = select(User, similarity_score)
 
-        stmt = stmt.options(
-            selectinload(User.current_avatar),
-            selectinload(User.department),
-            selectinload(User.skills)
-        )
+        stmt = stmt.options(selectinload(User.current_avatar), selectinload(User.department), selectinload(User.skills))
 
         if cities:
             stmt = stmt.filter(func.lower(User.city).in_([c.lower() for c in cities]))
         if departments:
             stmt = stmt.filter(User.department_id.in_(departments))
         if legal_entities:
-            stmt = stmt.join(User.department).filter(
-                Department.legal_entity_id.in_(legal_entities)
-            )
+            stmt = stmt.join(User.department).filter(Department.legal_entity_id.in_(legal_entities))
         if skills:
             stmt = (
                 stmt.join(user_skills_association, user_skills_association.c.user_id == User.id)
