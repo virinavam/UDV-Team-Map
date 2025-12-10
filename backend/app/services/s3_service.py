@@ -7,14 +7,14 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 class AsyncS3Service:
     def __init__(
-            self,
-            access_key: str,
-            secret_key: str,
-            region: str,
-            endpoint: str,
-            public_read: bool = True,
-            use_ssl: bool = True,
-            public_endpoint: str = None,
+        self,
+        access_key: str,
+        secret_key: str,
+        region: str,
+        endpoint: str,
+        public_read: bool = True,
+        use_ssl: bool = True,
+        public_endpoint: str = None,
     ):
         self.session = aiobotocore.session.get_session()
         self.client_kwargs = {
@@ -55,11 +55,7 @@ class AsyncS3Service:
         file_object.seek(0)
         async with await self._get_client() as client:
             await client.put_object(
-                Bucket=bucket_name,
-                Key=object_key,
-                Body=file_object,
-                ContentType=content_type,
-                **extra_args
+                Bucket=bucket_name, Key=object_key, Body=file_object, ContentType=content_type, **extra_args
             )
         return f"{self.public_endpoint}/{bucket_name}/{object_key}"
 
