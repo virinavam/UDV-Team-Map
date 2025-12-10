@@ -57,4 +57,3 @@ const EmployeeDeleteModal: React.FC<EmployeeDeleteModalProps> = ({
 };
 
 export default EmployeeDeleteModal;
-

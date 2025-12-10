@@ -17,13 +17,41 @@ const root = ReactDOM.createRoot(rootElement);
 const enableMocking = async () => {
   // MSW и мок-данные загружаются только в development режиме
   // В production они не попадают в бандл благодаря условию и динамическому импорту
-  if (import.meta.env.DEV) {
+  
+  // Проверяем переменную окружения для управления MSW
+  // VITE_USE_MSW=true (по умолчанию в DEV) - использовать моки
+  // VITE_USE_MSW=false - использовать реальный бэкенд
+  const shouldUseMSW = 
+    import.meta.env.DEV && 
+    import.meta.env.VITE_USE_MSW !== 'false';
+  
+  if (shouldUseMSW) {
     try {
       const { worker } = await import("./mocks/browser");
-      await worker.start({ onUnhandledRequest: "bypass" });
+      await worker.start({
+        onUnhandledRequest: (request, print) => {
+          const url = new URL(request.url);
+          
+          // Игнорируем статические файлы
+          const isStaticFile = /\.(svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|css|js|map)$/i.test(url.pathname);
+          
+          // Игнорируем навигационные запросы к маршрутам приложения (не API)
+          // API запросы начинаются с /api, остальные - это маршруты приложения
+          const isApiRequest = url.pathname.startsWith('/api');
+          const isAppRoute = !isApiRequest && !isStaticFile;
+          
+          // Показываем предупреждение только для необработанных API запросов
+          if (isApiRequest && !isStaticFile) {
+            print.warning();
+          }
+        },
+      });
+      console.log('[MSW] ✅ Mock Service Worker enabled - using mock data');
     } catch (error) {
       console.warn("Failed to start MSW worker:", error);
     }
+  } else {
+    console.log('[MSW] ⏭️  Mock Service Worker disabled - using real backend API');
   }
 };
 

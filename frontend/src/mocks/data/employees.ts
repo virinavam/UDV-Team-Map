@@ -76,8 +76,8 @@ export const employeesDb: Employee[] = [
     dateOfBirth: "11.11.1985",
     phone: "+7 (903) 222-64-97",
     departmentFull:
-      "UDV Digital Transforamtion / ВНЕ ОЧЕРЕДИ / Основное подразделение",
-    legalEntity: "ВНЕ ОЧЕРЕДИ",
+      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение",
+    legalEntity: "ФТ-СОФТ",
     workExperience: "6 лет",
     aboutMe:
       "Руковожу командой, внедряю новые технологии и провожу ревью кода.",
@@ -85,7 +85,6 @@ export const employeesDb: Employee[] = [
     salary: 250000,
     employmentStatus: "Работает",
     contractNumber: "ТД-2018-045",
-    group: "Направление аналитики и документации",
   },
   {
     id: "e5",
@@ -102,10 +101,8 @@ export const employeesDb: Employee[] = [
     phone: "+7 (922) 134-55-68",
     mattermost: "@olgalebedeva",
     telegram: "@olgalebedeva",
-    departmentFull:
-      "UDV Digital Transforamtion / ВНЕ ОЧЕРЕДИ / Основное подразделение",
+    departmentFull: "UDV Digital Transforamtion / ВНЕ ОЧЕРЕДИ",
     legalEntity: "ВНЕ ОЧЕРЕДИ",
-    managerName: "Дмитрий Волков",
     workExperience: "2 года",
     aboutMe:
       "Специалист по автоматизации тестирования. Обеспечиваю стабильность релизов и качество продукта.",
@@ -127,10 +124,8 @@ export const employeesDb: Employee[] = [
     skills: ["Python", "Машинное обучение", "Pandas"],
     dateOfBirth: "03.07.1988",
     phone: "+7 (905) 763-49-70",
-    departmentFull:
-      "UDV Digital Transforamtion / ВНЕ ОЧЕРЕДИ / Основное подразделение",
+    departmentFull: "UDV Digital Transforamtion / ВНЕ ОЧЕРЕДИ",
     legalEntity: "ВНЕ ОЧЕРЕДИ",
-    managerName: "Дмитрий Волков",
     workExperience: "3 года",
     aboutMe:
       "Работаю над внедрением моделей машинного обучения в бизнес-процессы компании. Специалист по анализу данных и прогнозированию.",
@@ -152,7 +147,7 @@ export const employeesDb: Employee[] = [
     skills: ["Vue.js", "JavaScript"],
     legalEntity: "ФТ-СОФТ",
     departmentFull:
-      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение",
+      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение / Направление аналитики и документации",
     hireDate: "15.06.2021",
     salary: 200000,
     employmentStatus: "Работает",
@@ -171,7 +166,7 @@ export const employeesDb: Employee[] = [
     skills: ["Network Security", "Linux"],
     legalEntity: "ФТ-СОФТ",
     departmentFull:
-      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение",
+      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение / Направление аналитики и документации",
     hireDate: "17.10.2020",
     salary: 230000,
     employmentStatus: "Работает",
@@ -193,11 +188,32 @@ export const employeesDb: Employee[] = [
     skills: ["Recruitment", "Communication"],
     legalEntity: "ФТ-СОФТ",
     departmentFull:
-      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение",
+      "UDV Digital Transforamtion / ФТ-СОФТ / Основное подразделение / Направление аналитики и документации",
     hireDate: "05.09.2020",
     salary: 150000,
     employmentStatus: "Работает",
     contractNumber: "ТД-2020-098",
+    group: "Направление аналитики и документации",
+  },
+  {
+    id: "u-1",
+    name: "Лебедева Ольга",
+    firstName: "Ольга",
+    lastName: "Лебедева",
+    status: "Активен",
+    email: "admin@udvteam.map",
+    position: "HR Partner",
+    city: "Екатеринбург",
+    location: "Екатеринбург",
+    skills: ["HR Management", "Recruitment"],
+    legalEntity: "ТриниДата",
+    departmentFull:
+      "UDV Digital Transforamtion / ТриниДата / Основное подразделение",
+    hireDate: "01.01.2020",
+    salary: 200000,
+    employmentStatus: "Работает",
+    contractNumber: "ТД-2020-001",
+    photoUrl: "/placeholder.svg",
   },
 ];
 

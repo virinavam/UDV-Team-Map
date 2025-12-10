@@ -51,7 +51,9 @@ const HRDataPage: React.FC = () => {
   const [selectedCity, setSelectedCity] = useState<string[]>([]);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
-  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(
+    null
+  );
   const {
     isOpen: isEditModalOpen,
     onOpen: onEditModalOpen,
@@ -191,9 +193,17 @@ const HRDataPage: React.FC = () => {
     }
 
     const sorted = [...filteredEmployees].sort((a, b) => {
-      const fullNameA = `${a.lastName || ""} ${a.firstName || ""} ${a.middleName || ""}`.trim().toLowerCase();
-      const fullNameB = `${b.lastName || ""} ${b.firstName || ""} ${b.middleName || ""}`.trim().toLowerCase();
-      
+      const fullNameA = `${a.lastName || ""} ${a.firstName || ""} ${
+        a.middleName || ""
+      }`
+        .trim()
+        .toLowerCase();
+      const fullNameB = `${b.lastName || ""} ${b.firstName || ""} ${
+        b.middleName || ""
+      }`
+        .trim()
+        .toLowerCase();
+
       if (sortDirection === "asc") {
         return fullNameA.localeCompare(fullNameB, "ru");
       } else {
@@ -298,7 +308,7 @@ const HRDataPage: React.FC = () => {
         onRemove: () => setSearchQuery(""),
       });
     }
-      filters.push(
+    filters.push(
       ...selectedLegalEntity.map((value) => ({
         id: `entity-${value}`,
         label: "Юридическое лицо",

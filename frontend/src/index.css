@@ -9,3 +9,21 @@ body {
   font-family: Arial, sans-serif;
   background-color: #f9f9f9;
 }
+
+/* Скрываем точки соединения (handles) в ReactFlow */
+.react-flow__handle {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  border: none;
+  background: transparent;
+}
+
+.react-flow__handle-top,
+.react-flow__handle-bottom,
+.react-flow__handle-left,
+.react-flow__handle-right {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}

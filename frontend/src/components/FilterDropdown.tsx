@@ -5,15 +5,13 @@ import {
   Menu,
   MenuButton,
   MenuList,
+  MenuItem,
   Checkbox,
   VStack,
   HStack,
-  Input,
-  InputGroup,
-  InputLeftElement,
   useDisclosure,
 } from "@chakra-ui/react";
-import { ChevronDownIcon, SearchIcon } from "@chakra-ui/icons";
+import { ChevronDownIcon } from "@chakra-ui/icons";
 
 interface FilterOption {
   value: string;
@@ -37,19 +35,11 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 }) => {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tempSelection, setTempSelection] = useState<string[]>(selectedValues);
-  const [searchQuery, setSearchQuery] = useState("");
 
   // Синхронизация временного выбора с внешними selectedValues
   useEffect(() => {
     setTempSelection(selectedValues);
   }, [selectedValues]);
-
-  // Сброс поиска при закрытии меню
-  useEffect(() => {
-    if (!isOpen) {
-      setSearchQuery("");
-    }
-  }, [isOpen]);
 
   // Переключение выбора
   const handleToggle = (value: string) => {
@@ -71,43 +61,50 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     onClose();
   };
 
-  // Фильтрация опций по поисковому запросу
-  const filteredOptions = options.filter((option) =>
-    option.label.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  // Отображение количества выбранных опций
+  // Отображение выбранных опций
   const count = selectedValues.length;
-  const displayLabel = showCount && count > 0 ? `${label} (${count})` : label;
+  const hasSelection = count > 0;
+
+  // Получаем метки выбранных значений
+  const selectedLabels = selectedValues
+    .map((value) => options.find((opt) => opt.value === value)?.label)
+    .filter(Boolean) as string[];
+
+  // Формируем текст для отображения
+  let displayLabel = label;
+  if (hasSelection) {
+    if (showCount) {
+      // Показываем количество и первые 2 значения
+      const preview = selectedLabels.slice(0, 2).join(", ");
+      const more = count > 2 ? ` +${count - 2}` : "";
+      displayLabel = `${label}: ${preview}${more}`;
+    } else {
+      // Показываем только количество
+      displayLabel = `${label} (${count})`;
+    }
+  }
 
   return (
     <Menu isOpen={isOpen} onOpen={onOpen} onClose={onClose}>
       <MenuButton
         as={Button}
         rightIcon={<ChevronDownIcon />}
-        variant="outline"
+        variant={hasSelection ? "solid" : "outline"}
+        colorScheme={hasSelection ? "purple" : undefined}
         size="md"
-        bg="white"
-        _hover={{ bg: "gray.50" }}
+        bg={hasSelection ? "#763186" : "white"}
+        color={hasSelection ? "white" : undefined}
+        _hover={{
+          bg: hasSelection ? "#5e2770" : "gray.50",
+        }}
+        borderColor={hasSelection ? "#763186" : "gray.200"}
+        borderWidth="1px"
       >
         {displayLabel}
       </MenuButton>
 
       <MenuList minW="200px" p={4}>
         <VStack align="stretch" spacing={3}>
-          <InputGroup size="sm">
-            <InputLeftElement pointerEvents="none">
-              <SearchIcon color="gray.300" />
-            </InputLeftElement>
-            <Input
-              placeholder="Поиск..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              bg="white"
-              autoComplete="off"
-            />
-          </InputGroup>
-
           <HStack justify="space-between">
             <Button
               size="sm"
@@ -124,28 +121,17 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
           </HStack>
 
           <Box maxH="300px" overflowY="auto">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((option) => (
-                <Box
-                  key={option.value}
-                  p={2}
-                  _hover={{ bg: "gray.50" }}
-                  borderRadius="md"
-                  cursor="pointer"
+            {options.map((option) => (
+              <MenuItem key={option.value} cursor="default">
+                <Checkbox
+                  isChecked={tempSelection.includes(option.value)}
+                  onChange={() => handleToggle(option.value)}
+                  mr={2}
                 >
-                  <Checkbox
-                    isChecked={tempSelection.includes(option.value)}
-                    onChange={() => handleToggle(option.value)}
-                  >
-                    {option.label}
-                  </Checkbox>
-                </Box>
-              ))
-            ) : (
-              <Box p={2} textAlign="center" color="gray.500" fontSize="sm">
-                Ничего не найдено
-              </Box>
-            )}
+                  {option.label}
+                </Checkbox>
+              </MenuItem>
+            ))}
           </Box>
         </VStack>
       </MenuList>

@@ -14,15 +14,29 @@ import {
   Textarea,
   FormControl,
   FormLabel,
+  FormErrorMessage,
   Avatar,
   IconButton,
   SimpleGrid,
   Text,
   Box,
   Divider,
+  useToast,
 } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import type { Employee } from "../types/types";
+import AvatarUploader from "./profile/AvatarUploader";
+import { employeesAPI } from "../lib/api";
+import {
+  trimAndValidate,
+  isNotEmpty,
+  validateMaxLength,
+  validateEmail,
+  validatePhone,
+  validateDate,
+  FIELD_MAX_LENGTHS,
+  REQUIRED_FIELDS,
+} from "../lib/validation";
 
 interface EmployeeEditModalProps {
   isOpen: boolean;
@@ -37,6 +51,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   employee,
   onSave,
 }) => {
+  const toast = useToast();
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: "",
     lastName: "",
@@ -54,6 +69,10 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     phone: "",
   });
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (employee) {
@@ -61,6 +80,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         ...employee,
         skills: employee.skills || [],
       });
+      setAvatarPreview(employee.photoUrl || null);
     } else {
       // Сброс формы для нового сотрудника
       setFormData({
@@ -79,11 +99,103 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         email: "",
         phone: "",
       });
+      setAvatarPreview(null);
     }
+    setPendingAvatarFile(null);
   }, [employee, isOpen]);
 
   const handleFieldChange = (field: keyof Employee, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Очищаем ошибку при изменении поля
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Валидация обязательных полей
+    if (!isNotEmpty(formData.firstName)) {
+      newErrors.firstName = REQUIRED_FIELDS.firstName;
+    }
+    if (!isNotEmpty(formData.lastName)) {
+      newErrors.lastName = REQUIRED_FIELDS.lastName;
+    }
+    if (!isNotEmpty(formData.email)) {
+      newErrors.email = REQUIRED_FIELDS.email;
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = "Некорректный email адрес";
+    }
+
+    // Валидация максимальных длин
+    if (
+      formData.firstName &&
+      !validateMaxLength(formData.firstName, FIELD_MAX_LENGTHS.firstName)
+    ) {
+      newErrors.firstName = `Имя не должно превышать ${FIELD_MAX_LENGTHS.firstName} символов`;
+    }
+    if (
+      formData.lastName &&
+      !validateMaxLength(formData.lastName, FIELD_MAX_LENGTHS.lastName)
+    ) {
+      newErrors.lastName = `Фамилия не должна превышать ${FIELD_MAX_LENGTHS.lastName} символов`;
+    }
+    if (
+      formData.email &&
+      !validateMaxLength(formData.email, FIELD_MAX_LENGTHS.email)
+    ) {
+      newErrors.email = `Email не должен превышать ${FIELD_MAX_LENGTHS.email} символов`;
+    }
+    if (formData.phone && !validatePhone(formData.phone)) {
+      newErrors.phone = "Некорректный формат телефона";
+    }
+    if (
+      formData.phone &&
+      !validateMaxLength(formData.phone, FIELD_MAX_LENGTHS.phone)
+    ) {
+      newErrors.phone = `Телефон не должен превышать ${FIELD_MAX_LENGTHS.phone} символов`;
+    }
+    if (
+      formData.position &&
+      !validateMaxLength(formData.position, FIELD_MAX_LENGTHS.position)
+    ) {
+      newErrors.position = `Должность не должна превышать ${FIELD_MAX_LENGTHS.position} символов`;
+    }
+    if (
+      formData.city &&
+      !validateMaxLength(formData.city, FIELD_MAX_LENGTHS.city)
+    ) {
+      newErrors.city = `Город не должен превышать ${FIELD_MAX_LENGTHS.city} символов`;
+    }
+    if (formData.hireDate && !validateDate(formData.hireDate)) {
+      newErrors.hireDate = "Некорректный формат даты (используйте DD.MM.YYYY)";
+    }
+    if (
+      formData.telegram &&
+      !validateMaxLength(formData.telegram, FIELD_MAX_LENGTHS.telegram)
+    ) {
+      newErrors.telegram = `Telegram не должен превышать ${FIELD_MAX_LENGTHS.telegram} символов`;
+    }
+    if (
+      formData.mattermost &&
+      !validateMaxLength(formData.mattermost, FIELD_MAX_LENGTHS.mattermost)
+    ) {
+      newErrors.mattermost = `Mattermost не должен превышать ${FIELD_MAX_LENGTHS.mattermost} символов`;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleAvatarSelect = (file: File) => {
+    setPendingAvatarFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
   };
 
   const handleSkillsChange = (value: string) => {
@@ -98,23 +210,108 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     setShowSaveConfirm(true);
   };
 
-  const handleConfirmSave = () => {
-    const employeeData: Employee = {
-      id: employee?.id || `e${Date.now()}`,
-      name:
-        `${formData.lastName || ""} ${formData.firstName || ""} ${
-          formData.middleName || ""
-        }`.trim() || "Новый сотрудник",
-      position: formData.position || "",
-      city: formData.city || "",
-      email: formData.email || "",
-      skills: formData.skills || [],
-      status: formData.status || "Активен",
-      ...formData, // остальные поля
-    };
+  const handleConfirmSave = async () => {
+    // Валидация формы перед сохранением
+    if (!validateForm()) {
+      toast({
+        status: "error",
+        title: "Ошибка валидации",
+        description: "Пожалуйста, исправьте ошибки в форме",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
 
-    onSave(employeeData);
-    setShowSaveConfirm(false);
+    setIsSaving(true);
+    try {
+      // Обрезаем пробелы из всех строковых полей
+      const trimmedData = {
+        ...formData,
+        firstName: trimAndValidate(formData.firstName),
+        lastName: trimAndValidate(formData.lastName),
+        middleName: trimAndValidate(formData.middleName),
+        email: trimAndValidate(formData.email),
+        phone: trimAndValidate(formData.phone),
+        city: trimAndValidate(formData.city),
+        position: trimAndValidate(formData.position),
+        telegram: trimAndValidate(formData.telegram),
+        mattermost: trimAndValidate(formData.mattermost),
+        managerName: trimAndValidate(formData.managerName),
+        group: trimAndValidate(formData.group),
+        legalEntity: trimAndValidate(formData.legalEntity),
+        department: trimAndValidate(formData.department),
+        description: trimAndValidate(formData.description),
+        comment: trimAndValidate(formData.comment),
+      };
+
+      const employeeData: Employee = {
+        id: employee?.id || `e${Date.now()}`,
+        name:
+          `${trimmedData.lastName || ""} ${trimmedData.firstName || ""} ${
+            trimmedData.middleName || ""
+          }`.trim() || "Новый сотрудник",
+        position: trimmedData.position || "",
+        city: trimmedData.city || "",
+        email: trimmedData.email || "",
+        skills: trimmedData.skills || [],
+        status: trimmedData.status || "Активен",
+        ...trimmedData, // остальные поля
+      };
+
+      // Если это редактирование существующего сотрудника и есть новый аватар
+      if (employee?.id && pendingAvatarFile) {
+        try {
+          toast({
+            status: "info",
+            title: "Загрузка аватара...",
+            duration: 2000,
+            isClosable: true,
+          });
+
+          const { photoUrl } = await employeesAPI.uploadAvatar(
+            employee.id,
+            pendingAvatarFile
+          );
+          employeeData.photoUrl = photoUrl;
+
+          toast({
+            status: "success",
+            title: "Аватар загружен",
+            duration: 2000,
+            isClosable: true,
+          });
+        } catch (avatarError) {
+          toast({
+            status: "warning",
+            title: "Ошибка загрузки аватара",
+            description:
+              avatarError instanceof Error
+                ? avatarError.message
+                : "Не удалось загрузить аватар",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+
+      onSave(employeeData);
+      setShowSaveConfirm(false);
+      setPendingAvatarFile(null);
+    } catch (error) {
+      toast({
+        status: "error",
+        title: "Ошибка сохранения",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Не удалось сохранить данные",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleCancelSave = () => {
@@ -153,29 +350,24 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                 {/* Фото */}
                 <FormControl>
                   <FormLabel>Фото</FormLabel>
-                  <HStack>
-                    <Avatar
-                      size="md"
-                      name={formData.name || ""}
-                      src={formData.photoUrl}
+                  <Box>
+                    <AvatarUploader
+                      fullName={
+                        `${formData.lastName || ""} ${
+                          formData.firstName || ""
+                        } ${formData.middleName || ""}`.trim() ||
+                        formData.name ||
+                        "Новый сотрудник"
+                      }
+                      photoUrl={avatarPreview || formData.photoUrl}
+                      onSelect={handleAvatarSelect}
                     />
-                    <Text fontSize="sm" color="gray.600">
-                      {formData.photoUrl || "image.png"} 1,25 МБ
-                    </Text>
-                    {formData.photoUrl && (
-                      <IconButton
-                        aria-label="Удалить фото"
-                        icon={<CloseIcon />}
-                        size="sm"
-                        onClick={() => handleFieldChange("photoUrl", "")}
-                      />
-                    )}
-                  </HStack>
+                  </Box>
                 </FormControl>
 
                 {/* Фамилия */}
-                <FormControl>
-                  <FormLabel>Фамилия</FormLabel>
+                <FormControl isInvalid={!!errors.lastName}>
+                  <FormLabel>Фамилия *</FormLabel>
                   <HStack>
                     <Input
                       value={formData.lastName || ""}
@@ -183,6 +375,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                         handleFieldChange("lastName", e.target.value)
                       }
                       bg="gray.50"
+                      maxLength={FIELD_MAX_LENGTHS.lastName}
                     />
                     <IconButton
                       aria-label="Очистить"
@@ -191,11 +384,12 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       onClick={() => handleFieldChange("lastName", "")}
                     />
                   </HStack>
+                  <FormErrorMessage>{errors.lastName}</FormErrorMessage>
                 </FormControl>
 
                 {/* Имя */}
-                <FormControl>
-                  <FormLabel>Имя</FormLabel>
+                <FormControl isInvalid={!!errors.firstName}>
+                  <FormLabel>Имя *</FormLabel>
                   <HStack>
                     <Input
                       value={formData.firstName || ""}
@@ -203,6 +397,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                         handleFieldChange("firstName", e.target.value)
                       }
                       bg="gray.50"
+                      maxLength={FIELD_MAX_LENGTHS.firstName}
                     />
                     <IconButton
                       aria-label="Очистить"
@@ -211,6 +406,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       onClick={() => handleFieldChange("firstName", "")}
                     />
                   </HStack>
+                  <FormErrorMessage>{errors.firstName}</FormErrorMessage>
                 </FormControl>
 
                 {/* Отчество */}
@@ -260,8 +456,8 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                 </Text>
 
                 {/* Почта */}
-                <FormControl>
-                  <FormLabel>Почта</FormLabel>
+                <FormControl isInvalid={!!errors.email}>
+                  <FormLabel>Почта *</FormLabel>
                   <HStack>
                     <Input
                       value={formData.email || ""}
@@ -269,6 +465,8 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                         handleFieldChange("email", e.target.value)
                       }
                       bg="gray.50"
+                      type="email"
+                      maxLength={FIELD_MAX_LENGTHS.email}
                     />
                     <IconButton
                       aria-label="Очистить"
@@ -277,10 +475,11 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       onClick={() => handleFieldChange("email", "")}
                     />
                   </HStack>
+                  <FormErrorMessage>{errors.email}</FormErrorMessage>
                 </FormControl>
 
                 {/* Номер телефона */}
-                <FormControl>
+                <FormControl isInvalid={!!errors.phone}>
                   <FormLabel>Номер телефона</FormLabel>
                   <HStack>
                     <Input
@@ -289,6 +488,8 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                         handleFieldChange("phone", e.target.value)
                       }
                       bg="gray.50"
+                      type="tel"
+                      maxLength={FIELD_MAX_LENGTHS.phone}
                     />
                     <IconButton
                       aria-label="Очистить"
@@ -297,6 +498,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       onClick={() => handleFieldChange("phone", "")}
                     />
                   </HStack>
+                  <FormErrorMessage>{errors.phone}</FormErrorMessage>
                 </FormControl>
               </VStack>
 
@@ -307,7 +509,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                 </Text>
 
                 {/* Должность */}
-                <FormControl>
+                <FormControl isInvalid={!!errors.position}>
                   <FormLabel>Должность</FormLabel>
                   <HStack>
                     <Input
@@ -316,6 +518,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                         handleFieldChange("position", e.target.value)
                       }
                       bg="gray.50"
+                      maxLength={FIELD_MAX_LENGTHS.position}
                     />
                     <IconButton
                       aria-label="Очистить"
@@ -324,10 +527,11 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       onClick={() => handleFieldChange("position", "")}
                     />
                   </HStack>
+                  <FormErrorMessage>{errors.position}</FormErrorMessage>
                 </FormControl>
 
                 {/* Дата найма */}
-                <FormControl>
+                <FormControl isInvalid={!!errors.hireDate}>
                   <FormLabel>Дата найма</FormLabel>
                   <HStack>
                     <Input
@@ -345,6 +549,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       onClick={() => handleFieldChange("hireDate", "")}
                     />
                   </HStack>
+                  <FormErrorMessage>{errors.hireDate}</FormErrorMessage>
                 </FormControl>
 
                 {/* Юридическое лицо */}
@@ -511,6 +716,8 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
               _hover={{ bg: "#5e2770" }}
               mr={3}
               onClick={handleConfirmSave}
+              isLoading={isSaving}
+              loadingText="Сохранение..."
             >
               Да
             </Button>

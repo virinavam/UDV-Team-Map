@@ -1,10 +1,12 @@
 import React from "react";
 import {
+  Box,
   HStack,
   Tag,
   TagLabel,
   TagCloseButton,
   Button,
+  Text,
 } from "@chakra-ui/react";
 
 export interface AppliedFilterChip {
@@ -28,26 +30,40 @@ const AppliedFiltersBar: React.FC<AppliedFiltersBarProps> = ({
   }
 
   return (
-    <HStack spacing={3} flexWrap="wrap" mt={4}>
-      {filters.map((filter) => (
-        <Tag
-          key={`${filter.id}-${filter.value}`}
-          size="lg"
-          variant="solid"
-          colorScheme="purple"
-        >
-          <TagLabel>
-            {filter.label}: {filter.value}
-          </TagLabel>
-          <TagCloseButton onClick={filter.onRemove} />
-        </Tag>
-      ))}
-      {onClear && (
-        <Button size="sm" variant="ghost" onClick={onClear}>
-          Сбросить все
-        </Button>
-      )}
-    </HStack>
+    <Box mt={4} mb={4}>
+      <HStack spacing={3} flexWrap="wrap" align="center">
+        <Text fontSize="sm" color="gray.600" fontWeight="medium" mr={2}>
+          Примененные фильтры:
+        </Text>
+        {filters.map((filter) => (
+          <Tag
+            key={`${filter.id}-${filter.value}`}
+            size="md"
+            variant="solid"
+            colorScheme="purple"
+            borderRadius="full"
+            px={3}
+            py={1}
+          >
+            <TagLabel fontSize="sm">
+              {filter.label}: <strong>{filter.value}</strong>
+            </TagLabel>
+            <TagCloseButton onClick={filter.onRemove} />
+          </Tag>
+        ))}
+        {onClear && (
+          <Button
+            size="sm"
+            variant="ghost"
+            colorScheme="purple"
+            onClick={onClear}
+            ml={2}
+          >
+            Сбросить все
+          </Button>
+        )}
+      </HStack>
+    </Box>
   );
 };
 

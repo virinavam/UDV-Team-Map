@@ -7,6 +7,7 @@ export const ROUTES = {
   adminPanel: "/admin-panel",
   hrData: "/hr-data",
   addEmployee: "/add-employee",
+  moderation: "/moderation",
   profile: "/profile/:id",
   profileBase: "/profile",
   setPassword: "/set-password",

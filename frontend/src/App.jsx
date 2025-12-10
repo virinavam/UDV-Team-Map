@@ -1,19 +1,9 @@
 import React, { Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Center, Spinner } from "@chakra-ui/react";
-import EmployeesPage from "./pages/EmployeesPage";
-import TeamMapPage from "./pages/TeamMapPage";
-import ProfilePage from "./pages/ProfilePage";
-import AdminDashboardPage from "./pages/AdminDashboardPage";
-import AdminPanelPage from "./pages/AdminPanelPage";
-import HRDataPage from "./pages/HRDataPage";
-import AddEmployeePage from "./pages/AddEmployeePage";
-import LoginPage from "./pages/LoginPage";
-import SetNewPasswordPage from "./pages/SetNewPasswordPage";
-import ProtectedRoute from "./routes/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import { ROUTES } from "./routes/paths";
-import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import { allRoutes } from "./routes/routes";
 
 const LoadingFallback = () => (
   <Center h="100vh" w="100vw">
@@ -22,71 +12,22 @@ const LoadingFallback = () => (
 );
 
 export default function App() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Пока идет проверка сессии, показываем загрузку
+  if (isLoading) {
+    return <LoadingFallback />;
+  }
 
   return (
     <Suspense fallback={<LoadingFallback />}>
       <Routes>
-        <Route path={ROUTES.login} element={<LoginPage />} />
-        <Route path={ROUTES.setPassword} element={<SetNewPasswordPage />} />
-        <Route path={ROUTES.forgotPassword} element={<ForgotPasswordPage />} />
+        {/* Рендерим все маршруты из конфигурации */}
+        {allRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
 
-        <Route
-          path={ROUTES.employees}
-          element={
-            <ProtectedRoute>
-              <EmployeesPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.teamMap}
-          element={
-            <ProtectedRoute>
-              <TeamMapPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.profile}
-          element={
-            <ProtectedRoute>
-              <ProfilePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.admin}
-          element={
-            <ProtectedRoute>
-              <AdminDashboardPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.adminPanel}
-          element={
-            <ProtectedRoute>
-              <AdminPanelPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.hrData}
-          element={
-            <ProtectedRoute>
-              <HRDataPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path={ROUTES.addEmployee}
-          element={
-            <ProtectedRoute>
-              <AddEmployeePage />
-            </ProtectedRoute>
-          }
-        />
+        {/* Корневой маршрут - редирект */}
         <Route
           path={ROUTES.root}
           element={
@@ -96,6 +37,8 @@ export default function App() {
             />
           }
         />
+
+        {/* 404 - редирект на корень */}
         <Route path="*" element={<Navigate to={ROUTES.root} replace />} />
       </Routes>
     </Suspense>

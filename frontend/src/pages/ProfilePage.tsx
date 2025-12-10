@@ -1,47 +1,41 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import {
-  Box,
-  Button,
-  Center,
-  HStack,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  ModalOverlay,
-  Spinner,
-  Text,
-  useDisclosure,
-  useToast,
-} from "@chakra-ui/react";
-import { ArrowBackIcon, EditIcon, CloseIcon } from "@chakra-ui/icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useState, useMemo } from "react";
+import { useParams } from "react-router-dom";
+import { Box, Center, Spinner } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
 import ProfileView from "../components/profile/ProfileView";
 import ProfileEditForm from "../components/profile/ProfileEditForm";
+import { ProfileHeader } from "../components/profile/ProfileHeader";
+import { ProfileConfirmModals } from "../components/profile/ProfileConfirmModals";
+import { ProfileNotFound } from "../components/profile/ProfileNotFound";
 import { employeesAPI } from "../lib/api";
+import { useProfileEdit } from "../hooks/useProfileEdit";
+import { useAuth } from "../context/AuthContext";
 import type { Employee } from "../types/types";
+import { useDisclosure } from "@chakra-ui/react";
 
 const ProfilePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const toast = useToast();
-  const queryClient = useQueryClient();
-
+  const { user } = useAuth();
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedEmployee, setEditedEmployee] = useState<Employee | null>(null);
-  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  
+
   // Модальные окна подтверждения
-  const { isOpen: isSaveConfirmOpen, onOpen: onSaveConfirmOpen, onClose: onSaveConfirmClose } = useDisclosure();
-  const { isOpen: isFinalConfirmOpen, onOpen: onFinalConfirmOpen, onClose: onFinalConfirmClose } = useDisclosure();
-  const { isOpen: isCancelConfirmOpen, onOpen: onCancelConfirmOpen, onClose: onCancelConfirmClose } = useDisclosure();
-  
-  // Тип подтверждения: 'save' для сохранения, 'cancel' для отмены
-  const [confirmType, setConfirmType] = useState<'save' | 'cancel'>('save');
+  const {
+    isOpen: isSaveConfirmOpen,
+    onOpen: onSaveConfirmOpen,
+    onClose: onSaveConfirmClose,
+  } = useDisclosure();
+  const {
+    isOpen: isFinalConfirmOpen,
+    onOpen: onFinalConfirmOpen,
+    onClose: onFinalConfirmClose,
+  } = useDisclosure();
+  const {
+    isOpen: isCancelConfirmOpen,
+    onOpen: onCancelConfirmOpen,
+    onClose: onCancelConfirmClose,
+  } = useDisclosure();
 
   const {
     data: employee,
@@ -50,9 +44,37 @@ const ProfilePage: React.FC = () => {
     error,
   } = useQuery({
     queryKey: ["employee", id],
-    queryFn: () => employeesAPI.getById(id!),
+    queryFn: async () => {
+      try {
+        return await employeesAPI.getById(id!);
+      } catch (err) {
+        // Преобразуем ошибку в более понятный формат
+        if (err instanceof Error) {
+          // Если это 404, создаем специальную ошибку
+          if (err.message.includes("404") || err.message.includes("not found")) {
+            throw new Error("Сотрудник не найден");
+          }
+        }
+        throw err;
+      }
+    },
     enabled: Boolean(id),
     retry: false,
+    // Обрабатываем ошибки через isError
+    throwOnError: false,
+  });
+
+  // Хук для управления редактированием
+  const {
+    isSaving,
+    pendingAvatarFile,
+    setPendingAvatarFile,
+    saveEmployee,
+  } = useProfileEdit({
+    employeeId: id || "",
+    onSuccess: () => {
+      setIsEditMode(false);
+    },
   });
 
   useEffect(() => {
@@ -61,6 +83,17 @@ const ProfilePage: React.FC = () => {
     }
   }, [employee]);
 
+  // Проверяем, может ли пользователь редактировать этот профиль
+  // Сотрудники могут редактировать только свой профиль
+  // Администраторы могут редактировать любой профиль
+  const canEdit = useMemo(() => {
+    if (!user || !employee) return false;
+    const isAdmin = user.role === "SYSTEM_ADMIN" || user.role === "HR_ADMIN";
+    const isOwnProfile = user.id === employee.id || user.email === employee.email;
+    return isAdmin || isOwnProfile;
+  }, [user, employee]);
+
+  // Обработчики событий
   const handleFieldChange = (field: keyof Employee, value: any) => {
     setEditedEmployee((prev) => (prev ? { ...prev, [field]: value } : prev));
   };
@@ -74,55 +107,27 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleSaveClick = () => {
-    setConfirmType('save');
     onSaveConfirmOpen();
   };
 
   const handleSaveConfirmYes = () => {
     onSaveConfirmClose();
-    setConfirmType('save');
     onFinalConfirmOpen();
   };
 
   const handleSaveConfirmNo = () => {
     onSaveConfirmClose();
-    setConfirmType('cancel');
     onCancelConfirmOpen();
   };
 
   const handleFinalConfirm = async () => {
     if (!editedEmployee) return;
     onFinalConfirmClose();
-    setIsSaving(true);
-    try {
-      let payload: Partial<Employee> = { ...editedEmployee };
-      if (pendingAvatarFile) {
-        const { photoUrl } = await employeesAPI.uploadAvatar(
-          editedEmployee.id,
-          pendingAvatarFile
-        );
-        payload = { ...payload, photoUrl };
-      }
 
-      const updated = await employeesAPI.update(editedEmployee.id, payload);
+    const updated = await saveEmployee(editedEmployee);
+    if (updated) {
+      // Обновляем editedEmployee после успешного сохранения
       setEditedEmployee(updated);
-      setPendingAvatarFile(null);
-      setIsEditMode(false);
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-      queryClient.setQueryData(["employee", editedEmployee.id], updated);
-      toast({ 
-        status: "success", 
-        title: "Изменения отправлены на проверку модератору",
-        duration: 5000,
-      });
-    } catch (err) {
-      toast({
-        status: "error",
-        title: "Не удалось сохранить изменения",
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -139,6 +144,7 @@ const ProfilePage: React.FC = () => {
     setIsEditMode(false);
   };
 
+  // Состояние загрузки
   if (isLoading) {
     return (
       <MainLayout>
@@ -149,50 +155,20 @@ const ProfilePage: React.FC = () => {
     );
   }
 
+  // Обработка ошибок: сотрудник не найден или ошибка загрузки
   if (isError || !employee) {
-    return (
-      <MainLayout>
-        <Center h="70vh" flexDirection="column" gap={4}>
-          <Text color="red.500">
-            {error instanceof Error ? error.message : "Сотрудник не найден"}
-          </Text>
-          <Button onClick={() => navigate(-1)}>Вернуться назад</Button>
-        </Center>
-      </MainLayout>
-    );
+    return <ProfileNotFound error={error as Error | null} />;
   }
 
   return (
     <MainLayout>
       <Box p={6} bg="gray.50" minH="100vh">
-        <HStack spacing={4} mb={6} justify="space-between">
-          <Button
-            leftIcon={<ArrowBackIcon />}
-            variant="ghost"
-            colorScheme="purple"
-            onClick={() => navigate(-1)}
-          >
-            ← Назад
-          </Button>
-          {isEditMode ? (
-            <Button
-              leftIcon={<CloseIcon />}
-              variant="ghost"
-              colorScheme="purple"
-              onClick={handleCancel}
-            >
-              Закрыть
-            </Button>
-          ) : (
-            <Button
-              leftIcon={<EditIcon />}
-              colorScheme="purple"
-              onClick={() => setIsEditMode(true)}
-            >
-              Редактировать
-            </Button>
-          )}
-        </HStack>
+        <ProfileHeader
+          isEditMode={isEditMode}
+          onEditClick={() => setIsEditMode(true)}
+          onCancelClick={handleCancel}
+          canEdit={canEdit}
+        />
 
         {isEditMode && editedEmployee ? (
           <Box
@@ -217,90 +193,19 @@ const ProfilePage: React.FC = () => {
         )}
       </Box>
 
-      {/* Первое модальное окно подтверждения */}
-      <Modal isOpen={isSaveConfirmOpen} onClose={onSaveConfirmClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Сохранить изменения?</ModalHeader>
-          <ModalBody>
-            <Text>
-              Примененные изменения будут отправлены на проверку модератору
-            </Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={handleSaveConfirmNo}
-            >
-              Нет
-            </Button>
-            <Button
-              colorScheme="purple"
-              onClick={handleSaveConfirmYes}
-            >
-              Да
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Второе модальное окно подтверждения для сохранения */}
-      <Modal isOpen={isFinalConfirmOpen && confirmType === 'save'} onClose={onFinalConfirmClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Уверены ли вы?</ModalHeader>
-          <ModalBody>
-            <Text>
-              Вы уверены, что хотите отправить изменения на проверку?
-            </Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={onFinalConfirmClose}
-            >
-              Нет
-            </Button>
-            <Button
-              colorScheme="purple"
-              onClick={handleFinalConfirm}
-              isLoading={isSaving}
-            >
-              Да
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Второе модальное окно подтверждения для отмены */}
-      <Modal isOpen={isCancelConfirmOpen} onClose={onCancelConfirmClose} isCentered>
-        <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Вы уверены, что не хотите сохранять изменения?</ModalHeader>
-          <ModalBody>
-            <Text>
-              Все внесенные изменения будут потеряны
-            </Text>
-          </ModalBody>
-          <ModalFooter>
-            <Button
-              variant="ghost"
-              mr={3}
-              onClick={onCancelConfirmClose}
-            >
-              Нет
-            </Button>
-            <Button
-              colorScheme="purple"
-              onClick={handleCancelConfirmYes}
-            >
-              Да
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+      <ProfileConfirmModals
+        isSaveConfirmOpen={isSaveConfirmOpen}
+        onSaveConfirmClose={onSaveConfirmClose}
+        onSaveConfirmYes={handleSaveConfirmYes}
+        onSaveConfirmNo={handleSaveConfirmNo}
+        isFinalConfirmOpen={isFinalConfirmOpen}
+        onFinalConfirmClose={onFinalConfirmClose}
+        onFinalConfirm={handleFinalConfirm}
+        isCancelConfirmOpen={isCancelConfirmOpen}
+        onCancelConfirmClose={onCancelConfirmClose}
+        onCancelConfirmYes={handleCancelConfirmYes}
+        isSaving={isSaving}
+      />
     </MainLayout>
   );
 };

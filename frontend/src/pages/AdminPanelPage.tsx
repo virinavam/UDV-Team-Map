@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   SimpleGrid,
@@ -6,12 +7,16 @@ import {
   VStack,
   HStack,
   Avatar,
+  Button,
 } from "@chakra-ui/react";
+import { AddIcon } from "@chakra-ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
 import { employeesAPI } from "../lib/api";
+import { ROUTES } from "../routes/paths";
 
 const AdminPanelPage: React.FC = () => {
+  const navigate = useNavigate();
   const { data: employees = [], isLoading } = useQuery({
     queryKey: ["employees", { scope: "admin-panel" }],
     queryFn: () => employeesAPI.list(),
@@ -90,54 +95,83 @@ const AdminPanelPage: React.FC = () => {
           />
         </SimpleGrid>
 
-        {/* Недавно добавленные сотрудники */}
-        <Box
-          bg="white"
-          borderRadius="lg"
-          p={6}
-          boxShadow="sm"
-          border="1px solid"
-          borderColor="gray.200"
-        >
-          <Text fontSize="lg" fontWeight="bold" mb={4}>
-            Недавно добавленные сотрудники
-          </Text>
-          <VStack spacing={3} align="stretch">
-            {recentlyAdded.length > 0 ? (
-              recentlyAdded.map((employee) => (
-                <HStack
-                  key={employee.id}
-                  spacing={4}
-                  p={3}
-                  borderRadius="md"
-                  _hover={{ bg: "gray.50" }}
-                >
-                  <Avatar
-                    size="md"
-                    name={employee.name}
-                    src={employee.photoUrl}
-                  />
-                  <VStack align="start" spacing={0} flex={1}>
-                    <Text fontWeight="medium">
-                      {employee.lastName} {employee.firstName}{" "}
-                      {employee.middleName}
-                    </Text>
-                    <Text fontSize="sm" color="gray.600">
-                      {employee.position}
-                    </Text>
-                  </VStack>
-                  <Text fontSize="sm" color="gray.500">
-                    {employee.hireDate || "—"}
-                  </Text>
-                </HStack>
-              ))
-            ) : (
-              <Text color="gray.500" textAlign="center" py={4}>
-                Нет недавно добавленных сотрудников
-              </Text>
-            )}
+        {/* Кнопки действий и недавно добавленные сотрудники */}
+        <HStack spacing={6} align="flex-start">
+          {/* Кнопки действий */}
+          <VStack spacing={4} align="stretch" flex={1} maxW="400px">
+            <Button
+              leftIcon={<AddIcon />}
+              bg="#763186"
+              color="white"
+              _hover={{ bg: "#5e2770" }}
+              size="lg"
+              onClick={() => navigate(ROUTES.addEmployee)}
+            >
+              Добавить нового сотрудника
+            </Button>
+            <Button
+              leftIcon={<Text fontSize="lg">📷</Text>}
+              variant="outline"
+              borderColor="#763186"
+              color="#763186"
+              _hover={{ bg: "purple.50", borderColor: "#5e2770" }}
+              size="lg"
+              onClick={() => navigate(ROUTES.moderation)}
+            >
+              Модерация фото
+            </Button>
           </VStack>
-        </Box>
+
+          {/* Недавно добавленные сотрудники */}
+          <Box
+            bg="white"
+            borderRadius="lg"
+            p={6}
+            boxShadow="sm"
+            border="1px solid"
+            borderColor="gray.200"
+            flex={1}
+          >
+            <Text fontSize="lg" fontWeight="bold" mb={4}>
+              Недавно добавленные сотрудники
+            </Text>
+            <VStack spacing={3} align="stretch">
+              {recentlyAdded.length > 0 ? (
+                recentlyAdded.map((employee) => (
+                  <HStack
+                    key={employee.id}
+                    spacing={4}
+                    p={3}
+                    borderRadius="md"
+                    _hover={{ bg: "gray.50" }}
+                  >
+                    <Avatar
+                      size="md"
+                      name={employee.name}
+                      src={employee.photoUrl}
+                    />
+                    <VStack align="start" spacing={0} flex={1}>
+                      <Text fontWeight="medium">
+                        {employee.lastName} {employee.firstName}{" "}
+                        {employee.middleName}
+                      </Text>
+                      <Text fontSize="sm" color="gray.600">
+                        {employee.position}
+                      </Text>
+                    </VStack>
+                    <Text fontSize="sm" color="gray.500">
+                      {employee.hireDate || "—"}
+                    </Text>
+                  </HStack>
+                ))
+              ) : (
+                <Text color="gray.500" textAlign="center" py={4}>
+                  Нет недавно добавленных сотрудников
+                </Text>
+              )}
+            </VStack>
+          </Box>
+        </HStack>
       </Box>
     </MainLayout>
   );
@@ -179,4 +213,3 @@ const MetricCard: React.FC<MetricCardProps> = ({
 };
 
 export default AdminPanelPage;
-

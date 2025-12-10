@@ -28,8 +28,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const refreshSession = useCallback(async () => {
     setIsLoading(true);
     try {
+      const token = authAPI.getToken();
+      if (!token) {
+        setUser(null);
+        setIsLoading(false);
+        return;
+      }
+
       const currentUser = await authAPI.getCurrentUser();
-      setUser(currentUser);
+      if (currentUser) {
+        setUser(currentUser);
+      } else {
+        // Если токен есть, но пользователь не получен - токен невалидный
+        // Очищаем токен и разлогиниваем пользователя
+        await authAPI.logout();
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Error refreshing session:", error);
+      // При ошибке очищаем токен и разлогиниваем
+      await authAPI.logout();
+      setUser(null);
     } finally {
       setIsLoading(false);
     }

@@ -9,6 +9,7 @@ import {
   Textarea,
   FormControl,
   FormLabel,
+  FormErrorMessage,
   Text,
   SimpleGrid,
   useToast,
@@ -26,6 +27,16 @@ import AvatarUploader from "../components/profile/AvatarUploader";
 import type { Employee } from "../types/types";
 import { employeesAPI } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  trimAndValidate,
+  isNotEmpty,
+  validateMaxLength,
+  validateEmail,
+  validatePhone,
+  validateDate,
+  FIELD_MAX_LENGTHS,
+  REQUIRED_FIELDS,
+} from "../lib/validation";
 
 type Step = 1 | 2 | 3;
 
@@ -61,8 +72,130 @@ const AddEmployeePage: React.FC = () => {
     telegram: "",
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
   const handleFieldChange = (field: keyof Employee, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    // Очищаем ошибку при изменении поля
+    if (errors[field]) {
+      setErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+
+    // Валидация обязательных полей
+    if (!isNotEmpty(formData.firstName)) {
+      newErrors.firstName = REQUIRED_FIELDS.firstName;
+    }
+    if (!isNotEmpty(formData.lastName)) {
+      newErrors.lastName = REQUIRED_FIELDS.lastName;
+    }
+    if (!isNotEmpty(formData.email)) {
+      newErrors.email = REQUIRED_FIELDS.email;
+    } else if (!validateEmail(formData.email)) {
+      newErrors.email = "Некорректный email адрес";
+    }
+
+    // Валидация максимальных длин
+    if (
+      formData.firstName &&
+      !validateMaxLength(formData.firstName, FIELD_MAX_LENGTHS.firstName)
+    ) {
+      newErrors.firstName = `Имя не должно превышать ${FIELD_MAX_LENGTHS.firstName} символов`;
+    }
+    if (
+      formData.lastName &&
+      !validateMaxLength(formData.lastName, FIELD_MAX_LENGTHS.lastName)
+    ) {
+      newErrors.lastName = `Фамилия не должна превышать ${FIELD_MAX_LENGTHS.lastName} символов`;
+    }
+    if (
+      formData.middleName &&
+      !validateMaxLength(formData.middleName, FIELD_MAX_LENGTHS.middleName)
+    ) {
+      newErrors.middleName = `Отчество не должно превышать ${FIELD_MAX_LENGTHS.middleName} символов`;
+    }
+    if (
+      formData.email &&
+      !validateMaxLength(formData.email, FIELD_MAX_LENGTHS.email)
+    ) {
+      newErrors.email = `Email не должен превышать ${FIELD_MAX_LENGTHS.email} символов`;
+    }
+    if (formData.phone && !validatePhone(formData.phone)) {
+      newErrors.phone = "Некорректный формат телефона";
+    }
+    if (
+      formData.phone &&
+      !validateMaxLength(formData.phone, FIELD_MAX_LENGTHS.phone)
+    ) {
+      newErrors.phone = `Телефон не должен превышать ${FIELD_MAX_LENGTHS.phone} символов`;
+    }
+    if (
+      formData.position &&
+      !validateMaxLength(formData.position, FIELD_MAX_LENGTHS.position)
+    ) {
+      newErrors.position = `Должность не должна превышать ${FIELD_MAX_LENGTHS.position} символов`;
+    }
+    if (
+      formData.city &&
+      !validateMaxLength(formData.city, FIELD_MAX_LENGTHS.city)
+    ) {
+      newErrors.city = `Город не должен превышать ${FIELD_MAX_LENGTHS.city} символов`;
+    }
+    if (formData.hireDate && !validateDate(formData.hireDate)) {
+      newErrors.hireDate = "Некорректный формат даты (используйте DD.MM.YYYY)";
+    }
+    if (
+      formData.telegram &&
+      !validateMaxLength(formData.telegram, FIELD_MAX_LENGTHS.telegram)
+    ) {
+      newErrors.telegram = `Telegram не должен превышать ${FIELD_MAX_LENGTHS.telegram} символов`;
+    }
+    if (
+      formData.mattermost &&
+      !validateMaxLength(formData.mattermost, FIELD_MAX_LENGTHS.mattermost)
+    ) {
+      newErrors.mattermost = `Mattermost не должен превышать ${FIELD_MAX_LENGTHS.mattermost} символов`;
+    }
+    if (
+      formData.description &&
+      !validateMaxLength(formData.description, FIELD_MAX_LENGTHS.description)
+    ) {
+      newErrors.description = `Описание не должно превышать ${FIELD_MAX_LENGTHS.description} символов`;
+    }
+    if (
+      formData.department &&
+      !validateMaxLength(formData.department, FIELD_MAX_LENGTHS.department)
+    ) {
+      newErrors.department = `Подразделение не должно превышать ${FIELD_MAX_LENGTHS.department} символов`;
+    }
+    if (
+      formData.group &&
+      !validateMaxLength(formData.group, FIELD_MAX_LENGTHS.group)
+    ) {
+      newErrors.group = `Группа не должна превышать ${FIELD_MAX_LENGTHS.group} символов`;
+    }
+    if (
+      formData.managerName &&
+      !validateMaxLength(formData.managerName, FIELD_MAX_LENGTHS.managerName)
+    ) {
+      newErrors.managerName = `Руководитель не должен превышать ${FIELD_MAX_LENGTHS.managerName} символов`;
+    }
+    if (
+      formData.legalEntity &&
+      !validateMaxLength(formData.legalEntity, FIELD_MAX_LENGTHS.legalEntity)
+    ) {
+      newErrors.legalEntity = `Юридическое лицо не должно превышать ${FIELD_MAX_LENGTHS.legalEntity} символов`;
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handlePhotoSelect = (file: File) => {
@@ -86,23 +219,58 @@ const AddEmployeePage: React.FC = () => {
   };
 
   const handleSave = async () => {
+    // Валидация формы перед сохранением
+    if (!validateForm()) {
+      toast({
+        status: "error",
+        title: "Ошибка валидации",
+        description: "Пожалуйста, исправьте ошибки в форме",
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+
     try {
+      // Обрезаем пробелы из всех строковых полей
+      const trimmedData = {
+        ...formData,
+        firstName: trimAndValidate(formData.firstName),
+        lastName: trimAndValidate(formData.lastName),
+        middleName: trimAndValidate(formData.middleName),
+        email: trimAndValidate(formData.email),
+        phone: trimAndValidate(formData.phone),
+        city: trimAndValidate(formData.city),
+        position: trimAndValidate(formData.position),
+        telegram: trimAndValidate(formData.telegram),
+        mattermost: trimAndValidate(formData.mattermost),
+        description: trimAndValidate(formData.description),
+        managerName: trimAndValidate(formData.managerName),
+        group: trimAndValidate(formData.group),
+        legalEntity: trimAndValidate(formData.legalEntity),
+        department: trimAndValidate(formData.department),
+      };
+
       // Создаем сотрудника
       const employeeData: Employee = {
         id: `e${Date.now()}`,
-        name: `${formData.lastName || ""} ${formData.firstName || ""} ${
-          formData.middleName || ""
-        }`.trim() || "Новый сотрудник",
-        position: formData.position || "",
-        city: formData.city || "",
-        email: formData.email || "",
-        skills: Array.isArray(formData.skills)
-          ? formData.skills
-          : typeof formData.skills === "string"
-          ? formData.skills.split(",").map((s) => s.trim()).filter(Boolean)
+        name:
+          `${trimmedData.lastName || ""} ${trimmedData.firstName || ""} ${
+            trimmedData.middleName || ""
+          }`.trim() || "Новый сотрудник",
+        position: trimmedData.position || "",
+        city: trimmedData.city || "",
+        email: trimmedData.email || "",
+        skills: Array.isArray(trimmedData.skills)
+          ? trimmedData.skills
+          : typeof trimmedData.skills === "string"
+          ? trimmedData.skills
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
           : [],
         status: "Активен",
-        ...formData,
+        ...trimmedData,
       };
 
       const created = await employeesAPI.create(employeeData);
@@ -110,13 +278,38 @@ const AddEmployeePage: React.FC = () => {
       // Загружаем фото, если есть
       if (photoFile && created.id) {
         try {
+          toast({
+            status: "info",
+            title: "Загрузка фото...",
+            description: "Пожалуйста, подождите",
+            duration: 2000,
+            isClosable: true,
+          });
+
           const { photoUrl } = await employeesAPI.uploadAvatar(
             created.id,
             photoFile
           );
           await employeesAPI.update(created.id, { photoUrl });
+
+          toast({
+            status: "success",
+            title: "Фото загружено",
+            duration: 2000,
+            isClosable: true,
+          });
         } catch (error) {
           console.error("Ошибка загрузки фото:", error);
+          toast({
+            status: "warning",
+            title: "Сотрудник создан, но фото не загружено",
+            description:
+              error instanceof Error
+                ? error.message
+                : "Не удалось загрузить фото",
+            duration: 5000,
+            isClosable: true,
+          });
         }
       }
 
@@ -162,382 +355,448 @@ const AddEmployeePage: React.FC = () => {
     ? formData.skills.join(", ")
     : "";
 
-  const fullName = `${formData.lastName || ""} ${formData.firstName || ""} ${
-    formData.middleName || ""
-  }`.trim() || "Новый сотрудник";
+  const fullName =
+    `${formData.lastName || ""} ${formData.firstName || ""} ${
+      formData.middleName || ""
+    }`.trim() || "Новый сотрудник";
 
   return (
     <MainLayout>
       <Box bg="white" minH="calc(100vh - 80px)">
         <Box p={6} maxW="800px" mx="auto">
           <VStack spacing={6} align="stretch">
-          {/* Кнопка Назад */}
-          <HStack spacing={4} align="flex-start">
-            <Button
-              leftIcon={<ArrowBackIcon />}
-              variant="outline"
-              onClick={handleBack}
-              color="#763186"
-              borderColor="gray.300"
-              _hover={{ bg: "purple.50", borderColor: "gray.400" }}
-              fontWeight="normal"
-            >
-              Назад
-            </Button>
-          </HStack>
-
-          {/* Заголовок по центру */}
-          <VStack spacing={1} align="center">
-            <Text fontSize="2xl" fontWeight="bold" color="gray.900">
-              Добавление нового сотрудника
-            </Text>
-            <Text fontSize="sm" color="gray.600" textAlign="center">
-              Вы можете добавить информацию о новом сотруднике ниже
-            </Text>
-          </VStack>
-
-          {/* Индикатор прогресса */}
-          <HStack spacing={4} justify="center" py={4}>
-            <VStack spacing={2}>
-              <Box
-                w="40px"
-                h="40px"
-                borderRadius="full"
-                bg={currentStep >= 1 ? "#763186" : "gray.300"}
-                color="white"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                fontWeight="bold"
+            {/* Кнопка Назад */}
+            <HStack spacing={4} align="flex-start">
+              <Button
+                leftIcon={<ArrowBackIcon />}
+                variant="outline"
+                onClick={handleBack}
+                color="#763186"
+                borderColor="gray.300"
+                _hover={{ bg: "purple.50", borderColor: "gray.400" }}
+                fontWeight="normal"
               >
-                1
-              </Box>
-              <Text
-                fontSize="sm"
-                color={currentStep >= 1 ? "#763186" : "gray.500"}
-                fontWeight={currentStep === 1 ? "bold" : "normal"}
-              >
-                Личная информация
+                Назад
+              </Button>
+            </HStack>
+
+            {/* Заголовок по центру */}
+            <VStack spacing={1} align="center">
+              <Text fontSize="2xl" fontWeight="bold" color="gray.900">
+                Добавление нового сотрудника
+              </Text>
+              <Text fontSize="sm" color="gray.600" textAlign="center">
+                Вы можете добавить информацию о новом сотруднике ниже
               </Text>
             </VStack>
-            <Box
-              w="100px"
-              h="2px"
-              bg={currentStep >= 2 ? "#763186" : "gray.300"}
-            />
-            <VStack spacing={2}>
+
+            {/* Индикатор прогресса */}
+            <HStack spacing={4} justify="center" py={4}>
+              <VStack spacing={2}>
+                <Box
+                  w="40px"
+                  h="40px"
+                  borderRadius="full"
+                  bg={currentStep >= 1 ? "#763186" : "gray.300"}
+                  color="white"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontWeight="bold"
+                >
+                  1
+                </Box>
+                <Text
+                  fontSize="sm"
+                  color={currentStep >= 1 ? "#763186" : "gray.500"}
+                  fontWeight={currentStep === 1 ? "bold" : "normal"}
+                >
+                  Личная информация
+                </Text>
+              </VStack>
               <Box
-                w="40px"
-                h="40px"
-                borderRadius="full"
+                w="100px"
+                h="2px"
                 bg={currentStep >= 2 ? "#763186" : "gray.300"}
-                color="white"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                fontWeight="bold"
-              >
-                2
-              </Box>
-              <Text
-                fontSize="sm"
-                color={currentStep >= 2 ? "#763186" : "gray.500"}
-                fontWeight={currentStep === 2 ? "bold" : "normal"}
-              >
-                Информация о работе
-              </Text>
-            </VStack>
-            <Box
-              w="100px"
-              h="2px"
-              bg={currentStep >= 3 ? "#763186" : "gray.300"}
-            />
-            <VStack spacing={2}>
+              />
+              <VStack spacing={2}>
+                <Box
+                  w="40px"
+                  h="40px"
+                  borderRadius="full"
+                  bg={currentStep >= 2 ? "#763186" : "gray.300"}
+                  color="white"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontWeight="bold"
+                >
+                  2
+                </Box>
+                <Text
+                  fontSize="sm"
+                  color={currentStep >= 2 ? "#763186" : "gray.500"}
+                  fontWeight={currentStep === 2 ? "bold" : "normal"}
+                >
+                  Информация о работе
+                </Text>
+              </VStack>
               <Box
-                w="40px"
-                h="40px"
-                borderRadius="full"
+                w="100px"
+                h="2px"
                 bg={currentStep >= 3 ? "#763186" : "gray.300"}
-                color="white"
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                fontWeight="bold"
-              >
-                3
-              </Box>
-              <Text
-                fontSize="sm"
-                color={currentStep >= 3 ? "#763186" : "gray.500"}
-                fontWeight={currentStep === 3 ? "bold" : "normal"}
-              >
-                Контактная информация
-              </Text>
-            </VStack>
-          </HStack>
-
-          {/* Форма */}
-          <Box bg="white" border="1px solid" borderColor="gray.300" borderRadius="md" minH="700px" display="flex" flexDirection="column">
-            {currentStep === 1 && (
-              <VStack spacing={6} align="center" p={6} flex={1} justify="space-between">
-                <VStack spacing={6} align="center" w="100%">
-                  <VStack spacing={4} align="stretch" w="100%" maxW="400px">
-                    <FormControl>
-                      <FormLabel>Фамилия</FormLabel>
-                      <Input
-                        value={formData.lastName || ""}
-                        onChange={(e) =>
-                          handleFieldChange("lastName", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Имя</FormLabel>
-                      <Input
-                        value={formData.firstName || ""}
-                        onChange={(e) =>
-                          handleFieldChange("firstName", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Отчество</FormLabel>
-                      <Input
-                        value={formData.middleName || ""}
-                        onChange={(e) =>
-                          handleFieldChange("middleName", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Город</FormLabel>
-                      <Input
-                        value={formData.city || ""}
-                        onChange={(e) =>
-                          handleFieldChange("city", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    {/* Фото внизу */}
-                    <FormControl w="100%" maxW="400px">
-                      <FormLabel>Фото</FormLabel>
-                      <Box display="flex" justifyContent="center">
-                        <AvatarUploader
-                          fullName={fullName}
-                          photoUrl={photoPreview || undefined}
-                          onSelect={handlePhotoSelect}
-                        />
-                      </Box>
-                    </FormControl>
-                  </VStack>
-                </VStack>
-                {/* Кнопка Далее внизу */}
-                <HStack justify="center" w="100%" pt={4}>
-                  <Button
-                    bg="#763186"
-                    color="white"
-                    _hover={{ bg: "#5e2770" }}
-                    size="lg"
-                    onClick={handleNext}
-                  >
-                    Далее
-                  </Button>
-                </HStack>
+              />
+              <VStack spacing={2}>
+                <Box
+                  w="40px"
+                  h="40px"
+                  borderRadius="full"
+                  bg={currentStep >= 3 ? "#763186" : "gray.300"}
+                  color="white"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontWeight="bold"
+                >
+                  3
+                </Box>
+                <Text
+                  fontSize="sm"
+                  color={currentStep >= 3 ? "#763186" : "gray.500"}
+                  fontWeight={currentStep === 3 ? "bold" : "normal"}
+                >
+                  Контактная информация
+                </Text>
               </VStack>
-            )}
+            </HStack>
 
-            {currentStep === 2 && (
-              <VStack spacing={6} align="stretch" p={6} flex={1} justify="space-between">
-                <VStack spacing={6} align="stretch" w="100%">
-                <SimpleGrid columns={2} spacing={6}>
-                  <VStack spacing={4} align="stretch">
-                    <FormControl>
-                      <FormLabel>Должность</FormLabel>
-                      <Input
-                        value={formData.position || ""}
-                        onChange={(e) =>
-                          handleFieldChange("position", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Юридическое лицо</FormLabel>
-                      <Input
-                        value={formData.legalEntity || ""}
-                        onChange={(e) =>
-                          handleFieldChange("legalEntity", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Подразделение</FormLabel>
-                      <Input
-                        value={formData.department || ""}
-                        onChange={(e) =>
-                          handleFieldChange("department", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Группа</FormLabel>
-                      <Input
-                        value={formData.group || ""}
-                        onChange={(e) =>
-                          handleFieldChange("group", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Руководитель</FormLabel>
-                      <Input
-                        value={formData.managerName || ""}
-                        onChange={(e) =>
-                          handleFieldChange("managerName", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                  </VStack>
-                  <VStack spacing={4} align="stretch">
-                    <FormControl>
-                      <FormLabel>Дата найма</FormLabel>
-                      <Input
-                        value={formData.hireDate || ""}
-                        onChange={(e) =>
-                          handleFieldChange("hireDate", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Навыки</FormLabel>
-                      <Textarea
-                        value={skillsText}
-                        onChange={(e) => handleSkillsChange(e.target.value)}
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                        rows={3}
-                      />
-                    </FormControl>
-                    <FormControl>
-                      <FormLabel>Описание</FormLabel>
-                      <Textarea
-                        value={formData.description || ""}
-                        onChange={(e) =>
-                          handleFieldChange("description", e.target.value)
-                        }
-                        placeholder="Введите текст..."
-                        bg="gray.50"
-                        rows={4}
-                      />
-                    </FormControl>
-                  </VStack>
-                </SimpleGrid>
-                </VStack>
-                {/* Кнопка Далее внизу */}
-                <HStack justify="center" w="100%" pt={4}>
-                  <Button
-                    bg="#763186"
-                    color="white"
-                    _hover={{ bg: "#5e2770" }}
-                    size="lg"
-                    onClick={handleNext}
-                  >
-                    Далее
-                  </Button>
-                </HStack>
-              </VStack>
-            )}
-
-            {currentStep === 3 && (
-              <VStack spacing={6} align="stretch" p={6} flex={1} justify="space-between">
-                <VStack spacing={6} align="stretch" w="100%">
-                  <SimpleGrid columns={2} spacing={6}>
-                    <VStack spacing={4} align="stretch">
-                      <FormControl>
-                        <FormLabel>Почта</FormLabel>
+            {/* Форма */}
+            <Box
+              bg="white"
+              border="1px solid"
+              borderColor="gray.300"
+              borderRadius="md"
+              minH="700px"
+              display="flex"
+              flexDirection="column"
+            >
+              {currentStep === 1 && (
+                <VStack
+                  spacing={6}
+                  align="center"
+                  p={6}
+                  flex={1}
+                  justify="space-between"
+                >
+                  <VStack spacing={6} align="center" w="100%">
+                    <VStack spacing={4} align="stretch" w="100%" maxW="400px">
+                      <FormControl isInvalid={!!errors.lastName}>
+                        <FormLabel>Фамилия *</FormLabel>
                         <Input
-                          value={formData.email || ""}
+                          value={formData.lastName || ""}
                           onChange={(e) =>
-                            handleFieldChange("email", e.target.value)
+                            handleFieldChange("lastName", e.target.value)
                           }
                           placeholder="Введите текст..."
                           bg="gray.50"
-                          type="email"
+                          maxLength={FIELD_MAX_LENGTHS.lastName}
                         />
+                        <FormErrorMessage>{errors.lastName}</FormErrorMessage>
                       </FormControl>
-                      <FormControl>
-                        <FormLabel>Номер телефона</FormLabel>
+                      <FormControl isInvalid={!!errors.firstName}>
+                        <FormLabel>Имя *</FormLabel>
                         <Input
-                          value={formData.phone || ""}
+                          value={formData.firstName || ""}
                           onChange={(e) =>
-                            handleFieldChange("phone", e.target.value)
+                            handleFieldChange("firstName", e.target.value)
                           }
                           placeholder="Введите текст..."
                           bg="gray.50"
-                          type="tel"
+                          maxLength={FIELD_MAX_LENGTHS.firstName}
                         />
+                        <FormErrorMessage>{errors.firstName}</FormErrorMessage>
+                      </FormControl>
+                      <FormControl isInvalid={!!errors.middleName}>
+                        <FormLabel>Отчество</FormLabel>
+                        <Input
+                          value={formData.middleName || ""}
+                          onChange={(e) =>
+                            handleFieldChange("middleName", e.target.value)
+                          }
+                          placeholder="Введите текст..."
+                          bg="gray.50"
+                          maxLength={FIELD_MAX_LENGTHS.middleName}
+                        />
+                        <FormErrorMessage>{errors.middleName}</FormErrorMessage>
+                      </FormControl>
+                      <FormControl isInvalid={!!errors.city}>
+                        <FormLabel>Город</FormLabel>
+                        <Input
+                          value={formData.city || ""}
+                          onChange={(e) =>
+                            handleFieldChange("city", e.target.value)
+                          }
+                          placeholder="Введите текст..."
+                          bg="gray.50"
+                          maxLength={FIELD_MAX_LENGTHS.city}
+                        />
+                        <FormErrorMessage>{errors.city}</FormErrorMessage>
+                      </FormControl>
+                      {/* Фото внизу */}
+                      <FormControl w="100%" maxW="400px">
+                        <FormLabel>Фото</FormLabel>
+                        <Box display="flex" justifyContent="center">
+                          <AvatarUploader
+                            fullName={fullName}
+                            photoUrl={photoPreview || undefined}
+                            onSelect={handlePhotoSelect}
+                          />
+                        </Box>
                       </FormControl>
                     </VStack>
-                    <VStack spacing={4} align="stretch">
-                      <FormControl>
-                        <FormLabel>Mattermost</FormLabel>
-                        <Input
-                          value={formData.mattermost || ""}
-                          onChange={(e) =>
-                            handleFieldChange("mattermost", e.target.value)
-                          }
-                          placeholder="Введите текст..."
-                          bg="gray.50"
-                        />
-                      </FormControl>
-                      <FormControl>
-                        <FormLabel>Telegram</FormLabel>
-                        <Input
-                          value={formData.telegram || ""}
-                          onChange={(e) =>
-                            handleFieldChange("telegram", e.target.value)
-                          }
-                          placeholder="Введите текст..."
-                          bg="gray.50"
-                        />
-                      </FormControl>
-                    </VStack>
-                  </SimpleGrid>
+                  </VStack>
+                  {/* Кнопка Далее внизу */}
+                  <HStack justify="center" w="100%" pt={4}>
+                    <Button
+                      bg="#763186"
+                      color="white"
+                      _hover={{ bg: "#5e2770" }}
+                      size="lg"
+                      onClick={handleNext}
+                    >
+                      Далее
+                    </Button>
+                  </HStack>
                 </VStack>
-                {/* Кнопка Сохранить внизу */}
-                <HStack justify="center" w="100%" pt={4}>
-                  <Button
-                    bg="#763186"
-                    color="white"
-                    _hover={{ bg: "#5e2770" }}
-                    size="lg"
-                    onClick={handleSaveClick}
-                  >
-                    Сохранить
-                  </Button>
-                </HStack>
-              </VStack>
-            )}
-          </Box>
+              )}
+
+              {currentStep === 2 && (
+                <VStack
+                  spacing={6}
+                  align="stretch"
+                  p={6}
+                  flex={1}
+                  justify="space-between"
+                >
+                  <VStack spacing={6} align="stretch" w="100%">
+                    <SimpleGrid columns={2} spacing={6}>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl isInvalid={!!errors.position}>
+                          <FormLabel>Должность</FormLabel>
+                          <Input
+                            value={formData.position || ""}
+                            onChange={(e) =>
+                              handleFieldChange("position", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.position}
+                          />
+                          <FormErrorMessage>{errors.position}</FormErrorMessage>
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.legalEntity}>
+                          <FormLabel>Юридическое лицо</FormLabel>
+                          <Input
+                            value={formData.legalEntity || ""}
+                            onChange={(e) =>
+                              handleFieldChange("legalEntity", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.legalEntity}
+                          />
+                          <FormErrorMessage>
+                            {errors.legalEntity}
+                          </FormErrorMessage>
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.department}>
+                          <FormLabel>Подразделение</FormLabel>
+                          <Input
+                            value={formData.department || ""}
+                            onChange={(e) =>
+                              handleFieldChange("department", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.department}
+                          />
+                          <FormErrorMessage>
+                            {errors.department}
+                          </FormErrorMessage>
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.group}>
+                          <FormLabel>Группа</FormLabel>
+                          <Input
+                            value={formData.group || ""}
+                            onChange={(e) =>
+                              handleFieldChange("group", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.group}
+                          />
+                          <FormErrorMessage>{errors.group}</FormErrorMessage>
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.managerName}>
+                          <FormLabel>Руководитель</FormLabel>
+                          <Input
+                            value={formData.managerName || ""}
+                            onChange={(e) =>
+                              handleFieldChange("managerName", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.managerName}
+                          />
+                          <FormErrorMessage>
+                            {errors.managerName}
+                          </FormErrorMessage>
+                        </FormControl>
+                      </VStack>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl isInvalid={!!errors.hireDate}>
+                          <FormLabel>Дата найма</FormLabel>
+                          <Input
+                            value={formData.hireDate || ""}
+                            onChange={(e) =>
+                              handleFieldChange("hireDate", e.target.value)
+                            }
+                            placeholder="DD.MM.YYYY"
+                            bg="gray.50"
+                          />
+                          <FormErrorMessage>{errors.hireDate}</FormErrorMessage>
+                        </FormControl>
+                        <FormControl>
+                          <FormLabel>Навыки</FormLabel>
+                          <Textarea
+                            value={skillsText}
+                            onChange={(e) => handleSkillsChange(e.target.value)}
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            rows={3}
+                          />
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.description}>
+                          <FormLabel>Описание</FormLabel>
+                          <Textarea
+                            value={formData.description || ""}
+                            onChange={(e) =>
+                              handleFieldChange("description", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            rows={4}
+                            maxLength={FIELD_MAX_LENGTHS.description}
+                          />
+                          <FormErrorMessage>
+                            {errors.description}
+                          </FormErrorMessage>
+                        </FormControl>
+                      </VStack>
+                    </SimpleGrid>
+                  </VStack>
+                  {/* Кнопка Далее внизу */}
+                  <HStack justify="center" w="100%" pt={4}>
+                    <Button
+                      bg="#763186"
+                      color="white"
+                      _hover={{ bg: "#5e2770" }}
+                      size="lg"
+                      onClick={handleNext}
+                    >
+                      Далее
+                    </Button>
+                  </HStack>
+                </VStack>
+              )}
+
+              {currentStep === 3 && (
+                <VStack
+                  spacing={6}
+                  align="stretch"
+                  p={6}
+                  flex={1}
+                  justify="space-between"
+                >
+                  <VStack spacing={6} align="stretch" w="100%">
+                    <SimpleGrid columns={2} spacing={6}>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl isInvalid={!!errors.email}>
+                          <FormLabel>Почта *</FormLabel>
+                          <Input
+                            value={formData.email || ""}
+                            onChange={(e) =>
+                              handleFieldChange("email", e.target.value)
+                            }
+                            placeholder="example@mail.com"
+                            bg="gray.50"
+                            type="email"
+                            maxLength={FIELD_MAX_LENGTHS.email}
+                          />
+                          <FormErrorMessage>{errors.email}</FormErrorMessage>
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.phone}>
+                          <FormLabel>Номер телефона</FormLabel>
+                          <Input
+                            value={formData.phone || ""}
+                            onChange={(e) =>
+                              handleFieldChange("phone", e.target.value)
+                            }
+                            placeholder="+7 (999) 123-45-67"
+                            bg="gray.50"
+                            type="tel"
+                            maxLength={FIELD_MAX_LENGTHS.phone}
+                          />
+                          <FormErrorMessage>{errors.phone}</FormErrorMessage>
+                        </FormControl>
+                      </VStack>
+                      <VStack spacing={4} align="stretch">
+                        <FormControl isInvalid={!!errors.mattermost}>
+                          <FormLabel>Mattermost</FormLabel>
+                          <Input
+                            value={formData.mattermost || ""}
+                            onChange={(e) =>
+                              handleFieldChange("mattermost", e.target.value)
+                            }
+                            placeholder="Введите текст..."
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.mattermost}
+                          />
+                          <FormErrorMessage>
+                            {errors.mattermost}
+                          </FormErrorMessage>
+                        </FormControl>
+                        <FormControl isInvalid={!!errors.telegram}>
+                          <FormLabel>Telegram</FormLabel>
+                          <Input
+                            value={formData.telegram || ""}
+                            onChange={(e) =>
+                              handleFieldChange("telegram", e.target.value)
+                            }
+                            placeholder="@username"
+                            bg="gray.50"
+                            maxLength={FIELD_MAX_LENGTHS.telegram}
+                          />
+                          <FormErrorMessage>{errors.telegram}</FormErrorMessage>
+                        </FormControl>
+                      </VStack>
+                    </SimpleGrid>
+                  </VStack>
+                  {/* Кнопка Сохранить внизу */}
+                  <HStack justify="center" w="100%" pt={4}>
+                    <Button
+                      bg="#763186"
+                      color="white"
+                      _hover={{ bg: "#5e2770" }}
+                      size="lg"
+                      onClick={handleSaveClick}
+                    >
+                      Сохранить
+                    </Button>
+                  </HStack>
+                </VStack>
+              )}
+            </Box>
           </VStack>
         </Box>
       </Box>
@@ -576,4 +835,3 @@ const AddEmployeePage: React.FC = () => {
 };
 
 export default AddEmployeePage;
-
