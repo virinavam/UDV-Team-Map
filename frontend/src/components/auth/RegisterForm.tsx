@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -39,6 +39,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
   onSuccess,
   onBackToLogin,
 }) => {
+  const passwordId = useId();
+  const confirmPasswordId = useId();
   const {
     register,
     handleSubmit,
@@ -54,16 +56,16 @@ const RegisterForm: React.FC<RegisterFormProps> = ({
     <form onSubmit={handleSubmit(onSubmit)}>
       <VStack spacing={4}>
         <FormControl isInvalid={!!errors.password}>
-          <FormLabel>Пароль</FormLabel>
-          <Input type="password" {...register("password")} />
+          <FormLabel htmlFor={passwordId}>Пароль</FormLabel>
+          <Input id={passwordId} type="password" {...register("password")} />
           {errors.password && (
             <FormErrorMessage>{errors.password.message}</FormErrorMessage>
           )}
         </FormControl>
 
         <FormControl isInvalid={!!errors.confirmPassword}>
-          <FormLabel>Подтвердите пароль</FormLabel>
-          <Input type="password" {...register("confirmPassword")} />
+          <FormLabel htmlFor={confirmPasswordId}>Подтвердите пароль</FormLabel>
+          <Input id={confirmPasswordId} type="password" {...register("confirmPassword")} />
           {errors.confirmPassword && (
             <FormErrorMessage>
               {errors.confirmPassword.message}

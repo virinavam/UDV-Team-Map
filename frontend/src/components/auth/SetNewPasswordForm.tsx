@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -57,6 +57,8 @@ export default function SetNewPasswordForm({
   const location = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const passwordId = useId();
+  const confirmPasswordId = useId();
 
   // Получаем токен из state или из URL параметров
   const token =
@@ -100,8 +102,9 @@ export default function SetNewPasswordForm({
       <form onSubmit={handleSubmit(onSubmit)}>
         <VStack spacing={4} align="stretch">
           <FormControl isInvalid={!!errors.password}>
-            <FormLabel>Введите ваш пароль</FormLabel>
+            <FormLabel htmlFor={passwordId}>Введите ваш пароль</FormLabel>
             <Input
+              id={passwordId}
               type="password"
               placeholder="Введите ваш пароль"
               {...register("password")}
@@ -119,8 +122,9 @@ export default function SetNewPasswordForm({
           </FormControl>
 
           <FormControl isInvalid={!!errors.confirmPassword}>
-            <FormLabel>Подтвердите пароль</FormLabel>
+            <FormLabel htmlFor={confirmPasswordId}>Подтвердите пароль</FormLabel>
             <Input
+              id={confirmPasswordId}
               type="password"
               placeholder="Введите ваш пароль"
               {...register("confirmPassword")}

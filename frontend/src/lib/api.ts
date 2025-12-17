@@ -13,9 +13,9 @@ const jsonRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const token = localStorage.getItem("authToken");
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   // Добавляем токен авторизации, если он есть и не был передан явно
@@ -23,16 +23,49 @@ const jsonRequest = async <T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Собираем финальные опции, убеждаясь, что headers и body правильно обработаны
+  const {
+    body: optionsBody,
+    headers: optionsHeaders,
+    ...restOptions
+  } = options;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method || "GET",
+    ...restOptions,
     headers,
-    ...options,
+    ...(optionsBody !== undefined && { body: optionsBody }),
   });
 
   if (!response.ok) {
-    const message = await response
+    const errorData = await response
       .json()
-      .catch(() => ({ message: "Request failed" }));
-    throw new Error(message?.detail || message?.message || "Request failed");
+      .catch(() => ({ detail: "Request failed" }));
+
+    // Обработка ошибок валидации FastAPI (422)
+    let errorMessage = "Request failed";
+    if (errorData?.detail) {
+      if (Array.isArray(errorData.detail)) {
+        // Форматируем ошибки валидации
+        errorMessage = errorData.detail
+          .map((err: any) => {
+            const field = err.loc?.join(".") || "field";
+            return `${field}: ${err.msg || err.message || "Ошибка валидации"}`;
+          })
+          .join("; ");
+      } else if (typeof errorData.detail === "string") {
+        errorMessage = errorData.detail;
+      } else {
+        errorMessage = JSON.stringify(errorData.detail);
+      }
+    } else if (errorData?.message) {
+      errorMessage = errorData.message;
+    }
+
+    const error = new Error(errorMessage);
+    (error as any).status = response.status;
+    (error as any).data = errorData;
+    throw error;
   }
 
   return (await response.json()) as T;
@@ -228,7 +261,10 @@ export const employeesAPI = {
       url = new URL(`${API_BASE_URL}/employees/search/`);
       // Если есть поисковый запрос, передаем его, иначе пустую строку
       url.searchParams.set("q", params?.search?.trim() || "");
-      if (params?.city) url.searchParams.set("city", params.city);
+      // Бэкенд ожидает cities как массив, передаем как массив
+      if (params?.city) {
+        url.searchParams.append("cities", params.city);
+      }
       if (params?.skills && params.skills.length > 0) {
         params.skills.forEach((skill) =>
           url.searchParams.append("skills", skill)
@@ -291,18 +327,76 @@ export const employeesAPI = {
   },
 
   async update(id: string, payload: Partial<Employee>) {
+    // Если указано название отдела, но нет departmentId, пытаемся найти ID по названию
+    if (payload.department && !payload.departmentId) {
+      try {
+        const departments = await departmentsAPI.list();
+        const foundDepartment = departments.find(
+          (dept) => dept.name === payload.department
+        );
+        if (foundDepartment) {
+          payload.departmentId = foundDepartment.id;
+        } else if (payload.department.trim()) {
+          // Если отдел указан, но не найден в списке, выбрасываем ошибку
+          throw new Error(
+            `Подразделение "${payload.department}" не найдено. Пожалуйста, сначала создайте это подразделение или выберите существующее.`
+          );
+        }
+      } catch (error) {
+        // Если это наша ошибка о ненайденном отделе, пробрасываем её дальше
+        if (error instanceof Error && error.message.includes("не найдено")) {
+          throw error;
+        }
+        console.warn(
+          "Не удалось загрузить список отделов для поиска ID:",
+          error
+        );
+        // Если не удалось загрузить список отделов, но отдел указан, выбрасываем ошибку
+        if (payload.department && payload.department.trim()) {
+          throw new Error(
+            "Не удалось загрузить список подразделений. Пожалуйста, попробуйте позже или убедитесь, что подразделение существует."
+          );
+        }
+      }
+    }
+
     const backendPayload = mapEmployeeToBackendUser(payload);
+
+    // Убеждаемся, что отправляем валидный объект
+    if (
+      !backendPayload ||
+      typeof backendPayload !== "object" ||
+      Array.isArray(backendPayload)
+    ) {
+      throw new Error("Invalid payload: expected an object");
+    }
+
+    // Преобразуем в JSON строку
+    const bodyString = JSON.stringify(backendPayload);
+
+    // Проверяем, что получилась валидная JSON строка (не пустой объект и не null/undefined)
+    if (
+      !bodyString ||
+      bodyString === "null" ||
+      bodyString === "undefined" ||
+      bodyString === "{}"
+    ) {
+      // Если payload пустой, отправляем пустой объект, но это может вызвать ошибку на бэкенде
+      // Лучше выбросить ошибку, чтобы пользователь знал, что нечего обновлять
+      throw new Error("No fields to update");
+    }
+
     const backendUser = await jsonRequest<BackendUser>(`/employees/${id}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
       },
-      body: JSON.stringify(backendPayload),
+      body: bodyString,
     });
     return mapBackendUserToEmployee(backendUser);
   },
 
-  async uploadAvatar(id: string, file: File) {
+  async uploadAvatar(id: string, file: File, noModeration: boolean = false) {
     // Валидация размера файла на клиенте
     const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     if (file.size > MAX_FILE_SIZE) {
@@ -315,10 +409,15 @@ export const employeesAPI = {
     }
 
     const formData = new FormData();
-    formData.append("avatar", file);
+    formData.append("file", file);
 
     const token = localStorage.getItem("authToken");
-    const response = await fetch(`${API_BASE_URL}/employees/${id}/avatar`, {
+    const url = new URL(`${API_BASE_URL}/employees/${id}/avatar/upload`);
+    if (noModeration) {
+      url.searchParams.append("no_moderation", "true");
+    }
+
+    const response = await fetch(url.toString(), {
       method: "POST",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -327,11 +426,25 @@ export const employeesAPI = {
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "Не удалось загрузить аватар");
+      let errorMessage = "Не удалось загрузить аватар";
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+      } catch (parseError) {
+        // Если не удалось распарсить JSON, используем текст ответа
+        const text = await response.text().catch(() => "");
+        if (text) {
+          errorMessage = text;
+        }
+      }
+      throw new Error(errorMessage);
     }
 
-    return (await response.json()) as { photoUrl: string };
+    const s3Key = await response.json();
+    // Возвращаем объект с photoUrl для совместимости с существующим кодом
+    // s3Key - это строка, которую FastAPI автоматически сериализует в JSON
+    const s3KeyString = typeof s3Key === "string" ? s3Key : String(s3Key);
+    return { photoUrl: `/api/employees/avatars/${s3KeyString}` };
   },
 
   async remove(id: string) {
@@ -361,5 +474,63 @@ export const filtersAPI = {
 export const orgAPI = {
   async getTree() {
     return jsonRequest<{ tree: OrgNode[] }>("/org-tree", { method: "GET" });
+  },
+};
+
+export interface Department {
+  id: string;
+  name: string;
+  legal_entity_id: string;
+  parent_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const departmentsAPI = {
+  async list() {
+    return jsonRequest<Department[]>("/departments/", { method: "GET" });
+  },
+};
+
+export interface AvatarModerationRequest {
+  id: string;
+  user: BackendUser;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  rejection_reason?: string | null;
+}
+
+export const avatarsAPI = {
+  async getPending() {
+    return jsonRequest<AvatarModerationRequest[]>(
+      "/employees/avatars/pending",
+      { method: "GET" }
+    );
+  },
+  async getAccepted() {
+    return jsonRequest<AvatarModerationRequest[]>(
+      "/employees/avatars/accepted",
+      { method: "GET" }
+    );
+  },
+  async getRejected() {
+    return jsonRequest<AvatarModerationRequest[]>(
+      "/employees/avatars/rejected",
+      { method: "GET" }
+    );
+  },
+  async moderate(
+    avatarId: string,
+    status: "ACCEPTED" | "REJECTED",
+    rejectionReason?: string
+  ) {
+    return jsonRequest<string>(`/employees/avatars/${avatarId}/moderate`, {
+      method: "PUT",
+      body: JSON.stringify({
+        status,
+        rejection_reason: rejectionReason || null,
+      }),
+    });
   },
 };

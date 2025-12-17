@@ -27,6 +27,7 @@ import { CloseIcon } from "@chakra-ui/icons";
 import type { Employee } from "../types/types";
 import AvatarUploader from "./profile/AvatarUploader";
 import { employeesAPI } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -52,6 +53,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   onSave,
 }) => {
   const toast = useToast();
+  const { user } = useAuth();
+  // Проверяем, является ли пользователь админом или HR
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: "",
     lastName: "",
@@ -269,21 +273,26 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
             isClosable: true,
           });
 
-          const { photoUrl } = await employeesAPI.uploadAvatar(
+          await employeesAPI.uploadAvatar(
             employee.id,
-            pendingAvatarFile
+            pendingAvatarFile,
+            isAdmin // Для админов/HR используем no_moderation
           );
-          employeeData.photoUrl = photoUrl;
+          // photoUrl не нужно устанавливать, так как это read-only поле
+          // Аватар уже загружен и активирован (или отправлен на модерацию)
 
           toast({
             status: "success",
-            title: "Аватар загружен",
+            title: isAdmin ? "Аватар загружен и активирован" : "Аватар загружен",
+            description: isAdmin 
+              ? "Фотография активирована без модерации" 
+              : "Фотография отправлена на модерацию",
             duration: 2000,
             isClosable: true,
           });
         } catch (avatarError) {
           toast({
-            status: "warning",
+            status: "error",
             title: "Ошибка загрузки аватара",
             description:
               avatarError instanceof Error
@@ -292,6 +301,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
             duration: 5000,
             isClosable: true,
           });
+          // Прерываем сохранение, если загрузка аватара не удалась
+          setIsSaving(false);
+          return;
         }
       }
 

@@ -36,10 +36,12 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tempSelection, setTempSelection] = useState<string[]>(selectedValues);
 
-  // Синхронизация временного выбора с внешними selectedValues
+  // Синхронизация временного выбора с внешними selectedValues только когда меню закрыто
   useEffect(() => {
-    setTempSelection(selectedValues);
-  }, [selectedValues]);
+    if (!isOpen) {
+      setTempSelection(selectedValues);
+    }
+  }, [selectedValues, isOpen]);
 
   // Переключение выбора
   const handleToggle = (value: string) => {
@@ -84,8 +86,14 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     }
   }
 
+  // При закрытии меню без применения - восстанавливаем временные значения из выбранных
+  const handleClose = () => {
+    setTempSelection(selectedValues);
+    onClose();
+  };
+
   return (
-    <Menu isOpen={isOpen} onOpen={onOpen} onClose={onClose}>
+    <Menu isOpen={isOpen} onOpen={onOpen} onClose={handleClose}>
       <MenuButton
         as={Button}
         rightIcon={<ChevronDownIcon />}

@@ -21,6 +21,7 @@ class AvatarRead(AvatarBase):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    rejection_reason: str | None = None
 
     class Config:
         orm_mode = True

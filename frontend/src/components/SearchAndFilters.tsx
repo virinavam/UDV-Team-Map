@@ -143,7 +143,11 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
         <Popover
           isOpen={isCityOpen}
           onOpen={() => setIsCityOpen(true)}
-          onClose={() => setIsCityOpen(false)}
+          onClose={() => {
+            // При закрытии без применения - восстанавливаем временное значение
+            setTempCity(selectedCity);
+            setIsCityOpen(false);
+          }}
           placement="bottom-start"
         >
           <PopoverTrigger>
@@ -246,7 +250,11 @@ const SearchAndFilters: React.FC<SearchAndFiltersProps> = ({
         <Popover
           isOpen={isSkillsOpen}
           onOpen={() => setIsSkillsOpen(true)}
-          onClose={() => setIsSkillsOpen(false)}
+          onClose={() => {
+            // При закрытии без применения - восстанавливаем временное значение
+            setTempSkills(selectedSkills);
+            setIsSkillsOpen(false);
+          }}
           placement="bottom-start"
         >
           <PopoverTrigger>

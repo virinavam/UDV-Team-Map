@@ -25,7 +25,7 @@ import { ArrowBackIcon } from "@chakra-ui/icons";
 import MainLayout from "../components/MainLayout";
 import AvatarUploader from "../components/profile/AvatarUploader";
 import type { Employee } from "../types/types";
-import { employeesAPI } from "../lib/api";
+import { employeesAPI, authAPI } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   trimAndValidate,
@@ -286,11 +286,17 @@ const AddEmployeePage: React.FC = () => {
             isClosable: true,
           });
 
-          const { photoUrl } = await employeesAPI.uploadAvatar(
+          // Проверяем, является ли пользователь админом или HR
+          const currentUser = await authAPI.getCurrentUser();
+          const isAdmin = currentUser?.role === "SYSTEM_ADMIN" || currentUser?.role === "HR_ADMIN";
+          
+          await employeesAPI.uploadAvatar(
             created.id,
-            photoFile
+            photoFile,
+            isAdmin // Для админов/HR используем no_moderation
           );
-          await employeesAPI.update(created.id, { photoUrl });
+          // photoUrl не нужно обновлять через update, так как это read-only поле
+          // Аватар уже загружен и активирован (или отправлен на модерацию)
 
           toast({
             status: "success",

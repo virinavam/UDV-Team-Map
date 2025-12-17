@@ -23,6 +23,7 @@ export interface Employee {
   mattermost?: string; // Mattermost username
   telegram?: string; // Telegram username
   department?: string;
+  departmentId?: string; // ID отдела (UUID)
   departmentFull?: string; // Полное название подразделения
   managerName?: string; // Имя руководителя
   workExperience?: string; // Стаж работы в компании

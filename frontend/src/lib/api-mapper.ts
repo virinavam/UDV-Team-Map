@@ -53,6 +53,7 @@ export const mapBackendUserToEmployee = (backendUser: BackendUser): Employee => 
     employmentStatus: backendUser.employee_status || undefined,
     // Дополнительные поля, которые могут отсутствовать в бэкенде
     middleName: "",
+    departmentId: backendUser.department_id || undefined,
     department: undefined,
     departmentFull: undefined,
     managerName: undefined,
@@ -83,8 +84,47 @@ export const mapEmployeeToBackendUser = (employee: Partial<Employee>): Partial<B
   if (employee.telegram !== undefined) result.telegram = employee.telegram;
   if (employee.mattermost !== undefined) result.mattermost = employee.mattermost;
   if (employee.aboutMe !== undefined) result.bio = employee.aboutMe;
-  if (employee.photoUrl !== undefined) result.photo_url = employee.photoUrl;
-  if (employee.dateOfBirth !== undefined) result.birthday = employee.dateOfBirth;
+  // photo_url не отправляем, так как это read-only поле
+  // Для обновления аватара используется отдельный эндпоинт
+  if (employee.dateOfBirth !== undefined) {
+    // Преобразуем дату из формата DD.MM.YYYY в YYYY-MM-DD
+    if (employee.dateOfBirth) {
+      const dateParts = employee.dateOfBirth.split('.');
+      if (dateParts.length === 3) {
+        result.birthday = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+      } else {
+        result.birthday = employee.dateOfBirth;
+      }
+    } else {
+      result.birthday = null;
+    }
+  }
+  // employee_status из employmentStatus
+  if (employee.employmentStatus !== undefined) {
+    result.employee_status = employee.employmentStatus || null;
+  }
+  // department_id - используем departmentId если есть, иначе пытаемся использовать department как UUID
+  if (employee.departmentId !== undefined) {
+    result.department_id = employee.departmentId || null;
+  } else if (employee.department !== undefined) {
+    // Проверяем, является ли department валидным UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (employee.department && uuidRegex.test(employee.department)) {
+      result.department_id = employee.department;
+    } else {
+      // Если это не UUID, то это название отдела - отправляем null
+      // (для установки отдела по названию нужно сначала найти его ID)
+      result.department_id = null;
+    }
+  }
+
+  // Очищаем пустые строки, заменяя их на null для соответствия схеме бэкенда
+  Object.keys(result).forEach((key) => {
+    const value = result[key as keyof typeof result];
+    if (value === "") {
+      (result as any)[key] = null;
+    }
+  });
 
   return result;
 };

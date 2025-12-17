@@ -52,10 +52,15 @@ class AsyncS3Service:
         if self.public_read:
             extra_args["ACL"] = "public-read"
 
+        # Убеждаемся, что указатель файла в начале
         file_object.seek(0)
+        
+        # Читаем содержимое файла в байты для надежной передачи
+        file_bytes = file_object.read()
+        
         async with await self._get_client() as client:
             await client.put_object(
-                Bucket=bucket_name, Key=object_key, Body=file_object, ContentType=content_type, **extra_args
+                Bucket=bucket_name, Key=object_key, Body=file_bytes, ContentType=content_type, **extra_args
             )
         return f"{self.public_endpoint}/{bucket_name}/{object_key}"
 

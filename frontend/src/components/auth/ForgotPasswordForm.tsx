@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -34,6 +34,7 @@ export default function ForgotPasswordForm() {
   const toast = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const emailId = useId();
 
   const {
     register,
@@ -109,8 +110,9 @@ export default function ForgotPasswordForm() {
       <form onSubmit={handleSubmit(onSubmit)}>
         <VStack spacing={4} align="stretch">
           <FormControl isInvalid={!!errors.email}>
-            <FormLabel>Email</FormLabel>
+            <FormLabel htmlFor={emailId}>Email</FormLabel>
             <Input
+              id={emailId}
               type="email"
               placeholder="your.email@udv.com"
               {...register("email")}

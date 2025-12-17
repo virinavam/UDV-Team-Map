@@ -7,6 +7,7 @@ import { useToast } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Employee } from "../types/types";
 import { employeesAPI } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -24,8 +25,12 @@ interface UseProfileEditOptions {
 export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions) => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  
+  // Проверяем, является ли пользователь админом или HR
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
 
   const validateEmployeeData = useCallback((employee: Employee): string | null => {
     if (!isNotEmpty(employee.firstName)) {
@@ -102,13 +107,18 @@ export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions)
 
           const { photoUrl } = await employeesAPI.uploadAvatar(
             editedEmployee.id,
-            pendingAvatarFile
+            pendingAvatarFile,
+            isAdmin // Для админов/HR используем no_moderation
           );
-          payload = { ...payload, photoUrl };
+          // photoUrl не нужно добавлять в payload, так как это read-only поле
+          // Аватар уже загружен и активирован (или отправлен на модерацию)
 
           toast({
             status: "success",
-            title: "Аватар загружен",
+            title: isAdmin ? "Аватар загружен и активирован" : "Аватар загружен",
+            description: isAdmin 
+              ? "Фотография активирована без модерации" 
+              : "Фотография отправлена на модерацию",
             duration: 2000,
             isClosable: true,
           });
@@ -123,7 +133,9 @@ export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions)
             duration: 5000,
             isClosable: true,
           });
-          // Продолжаем сохранение без аватара
+          // Прерываем сохранение, если загрузка аватара не удалась
+          setIsSaving(false);
+          return false;
         }
       }
 
@@ -161,7 +173,7 @@ export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions)
     } finally {
       setIsSaving(false);
     }
-  }, [pendingAvatarFile, validateEmployeeData, toast, queryClient, onSuccess, employeeId]);
+  }, [pendingAvatarFile, validateEmployeeData, toast, queryClient, onSuccess, employeeId, isAdmin, user]);
 
   return {
     isSaving,

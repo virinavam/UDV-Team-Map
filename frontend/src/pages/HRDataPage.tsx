@@ -263,10 +263,14 @@ const HRDataPage: React.FC = () => {
       onEditModalClose();
       setEditingEmployee(null);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Произошла ошибка при сохранении";
       toast({
         status: "error",
         title: "Ошибка",
-        description: "Не удалось сохранить изменения",
+        description: errorMessage || "Не удалось сохранить изменения",
         duration: 5000,
         isClosable: true,
       });

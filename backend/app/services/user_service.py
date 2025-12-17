@@ -97,3 +97,6 @@ class UserService:
 
     async def get_cities(self) -> Sequence[str]:
         return await self.user_repository.get_cities()
+
+    async def get_positions(self) -> Sequence[str]:
+        return await self.user_repository.get_positions()
