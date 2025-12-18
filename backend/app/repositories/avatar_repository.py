@@ -39,15 +39,19 @@ class AvatarRepository:
         return new_avatar
 
     async def set_current_avatar(self, user: User, avatar: Avatar | None):
-        old_current_avatar = user.current_avatar
-        if old_current_avatar:
-            old_current_avatar.moderation_status = AvatarModerationStatusEnum.ACCEPTED
+        # Загружаем текущий аватар, если он есть
+        if user.current_avatar_id:
+            old_current_avatar = await self.get_by_id(user.current_avatar_id)
+            if old_current_avatar:
+                old_current_avatar.moderation_status = AvatarModerationStatusEnum.ACCEPTED
         if avatar:
             avatar.moderation_status = AvatarModerationStatusEnum.ACTIVE
             user.current_avatar_id = avatar.id
         else:
             user.current_avatar_id = None
         await self.db.commit()
+        # Обновляем объект пользователя в сессии, чтобы изменения были видны
+        await self.db.refresh(user)
 
     async def get_previous_avatar(self, user: User) -> Avatar:
         result = await self.db.execute(
@@ -76,8 +80,26 @@ class AvatarRepository:
     async def get_pending_list(self):
         result = await self.db.execute(
             select(Avatar)
-            .order_by(Avatar.updated_at)
+            .order_by(Avatar.updated_at.desc())
             .where(Avatar.moderation_status == AvatarModerationStatusEnum.PENDING)
+            .options(selectinload(Avatar.user))
+        )
+        return result.scalars().all()
+
+    async def get_accepted_list(self):
+        result = await self.db.execute(
+            select(Avatar)
+            .order_by(Avatar.updated_at.desc())
+            .where(Avatar.moderation_status == AvatarModerationStatusEnum.ACCEPTED)
+            .options(selectinload(Avatar.user))
+        )
+        return result.scalars().all()
+
+    async def get_rejected_list(self):
+        result = await self.db.execute(
+            select(Avatar)
+            .order_by(Avatar.updated_at.desc())
+            .where(Avatar.moderation_status == AvatarModerationStatusEnum.REJECTED)
             .options(selectinload(Avatar.user))
         )
         return result.scalars().all()

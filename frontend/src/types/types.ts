@@ -17,12 +17,12 @@ export interface Employee {
   photoUrl?: string;
   firstName?: string;
   lastName?: string;
-  middleName?: string; // Отчество
   dateOfBirth?: string; // Дата рождения в формате DD.MM.YYYY
   phone?: string; // Номер телефона
   mattermost?: string; // Mattermost username
   telegram?: string; // Telegram username
   department?: string;
+  departmentId?: string; // ID отдела (UUID)
   departmentFull?: string; // Полное название подразделения
   managerName?: string; // Имя руководителя
   workExperience?: string; // Стаж работы в компании

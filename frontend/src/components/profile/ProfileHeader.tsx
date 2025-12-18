@@ -30,7 +30,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         colorScheme="purple"
         onClick={() => navigate(-1)}
       >
-        ← Назад
+        Назад
       </Button>
       {canEdit && (
         <>

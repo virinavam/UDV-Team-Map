@@ -73,8 +73,7 @@ const AdminEmployeeTable: React.FC<AdminEmployeeTableProps> = ({
                 </Td>
                 <Td>
                   <Text fontWeight="medium">
-                    {employee.lastName} {employee.firstName}{" "}
-                    {employee.middleName}
+                    {employee.lastName} {employee.firstName}
                   </Text>
                 </Td>
                 <Td>{employee.position}</Td>

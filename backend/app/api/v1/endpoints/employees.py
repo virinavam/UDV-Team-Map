@@ -1,12 +1,9 @@
 from io import BytesIO
-from typing import Optional
 from uuid import UUID
 
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from sqlalchemy.util import await_only
 from starlette.responses import StreamingResponse
-from watchfiles import awatch
 
 from app.core.logger import get_logger
 from app.deps.avatar import get_avatar_service
@@ -33,6 +30,66 @@ logger = get_logger()
 )
 async def read_employees(user_service: UserService = Depends(get_user_service)):
     return await user_service.get_all_users()
+
+
+ALLOWED_IMAGE_TYPES = [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/heic",
+    "image/heif",
+]
+
+
+@employees_router.post(
+    "/{user_id}/avatar/upload",
+    status_code=200,
+    summary="Загрузить новую фотографию профиля",
+    dependencies=[Depends(require_self(RoleEnum.EMPLOYEE, RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
+)
+async def upload_user_avatar(
+    user_id: UUID,
+    file: UploadFile = File(...),
+    no_moderation: bool = Query(
+        False, description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."
+    ),
+    current_user: User = Depends(get_current_user_by_credentials),
+    avatar_service: AvatarService = Depends(get_avatar_service),
+    user_service: UserService = Depends(get_user_service),
+    _: None = Depends(check_s3_health),
+):
+    """
+    Supported file types: JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF
+    """
+    try:
+        if not file.content_type or file.content_type not in ALLOWED_IMAGE_TYPES:
+            allowed_extensions = "JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF"
+            raise HTTPException(status_code=415, detail=f"File type not supported. Expected: {allowed_extensions}")
+
+        initial_status = AvatarModerationStatusEnum.PENDING
+        moderator_id = None
+
+        if no_moderation:
+            if current_user.role in [RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN]:
+                initial_status = AvatarModerationStatusEnum.ACTIVE
+                moderator_id = current_user.id
+            else:
+                raise HTTPException(
+                    status_code=403, detail="Для флага 'no_moderation' требуются права HR_ADMIN или SYSTEM_ADMIN."
+                )
+
+        user = await user_service.get_user(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
+
+        s3_key = await avatar_service.upload_and_activate(user, file, initial_status, moderator_id)
+        return s3_key
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading avatar for user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error while uploading avatar: {str(e)}")
 
 
 @employees_router.get(
@@ -73,55 +130,6 @@ async def update_employee_self(
     return await user_service.update_user(user_id, updates)
 
 
-ALLOWED_IMAGE_TYPES = [
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-    "image/gif",
-    "image/heic",
-    "image/heif",
-]
-
-
-@employees_router.post(
-    "/{user_id}/avatar/upload",
-    status_code=200,
-    summary="Загрузить новую фотографию профиля",
-    dependencies=[Depends(require_self(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
-)
-async def upload_user_avatar(
-    user_id: UUID,
-    file: UploadFile = File(...),
-    no_moderation: bool = Query(
-        False, description="Если True, аватар становится активным сразу, минуя модерацию. Требует прав модератора."
-    ),
-    current_user: User = Depends(get_current_user_by_credentials),
-    avatar_service: AvatarService = Depends(get_avatar_service),
-    user_service: UserService = Depends(get_user_service),
-    _: None = Depends(check_s3_health),
-):
-    """
-    Supported file types: JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF
-    """
-    if file.content_type not in ALLOWED_IMAGE_TYPES:
-        allowed_extensions = "JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF"
-        raise HTTPException(status_code=415, detail=f"File type not supported. Expected: {allowed_extensions}")
-    initial_status = AvatarModerationStatusEnum.PENDING
-    moderator_id = None
-
-    if no_moderation:
-        if current_user.role in [RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN]:
-            initial_status = AvatarModerationStatusEnum.ACTIVE
-            moderator_id = current_user.id
-        else:
-            raise HTTPException(
-                status_code=403, detail="Для флага 'no_moderation' требуются права HR_ADMIN или SYSTEM_ADMIN."
-            )
-    user = await user_service.get_user(user_id)
-    await avatar_service.upload_and_activate(user, file, initial_status, moderator_id)
-    return
-
-
 @employees_router.get(
     "/avatars/pending",
     status_code=200,
@@ -132,6 +140,30 @@ async def upload_user_avatar(
 async def get_pending_avatars(avatar_service: AvatarService = Depends(get_avatar_service)):
     pending_avatars = await avatar_service.get_pending_list()
     return pending_avatars
+
+
+@employees_router.get(
+    "/avatars/accepted",
+    status_code=200,
+    summary="Получить список одобренных аватаров",
+    response_model=list[AvatarRead],
+    dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
+)
+async def get_accepted_avatars(avatar_service: AvatarService = Depends(get_avatar_service)):
+    accepted_avatars = await avatar_service.get_accepted_list()
+    return accepted_avatars
+
+
+@employees_router.get(
+    "/avatars/rejected",
+    status_code=200,
+    summary="Получить список отклоненных аватаров",
+    response_model=list[AvatarRead],
+    dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
+)
+async def get_rejected_avatars(avatar_service: AvatarService = Depends(get_avatar_service)):
+    rejected_avatars = await avatar_service.get_rejected_list()
+    return rejected_avatars
 
 
 @employees_router.get(
@@ -159,7 +191,9 @@ async def get_s3_file(
 
 
 @employees_router.put(
-    "/avatars/{avatar_id}/moderate", dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))]
+    "/avatars/{avatar_id}/moderate",
+    summary="Moderate Avatar",
+    dependencies=[Depends(require_roles(RoleEnum.HR_ADMIN, RoleEnum.SYSTEM_ADMIN))],
 )
 async def moderate_avatar(
     avatar_id: UUID,

@@ -18,9 +18,7 @@ interface ProfileViewProps {
 }
 
 const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
-  const fullName = `${employee.lastName || ""} ${employee.firstName || ""} ${
-    employee.middleName || ""
-  }`.trim();
+  const fullName = `${employee.lastName || ""} ${employee.firstName || ""}`.trim();
 
   return (
     <VStack spacing={6} align="stretch">

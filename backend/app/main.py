@@ -78,9 +78,9 @@ app.add_exception_handler(UserError, user_error_handler)
 app.add_exception_handler(LegalEntityError, legal_entity_error_handler)
 
 
-@api_router.get("/")
+@api_router.get("/", summary="Read Root")
 def read_root():
-    return {"message": "Ok"}
+    return "default"
 
 
 api_router.include_router(v1_router)

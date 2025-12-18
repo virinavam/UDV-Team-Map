@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -40,6 +40,8 @@ const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
   onSuccess,
   onBack,
 }) => {
+  const passwordId = useId();
+  const confirmPasswordId = useId();
   const {
     register,
     handleSubmit,
@@ -57,8 +59,9 @@ const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
     <form onSubmit={handleSubmit(onSubmit)}>
       <VStack spacing={4}>
         <FormControl isInvalid={!!errors.password}>
-          <FormLabel>Новый пароль</FormLabel>
+          <FormLabel htmlFor={passwordId}>Новый пароль</FormLabel>
           <Input
+            id={passwordId}
             type="password"
             placeholder="Введите новый пароль"
             {...register("password")}
@@ -71,8 +74,9 @@ const PasswordChangeForm: React.FC<PasswordChangeFormProps> = ({
         </FormControl>
 
         <FormControl isInvalid={!!errors.confirmPassword}>
-          <FormLabel>Подтвердите пароль</FormLabel>
+          <FormLabel htmlFor={confirmPasswordId}>Подтвердите пароль</FormLabel>
           <Input
+            id={confirmPasswordId}
             type="password"
             placeholder="Подтвердите пароль"
             {...register("confirmPassword")}

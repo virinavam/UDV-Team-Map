@@ -58,6 +58,13 @@ class UserRepository:
         cities = result.scalars().all()
         return sorted(cities, key=str.lower)
 
+    async def get_positions(self) -> Sequence[str]:
+        """Получает список всех должностей пользователей."""
+        stmt = select(User.position).where(User.position.isnot(None)).distinct()
+        result = await self.db.execute(stmt)
+        positions = result.scalars().all()
+        return sorted(positions, key=str.lower)
+
     async def get_all_active_users(self) -> Sequence[User]:
         """Получает список всех активных пользователей."""
         result = await self.db.execute(

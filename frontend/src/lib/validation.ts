@@ -88,7 +88,6 @@ export const validateDate = (date: string | undefined | null): boolean => {
 export const FIELD_MAX_LENGTHS = {
   firstName: 50,
   lastName: 50,
-  middleName: 50,
   email: 100,
   phone: 20,
   position: 100,

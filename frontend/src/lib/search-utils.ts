@@ -336,8 +336,8 @@ export function searchEmployees(
 
   return employees.filter((employee) => {
     // Собираем все поля для поиска
-    const fullName = `${employee.lastName || ""} ${employee.firstName || ""} ${
-      employee.middleName || ""
+    const fullName = `${employee.lastName || ""} ${
+      employee.firstName || ""
     }`.trim();
     const position = employee.position || "";
     const skills = employee.skills || [];
@@ -419,7 +419,6 @@ export class EmployeeSearchIndex {
     const nameParts = [
       employee.lastName || "",
       employee.firstName || "",
-      employee.middleName || "",
     ].filter(Boolean);
 
     const positionParts = (employee.position || "")
