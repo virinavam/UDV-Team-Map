@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Avatar,
   Box,
   Button,
   HStack,
@@ -30,6 +29,7 @@ import {
 } from "@chakra-ui/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
+import AuthorizedAvatar from "../components/AuthorizedAvatar";
 import FilterDropdown from "../components/FilterDropdown";
 import AppliedFiltersBar from "../components/AppliedFiltersBar";
 import EmployeeEditModal from "../components/EmployeeEditModal";
@@ -237,7 +237,14 @@ const HRDataPage: React.FC = () => {
   const handleSaveEmployee = async (employeeData: Employee) => {
     try {
       if (editingEmployee?.id) {
-        await employeesAPI.update(editingEmployee.id, employeeData);
+        const updated = await employeesAPI.update(
+          editingEmployee.id,
+          employeeData
+        );
+        // Обновляем editingEmployee с новыми данными, включая photoUrl
+        if (updated) {
+          setEditingEmployee(updated);
+        }
         toast({
           status: "success",
           title: "Данные сохранены",
@@ -515,7 +522,7 @@ const HRDataPage: React.FC = () => {
                   sortedEmployees.map((employee) => (
                     <Tr key={employee.id} _hover={{ bg: "gray.50" }}>
                       <Td>
-                        <Avatar
+                        <AuthorizedAvatar
                           size="sm"
                           name={employee.name}
                           src={employee.photoUrl}

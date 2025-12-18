@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Avatar,
   Box,
   Button,
   Flex,
@@ -9,6 +8,7 @@ import {
   Text,
   useColorModeValue,
 } from "@chakra-ui/react";
+import AuthorizedAvatar from "./AuthorizedAvatar";
 import { ViewIcon, AtSignIcon } from "@chakra-ui/icons";
 import { Image } from "@chakra-ui/react";
 
@@ -72,6 +72,7 @@ import { authAPI, employeesAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { ROUTES } from "../routes/paths";
 import { useQuery } from "@tanstack/react-query";
+import { getPhotoUrl } from "../lib/photo-utils";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -323,10 +324,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
               _hover={{ opacity: 0.8 }}
               transition="opacity 0.2s"
             >
-              <Avatar
+              <AuthorizedAvatar
                 size="sm"
                 name={displayName}
-                src={user?.photo_url || currentUserEmployee?.photoUrl}
+                src={
+                  currentUserEmployee?.photoUrl ||
+                  (user?.photo_url ? getPhotoUrl(user.photo_url) : undefined)
+                }
               />
             </Box>
             <Text

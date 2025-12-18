@@ -8,11 +8,11 @@ import {
   Th,
   Td,
   IconButton,
-  Avatar,
   HStack,
   Text,
 } from "@chakra-ui/react";
 import { EditIcon, DeleteIcon } from "@chakra-ui/icons";
+import AuthorizedAvatar from "./AuthorizedAvatar";
 import type { Employee } from "../types/types";
 
 interface AdminEmployeeTableProps {
@@ -65,7 +65,7 @@ const AdminEmployeeTable: React.FC<AdminEmployeeTableProps> = ({
             employees.map((employee) => (
               <Tr key={employee.id} _hover={{ bg: "gray.50" }}>
                 <Td>
-                  <Avatar
+                  <AuthorizedAvatar
                     size="sm"
                     name={employee.name}
                     src={employee.photoUrl}

@@ -1,8 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, VStack, Avatar, Tag, TagLabel, Icon } from "@chakra-ui/react";
+import { Box, VStack, Tag, TagLabel, Icon } from "@chakra-ui/react";
 import { EmailIcon } from "@chakra-ui/icons";
 import { HStack, Text, Image } from "@chakra-ui/react";
+import AuthorizedAvatar from "./AuthorizedAvatar";
 
 interface EmployeeCardProps {
   employee: {
@@ -46,7 +47,7 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
       <VStack spacing={4} align="stretch" flex={1}>
         {/* Profile Picture */}
         <Box display="flex" justifyContent="center">
-          <Avatar
+          <AuthorizedAvatar
             size="xl"
             name={employee.name}
             src={employee.photoUrl}

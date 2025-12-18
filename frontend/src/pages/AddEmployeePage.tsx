@@ -306,11 +306,29 @@ const AddEmployeePage: React.FC = () => {
             currentUser?.role === "SYSTEM_ADMIN" ||
             currentUser?.role === "HR_ADMIN";
 
+          // Загружаем аватар
           await employeesAPI.uploadAvatar(
             userId,
             photoFile,
             isAdmin // Для админов/HR используем no_moderation
           );
+
+          // ВАЖНО: Получаем обновленные данные сотрудника из бэка, чтобы получить актуальный photo_url
+          // Делаем небольшую задержку, чтобы бэк успел обработать загрузку
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          try {
+            const refreshedEmployee = await employeesAPI.getById(userId);
+            if (refreshedEmployee?.photoUrl) {
+              // Обновляем photoPreview с актуальными данными из бэка
+              setPhotoPreview(refreshedEmployee.photoUrl);
+            }
+          } catch (refreshError) {
+            console.warn(
+              "Не удалось получить обновленные данные сотрудника после загрузки аватара:",
+              refreshError
+            );
+          }
 
           toast({
             status: "success",

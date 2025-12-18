@@ -270,13 +270,24 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
             isClosable: true,
           });
 
+          // Загружаем аватар
           await employeesAPI.uploadAvatar(
             employee.id,
             pendingAvatarFile,
             isAdmin // Для админов/HR используем no_moderation
           );
-          // photoUrl не нужно устанавливать, так как это read-only поле
-          // Аватар уже загружен и активирован (или отправлен на модерацию)
+
+          // ВАЖНО: Получаем обновленные данные сотрудника из бэка, чтобы получить актуальный photo_url
+          // Делаем небольшую задержку, чтобы бэк успел обработать загрузку
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          const refreshedEmployee = await employeesAPI.getById(employee.id);
+
+          // Обновляем avatarPreview с актуальными данными из бэка
+          if (refreshedEmployee?.photoUrl) {
+            setAvatarPreview(refreshedEmployee.photoUrl);
+            handleFieldChange("photoUrl", refreshedEmployee.photoUrl);
+          }
 
           toast({
             status: "success",
@@ -309,6 +320,26 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
       onSave(employeeData);
       setShowSaveConfirm(false);
       setPendingAvatarFile(null);
+
+      // ВАЖНО: После сохранения получаем обновленные данные сотрудника из бэка,
+      // чтобы обновить avatarPreview с актуальным photoUrl
+      if (employee?.id) {
+        // Используем setTimeout, чтобы дать время бэку обработать запрос
+        setTimeout(async () => {
+          try {
+            const refreshedEmployee = await employeesAPI.getById(employee.id);
+            if (refreshedEmployee?.photoUrl) {
+              setAvatarPreview(refreshedEmployee.photoUrl);
+              handleFieldChange("photoUrl", refreshedEmployee.photoUrl);
+            }
+          } catch (refreshError) {
+            console.warn(
+              "Не удалось обновить данные сотрудника после сохранения:",
+              refreshError
+            );
+          }
+        }, 500);
+      }
     } catch (error) {
       toast({
         status: "error",

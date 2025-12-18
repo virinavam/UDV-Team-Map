@@ -4,6 +4,11 @@ import {
   mapEmployeeToBackendUser,
   type BackendUser,
 } from "./api-mapper";
+import {
+  getPhotoUrl,
+  clearPhotoCache,
+  clearPhotoFromCache,
+} from "./photo-utils";
 
 const API_BASE_URL =
   (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api";
@@ -180,6 +185,8 @@ export const authAPI = {
   async logout(): Promise<void> {
     localStorage.removeItem("authToken");
     localStorage.removeItem("refreshToken");
+    // Очищаем кеш фотографий при выходе
+    clearPhotoCache();
   },
 
   getToken(): string | null {
@@ -250,14 +257,19 @@ export const authAPI = {
     password: string;
     first_name: string;
     last_name: string;
-  }): Promise<{ user_id: string | { toString(): string }; access_token: string; refresh_token: string }> {
-    const response = await jsonRequest<{ user_id: string | { toString(): string }; access_token: string; refresh_token: string }>(
-      "/auth/register",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    );
+  }): Promise<{
+    user_id: string | { toString(): string };
+    access_token: string;
+    refresh_token: string;
+  }> {
+    const response = await jsonRequest<{
+      user_id: string | { toString(): string };
+      access_token: string;
+      refresh_token: string;
+    }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
     // Преобразуем user_id в строку, если это необходимо
     if (response.user_id && typeof response.user_id !== "string") {
       response.user_id = String(response.user_id);
@@ -446,7 +458,9 @@ export const employeesAPI = {
     }
 
     if (import.meta.env.DEV) {
-      console.log(`[API] Uploading avatar for user ${id}, noModeration: ${noModeration}`);
+      console.log(
+        `[API] Uploading avatar for user ${id}, noModeration: ${noModeration}`
+      );
       console.log(`[API] URL: ${url.toString()}`);
     }
 
@@ -465,7 +479,10 @@ export const employeesAPI = {
         const errorData = await response.json();
         errorMessage = errorData.detail || errorData.message || errorMessage;
         if ((import.meta as any).env?.DEV) {
-          console.error(`[API] Avatar upload error (${response.status}):`, errorData);
+          console.error(
+            `[API] Avatar upload error (${response.status}):`,
+            errorData
+          );
         }
       } catch (parseError) {
         // Если не удалось распарсить JSON, используем текст ответа
@@ -474,7 +491,10 @@ export const employeesAPI = {
           errorMessage = text;
         }
         if ((import.meta as any).env?.DEV) {
-          console.error(`[API] Avatar upload error (${response.status}):`, text);
+          console.error(
+            `[API] Avatar upload error (${response.status}):`,
+            text
+          );
         }
       }
       throw new Error(`${errorMessage} (Status: ${response.status})`);
@@ -484,7 +504,25 @@ export const employeesAPI = {
     // Возвращаем объект с photoUrl для совместимости с существующим кодом
     // s3Key - это строка, которую FastAPI автоматически сериализует в JSON
     const s3KeyString = typeof s3Key === "string" ? s3Key : String(s3Key);
-    return { photoUrl: `/api/employees/avatars/${s3KeyString}` };
+    const photoPath = `/api/employees/avatars/${s3KeyString}`;
+    const fullPhotoUrl = getPhotoUrl(photoPath) || photoPath;
+
+    // Очищаем кеш для старого фото сотрудника (если оно было)
+    // Получаем обновленные данные сотрудника, чтобы очистить кеш старого фото
+    try {
+      const refreshedEmployee = await this.getById(id);
+      if (
+        refreshedEmployee?.photoUrl &&
+        refreshedEmployee.photoUrl !== fullPhotoUrl
+      ) {
+        clearPhotoFromCache(refreshedEmployee.photoUrl);
+      }
+    } catch (error) {
+      // Игнорируем ошибку, если не удалось получить данные сотрудника
+      console.warn("Не удалось очистить кеш старого фото:", error);
+    }
+
+    return { photoUrl: fullPhotoUrl };
   },
 
   async remove(id: string) {

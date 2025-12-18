@@ -57,20 +57,31 @@ class AvatarService:
 
             logger.info("Avatar uploaded to S3, creating database record")
 
-            new_avatar = await self.avatar_repository.create_avatar(
+            # Этап 1: Создаем объект Avatar БЕЗ moderated_by_id и привязываем его к user_id
+            # Выполняем flush (это отправит аватар в БД и получит его ID, но не завершит транзакцию)
+            new_avatar = await self.avatar_repository.create_avatar_without_commit(
                 user_id=target_user.id, s3_key=s3_key, status=initial_status, moderated_by_id=moderator_id
             )
 
+            # Этап 2: Только после flush устанавливаем user.current_avatar_id = new_avatar.id
+            # Это должно быть сделано ДО установки moderated_by_id, чтобы избежать циклических зависимостей
             if initial_status == AMSEnum.ACTIVE:
                 logger.info(f"Setting avatar as active for user {target_user.id}")
-                await self.avatar_repository.set_current_avatar(target_user, new_avatar)
-            else:
-                await self.avatar_repository.db.commit()
+                await self.avatar_repository.set_current_avatar_without_commit(target_user, new_avatar)
+
+            # Этап 3: Устанавливаем moderated_by_id ПОСЛЕ установки current_avatar_id
+            # Это позволяет избежать циклических зависимостей
+            await self.avatar_repository.set_moderated_by_id(new_avatar, moderator_id)
+
+            # Этап 4: Выполняем итоговый commit
+            await self.avatar_repository.db.commit()
 
             logger.info(f"Avatar upload completed successfully for user {target_user.id}")
             return s3_key
         except Exception as e:
             logger.error(f"Error in upload_and_activate for user {target_user.id}: {e}", exc_info=True)
+            # Выполняем rollback в случае ошибки
+            await self.avatar_repository.db.rollback()
             raise
 
     async def download(self, s3_key: str, file_object: BytesIO):

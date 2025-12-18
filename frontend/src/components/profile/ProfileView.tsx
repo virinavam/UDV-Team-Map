@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  Avatar,
   Badge,
   Box,
   Flex,
@@ -11,6 +10,7 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import AuthorizedAvatar from "../AuthorizedAvatar";
 import type { Employee } from "../../types/types";
 
 interface ProfileViewProps {
@@ -18,7 +18,9 @@ interface ProfileViewProps {
 }
 
 const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
-  const fullName = `${employee.lastName || ""} ${employee.firstName || ""}`.trim();
+  const fullName = `${employee.lastName || ""} ${
+    employee.firstName || ""
+  }`.trim();
 
   return (
     <VStack spacing={6} align="stretch">
@@ -33,7 +35,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
       >
         <HStack spacing={8} align="start">
           {/* Фотография слева */}
-          <Avatar
+          <AuthorizedAvatar
             size="2xl"
             name={fullName || employee.name}
             src={employee.photoUrl}
@@ -171,9 +173,3 @@ const InputField: React.FC<{
 );
 
 export default ProfileView;
-
-
-
-
-
-

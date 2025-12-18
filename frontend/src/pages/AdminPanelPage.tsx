@@ -6,12 +6,12 @@ import {
   Text,
   VStack,
   HStack,
-  Avatar,
   Button,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
+import AuthorizedAvatar from "../components/AuthorizedAvatar";
 import { employeesAPI } from "../lib/api";
 import { ROUTES } from "../routes/paths";
 
@@ -145,7 +145,7 @@ const AdminPanelPage: React.FC = () => {
                     borderRadius="md"
                     _hover={{ bg: "gray.50" }}
                   >
-                    <Avatar
+                    <AuthorizedAvatar
                       size="md"
                       name={employee.name}
                       src={employee.photoUrl}

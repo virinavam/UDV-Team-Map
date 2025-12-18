@@ -6,7 +6,6 @@ import {
   VStack,
   HStack,
   Text,
-  Avatar,
   Badge,
   useDisclosure,
   Modal,
@@ -19,11 +18,13 @@ import {
   useToast,
   Spinner,
 } from "@chakra-ui/react";
+import AuthorizedAvatar from "../components/AuthorizedAvatar";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import MainLayout from "../components/MainLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { avatarsAPI, AvatarModerationRequest } from "../lib/api";
 import { mapBackendUserToEmployee } from "../lib/api-mapper";
+import { getPhotoUrl } from "../lib/photo-utils";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -58,15 +59,19 @@ const ModerationPage: React.FC = () => {
     queryFn: () => avatarsAPI.getPending(),
   });
 
-  const { data: acceptedAvatars = [], isLoading: isLoadingAccepted } = useQuery({
-    queryKey: ["avatars", "accepted"],
-    queryFn: () => avatarsAPI.getAccepted(),
-  });
+  const { data: acceptedAvatars = [], isLoading: isLoadingAccepted } = useQuery(
+    {
+      queryKey: ["avatars", "accepted"],
+      queryFn: () => avatarsAPI.getAccepted(),
+    }
+  );
 
-  const { data: rejectedAvatars = [], isLoading: isLoadingRejected } = useQuery({
-    queryKey: ["avatars", "rejected"],
-    queryFn: () => avatarsAPI.getRejected(),
-  });
+  const { data: rejectedAvatars = [], isLoading: isLoadingRejected } = useQuery(
+    {
+      queryKey: ["avatars", "rejected"],
+      queryFn: () => avatarsAPI.getRejected(),
+    }
+  );
 
   // Преобразуем данные аватаров в формат ModerationRequest
   const moderationRequests = useMemo<ModerationRequest[]>(() => {
@@ -82,7 +87,7 @@ const ModerationPage: React.FC = () => {
         second: "2-digit",
       }),
       status: "pending" as Status,
-      avatarUrl: avatar.url.startsWith("http") ? avatar.url : `http://localhost:8000${avatar.url}`,
+      avatarUrl: getPhotoUrl(avatar.url) || avatar.url,
     }));
 
     const accepted = acceptedAvatars.map((avatar) => ({
@@ -105,7 +110,7 @@ const ModerationPage: React.FC = () => {
         second: "2-digit",
       }),
       status: "approved" as Status,
-      avatarUrl: avatar.url.startsWith("http") ? avatar.url : `http://localhost:8000${avatar.url}`,
+      avatarUrl: getPhotoUrl(avatar.url) || avatar.url,
     }));
 
     const rejected = rejectedAvatars.map((avatar) => ({
@@ -128,7 +133,7 @@ const ModerationPage: React.FC = () => {
         second: "2-digit",
       }),
       status: "rejected" as Status,
-      avatarUrl: avatar.url.startsWith("http") ? avatar.url : `http://localhost:8000${avatar.url}`,
+      avatarUrl: getPhotoUrl(avatar.url) || avatar.url,
       comment: avatar.rejection_reason || undefined,
     }));
 
@@ -167,7 +172,10 @@ const ModerationPage: React.FC = () => {
       toast({
         status: "error",
         title: "Ошибка",
-        description: error instanceof Error ? error.message : "Не удалось одобрить фотографию",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Не удалось одобрить фотографию",
         duration: 5000,
         isClosable: true,
       });
@@ -201,7 +209,10 @@ const ModerationPage: React.FC = () => {
       toast({
         status: "error",
         title: "Ошибка",
-        description: error instanceof Error ? error.message : "Не удалось отклонить фотографию",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Не удалось отклонить фотографию",
         duration: 5000,
         isClosable: true,
       });
@@ -418,10 +429,10 @@ const ModerationPage: React.FC = () => {
             </Button>
           </HStack>
 
-
           {/* Карточки заявок */}
           <VStack spacing={4} align="stretch">
-            {(isLoadingPending || isLoadingAccepted || isLoadingRejected) && activeStatus === "pending" ? (
+            {(isLoadingPending || isLoadingAccepted || isLoadingRejected) &&
+            activeStatus === "pending" ? (
               <Box
                 bg="white"
                 borderRadius="lg"
@@ -431,7 +442,9 @@ const ModerationPage: React.FC = () => {
                 textAlign="center"
               >
                 <Spinner size="xl" color="#763186" />
-                <Text color="gray.500" mt={4}>Загрузка...</Text>
+                <Text color="gray.500" mt={4}>
+                  Загрузка...
+                </Text>
               </Box>
             ) : filteredRequests.length === 0 ? (
               <Box
@@ -459,7 +472,7 @@ const ModerationPage: React.FC = () => {
                   <HStack spacing={6} align="flex-start">
                     {/* Фото */}
                     <Box position="relative">
-                      <Avatar
+                      <AuthorizedAvatar
                         size="xl"
                         name={request.employee.name}
                         src={request.avatarUrl}
