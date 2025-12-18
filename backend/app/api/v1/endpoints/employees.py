@@ -1,12 +1,9 @@
 from io import BytesIO
-from typing import Optional
 from uuid import UUID
 
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from sqlalchemy.util import await_only
 from starlette.responses import StreamingResponse
-from watchfiles import awatch
 
 from app.core.logger import get_logger
 from app.deps.avatar import get_avatar_service
@@ -69,7 +66,7 @@ async def upload_user_avatar(
         if not file.content_type or file.content_type not in ALLOWED_IMAGE_TYPES:
             allowed_extensions = "JPG/JPEG, PNG, WEBP, GIF, HEIC/HEIF"
             raise HTTPException(status_code=415, detail=f"File type not supported. Expected: {allowed_extensions}")
-        
+
         initial_status = AvatarModerationStatusEnum.PENDING
         moderator_id = None
 
@@ -81,21 +78,18 @@ async def upload_user_avatar(
                 raise HTTPException(
                     status_code=403, detail="Для флага 'no_moderation' требуются права HR_ADMIN или SYSTEM_ADMIN."
                 )
-        
+
         user = await user_service.get_user(user_id)
         if not user:
             raise HTTPException(status_code=404, detail=f"User not found: {user_id}")
-        
+
         s3_key = await avatar_service.upload_and_activate(user, file, initial_status, moderator_id)
         return s3_key
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error uploading avatar for user {user_id}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"Internal server error while uploading avatar: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Internal server error while uploading avatar: {str(e)}")
 
 
 @employees_router.get(

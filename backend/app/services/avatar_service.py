@@ -28,31 +28,34 @@ class AvatarService:
         self, target_user: User, file: UploadFile, initial_status: AMSEnum, moderator_id: UUID | None
     ) -> str:
         from app.core.logger import get_logger
+
         logger = get_logger()
-        
+
         try:
             # Обрабатываем случай, когда filename может быть None
             filename = file.filename or "avatar.jpg"
             s3_key = generate_key(target_user.id, filename)
-            
-            logger.info(f"Uploading avatar for user {target_user.id}, s3_key: {s3_key}, content_type: {file.content_type}")
-            
+
+            logger.info(
+                f"Uploading avatar for user {target_user.id}, s3_key: {s3_key}, content_type: {file.content_type}"
+            )
+
             # Читаем содержимое файла в память, так как file.file может быть уже прочитан
             file_content = await file.read()
             file_buffer = BytesIO(file_content)
-            
+
             # Устанавливаем content_type для S3
             file_buffer.content_type = file.content_type or "image/jpeg"
-            
+
             logger.info(f"File read into memory, size: {len(file_content)} bytes")
-            
+
             await self.s3_service.upload_file_obj(
                 file_object=file_buffer,
                 object_key=s3_key,
                 bucket_name=settings.S3_USER_AVATAR_BUCKET,
             )
-            
-            logger.info(f"Avatar uploaded to S3, creating database record")
+
+            logger.info("Avatar uploaded to S3, creating database record")
 
             new_avatar = await self.avatar_repository.create_avatar(
                 user_id=target_user.id, s3_key=s3_key, status=initial_status, moderated_by_id=moderator_id
@@ -63,7 +66,7 @@ class AvatarService:
                 await self.avatar_repository.set_current_avatar(target_user, new_avatar)
             else:
                 await self.avatar_repository.db.commit()
-            
+
             logger.info(f"Avatar upload completed successfully for user {target_user.id}")
             return s3_key
         except Exception as e:

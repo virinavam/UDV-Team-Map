@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+
 from app.deps.department import get_department_service
 from app.deps.legal_entity import get_le_service
 from app.deps.skill import get_skill_service
@@ -47,4 +48,3 @@ async def get_filter_options(
         "groups": [],  # Поле group отсутствует в модели User
         "positions": list(positions),
     }
-
