@@ -17,7 +17,6 @@ export interface Employee {
   photoUrl?: string;
   firstName?: string;
   lastName?: string;
-  middleName?: string; // Отчество
   dateOfBirth?: string; // Дата рождения в формате DD.MM.YYYY
   phone?: string; // Номер телефона
   mattermost?: string; // Mattermost username

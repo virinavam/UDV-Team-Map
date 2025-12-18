@@ -35,8 +35,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   onAvatarSelect,
   isSaving,
 }) => {
-  const fullName = `${employee.lastName || ""} ${employee.firstName || ""} ${
-    employee.middleName || ""
+  const fullName = `${employee.lastName || ""} ${
+    employee.firstName || ""
   }`.trim();
 
   const [skillInput, setSkillInput] = useState(
@@ -110,11 +110,6 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                 onChange={(value) => onFieldChange("firstName", value)}
               />
               <InputField
-                label="Отчество"
-                value={employee.middleName || ""}
-                onChange={(value) => onFieldChange("middleName", value)}
-              />
-              <InputField
                 label="Дата рождения"
                 value={employee.dateOfBirth || ""}
                 onChange={(value) => onFieldChange("dateOfBirth", value)}
@@ -129,7 +124,12 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
 
               {/* Навыки */}
               <Box>
-                <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
+                <Text
+                  fontWeight="semibold"
+                  color="gray.600"
+                  mb={2}
+                  fontSize="sm"
+                >
                   Навыки
                 </Text>
                 {employee.skills && employee.skills.length > 0 && (
@@ -203,7 +203,12 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
 
               {/* О себе */}
               <Box>
-                <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
+                <Text
+                  fontWeight="semibold"
+                  color="gray.600"
+                  mb={2}
+                  fontSize="sm"
+                >
                   О себе
                 </Text>
                 <Textarea
@@ -323,7 +328,14 @@ const InputField: React.FC<{
   readOnly?: boolean;
   showClear?: boolean;
   onClear?: () => void;
-}> = ({ label, value, onChange, readOnly = false, showClear = false, onClear }) => (
+}> = ({
+  label,
+  value,
+  onChange,
+  readOnly = false,
+  showClear = false,
+  onClear,
+}) => (
   <Box>
     <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
       {label}
@@ -357,9 +369,3 @@ const InputField: React.FC<{
 );
 
 export default ProfileEditForm;
-
-
-
-
-
-

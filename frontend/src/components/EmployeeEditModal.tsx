@@ -59,7 +59,6 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: "",
     lastName: "",
-    middleName: "",
     city: "",
     position: "",
     hireDate: "",
@@ -90,7 +89,6 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
       setFormData({
         firstName: "",
         lastName: "",
-        middleName: "",
         city: "",
         position: "",
         hireDate: "",
@@ -234,7 +232,6 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         ...formData,
         firstName: trimAndValidate(formData.firstName),
         lastName: trimAndValidate(formData.lastName),
-        middleName: trimAndValidate(formData.middleName),
         email: trimAndValidate(formData.email),
         phone: trimAndValidate(formData.phone),
         city: trimAndValidate(formData.city),
@@ -252,8 +249,8 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
       const employeeData: Employee = {
         id: employee?.id || `e${Date.now()}`,
         name:
-          `${trimmedData.lastName || ""} ${trimmedData.firstName || ""} ${
-            trimmedData.middleName || ""
+          `${trimmedData.lastName || ""} ${
+            trimmedData.firstName || ""
           }`.trim() || "Новый сотрудник",
         position: trimmedData.position || "",
         city: trimmedData.city || "",
@@ -283,9 +280,11 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
 
           toast({
             status: "success",
-            title: isAdmin ? "Аватар загружен и активирован" : "Аватар загружен",
-            description: isAdmin 
-              ? "Фотография активирована без модерации" 
+            title: isAdmin
+              ? "Аватар загружен и активирован"
+              : "Аватар загружен",
+            description: isAdmin
+              ? "Фотография активирована без модерации"
               : "Фотография отправлена на модерацию",
             duration: 2000,
             isClosable: true,
@@ -367,7 +366,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                       fullName={
                         `${formData.lastName || ""} ${
                           formData.firstName || ""
-                        } ${formData.middleName || ""}`.trim() ||
+                        }`.trim() ||
                         formData.name ||
                         "Новый сотрудник"
                       }
@@ -419,26 +418,6 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                     />
                   </HStack>
                   <FormErrorMessage>{errors.firstName}</FormErrorMessage>
-                </FormControl>
-
-                {/* Отчество */}
-                <FormControl>
-                  <FormLabel>Отчество</FormLabel>
-                  <HStack>
-                    <Input
-                      value={formData.middleName || ""}
-                      onChange={(e) =>
-                        handleFieldChange("middleName", e.target.value)
-                      }
-                      bg="gray.50"
-                    />
-                    <IconButton
-                      aria-label="Очистить"
-                      icon={<CloseIcon />}
-                      size="sm"
-                      onClick={() => handleFieldChange("middleName", "")}
-                    />
-                  </HStack>
                 </FormControl>
 
                 {/* Город */}

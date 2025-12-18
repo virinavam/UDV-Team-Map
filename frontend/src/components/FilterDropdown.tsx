@@ -39,7 +39,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   // Синхронизация временного выбора с внешними selectedValues только когда меню закрыто
   useEffect(() => {
     if (!isOpen) {
-      setTempSelection(selectedValues);
+    setTempSelection(selectedValues);
     }
   }, [selectedValues, isOpen]);
 

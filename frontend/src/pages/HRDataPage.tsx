@@ -193,14 +193,10 @@ const HRDataPage: React.FC = () => {
     }
 
     const sorted = [...filteredEmployees].sort((a, b) => {
-      const fullNameA = `${a.lastName || ""} ${a.firstName || ""} ${
-        a.middleName || ""
-      }`
+      const fullNameA = `${a.lastName || ""} ${a.firstName || ""}`
         .trim()
         .toLowerCase();
-      const fullNameB = `${b.lastName || ""} ${b.firstName || ""} ${
-        b.middleName || ""
-      }`
+      const fullNameB = `${b.lastName || ""} ${b.firstName || ""}`
         .trim()
         .toLowerCase();
 
@@ -527,8 +523,7 @@ const HRDataPage: React.FC = () => {
                       </Td>
                       <Td>
                         <Text fontWeight="medium">
-                          {employee.lastName} {employee.firstName}{" "}
-                          {employee.middleName}
+                          {employee.lastName} {employee.firstName}
                         </Text>
                       </Td>
                       <Td>{employee.position}</Td>

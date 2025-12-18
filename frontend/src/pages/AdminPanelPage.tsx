@@ -152,8 +152,7 @@ const AdminPanelPage: React.FC = () => {
                     />
                     <VStack align="start" spacing={0} flex={1}>
                       <Text fontWeight="medium">
-                        {employee.lastName} {employee.firstName}{" "}
-                        {employee.middleName}
+                        {employee.lastName} {employee.firstName}
                       </Text>
                       <Text fontSize="sm" color="gray.600">
                         {employee.position}

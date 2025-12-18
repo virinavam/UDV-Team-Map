@@ -50,9 +50,7 @@ const TeamMapPage: React.FC = () => {
         const parts = emp.departmentFull.split(" / ");
         parts.forEach((part) => {
           if (part && !map.has(part)) {
-            const name = `${emp.lastName} ${emp.firstName} ${
-              emp.middleName || ""
-            }`.trim();
+            const name = `${emp.lastName} ${emp.firstName}`.trim();
             if (name) {
               map.set(part, name);
             }
@@ -60,9 +58,7 @@ const TeamMapPage: React.FC = () => {
         });
       }
       if (emp.department && !map.has(emp.department)) {
-        const name = `${emp.lastName} ${emp.firstName} ${
-          emp.middleName || ""
-        }`.trim();
+        const name = `${emp.lastName} ${emp.firstName}`.trim();
         if (name) {
           map.set(emp.department, name);
         }

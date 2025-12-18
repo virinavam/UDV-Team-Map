@@ -84,7 +84,6 @@ export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions)
         ...editedEmployee,
         firstName: trimAndValidate(editedEmployee.firstName),
         lastName: trimAndValidate(editedEmployee.lastName),
-        middleName: trimAndValidate(editedEmployee.middleName),
         email: trimAndValidate(editedEmployee.email),
         phone: trimAndValidate(editedEmployee.phone),
         city: trimAndValidate(editedEmployee.city),

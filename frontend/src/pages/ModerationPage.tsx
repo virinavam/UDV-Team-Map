@@ -481,8 +481,7 @@ const ModerationPage: React.FC = () => {
                             color="gray.900"
                           >
                             {request.employee.lastName || ""}{" "}
-                            {request.employee.firstName || ""}{" "}
-                            {request.employee.middleName || ""}
+                            {request.employee.firstName || ""}
                           </Text>
                           <Text fontSize="sm" color="gray.600">
                             Обновлено: {request.updatedAt}

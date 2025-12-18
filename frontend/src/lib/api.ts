@@ -244,6 +244,26 @@ export const authAPI = {
       return { success: false, message: "Ошибка подключения к серверу" };
     }
   },
+
+  async register(data: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+  }): Promise<{ user_id: string | { toString(): string }; access_token: string; refresh_token: string }> {
+    const response = await jsonRequest<{ user_id: string | { toString(): string }; access_token: string; refresh_token: string }>(
+      "/auth/register",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
+    // Преобразуем user_id в строку, если это необходимо
+    if (response.user_id && typeof response.user_id !== "string") {
+      response.user_id = String(response.user_id);
+    }
+    return response;
+  },
 };
 
 type EmployeeListResponse = { items: Employee[] };
@@ -408,19 +428,33 @@ export const employeesAPI = {
       throw new Error("Файл должен быть изображением");
     }
 
+    if (!id) {
+      throw new Error("ID пользователя не указан");
+    }
+
     const formData = new FormData();
     formData.append("file", file);
 
     const token = localStorage.getItem("authToken");
+    if (!token) {
+      throw new Error("Токен авторизации не найден");
+    }
+
     const url = new URL(`${API_BASE_URL}/employees/${id}/avatar/upload`);
     if (noModeration) {
       url.searchParams.append("no_moderation", "true");
     }
 
+    if (import.meta.env.DEV) {
+      console.log(`[API] Uploading avatar for user ${id}, noModeration: ${noModeration}`);
+      console.log(`[API] URL: ${url.toString()}`);
+    }
+
     const response = await fetch(url.toString(), {
       method: "POST",
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${token}`,
+        // Не устанавливаем Content-Type для FormData, браузер сделает это автоматически с boundary
       },
       body: formData,
     });
@@ -430,14 +464,20 @@ export const employeesAPI = {
       try {
         const errorData = await response.json();
         errorMessage = errorData.detail || errorData.message || errorMessage;
+        if ((import.meta as any).env?.DEV) {
+          console.error(`[API] Avatar upload error (${response.status}):`, errorData);
+        }
       } catch (parseError) {
         // Если не удалось распарсить JSON, используем текст ответа
         const text = await response.text().catch(() => "");
         if (text) {
           errorMessage = text;
         }
+        if ((import.meta as any).env?.DEV) {
+          console.error(`[API] Avatar upload error (${response.status}):`, text);
+        }
       }
-      throw new Error(errorMessage);
+      throw new Error(`${errorMessage} (Status: ${response.status})`);
     }
 
     const s3Key = await response.json();

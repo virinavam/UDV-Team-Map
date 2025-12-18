@@ -52,7 +52,6 @@ export const mapBackendUserToEmployee = (backendUser: BackendUser): Employee => 
     status: backendUser.is_active ? "Активен" : "Не активен",
     employmentStatus: backendUser.employee_status || undefined,
     // Дополнительные поля, которые могут отсутствовать в бэкенде
-    middleName: "",
     departmentId: backendUser.department_id || undefined,
     department: undefined,
     departmentFull: undefined,
