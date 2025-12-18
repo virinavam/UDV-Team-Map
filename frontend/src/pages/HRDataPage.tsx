@@ -35,7 +35,8 @@ import AppliedFiltersBar from "../components/AppliedFiltersBar";
 import EmployeeEditModal from "../components/EmployeeEditModal";
 import EmployeeDeleteModal from "../components/EmployeeDeleteModal";
 import type { Employee } from "../types/types";
-import { employeesAPI } from "../lib/api";
+import { employeesAPI, skillsAPI } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { searchEmployees } from "../lib/search-utils";
 import { ROUTES } from "../routes/paths";
 
@@ -43,6 +44,8 @@ type SortDirection = "asc" | "desc" | null;
 
 const HRDataPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLegalEntity, setSelectedLegalEntity] = useState<string[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string[]>([]);
@@ -237,21 +240,31 @@ const HRDataPage: React.FC = () => {
   const handleSaveEmployee = async (employeeData: Employee) => {
     try {
       if (editingEmployee?.id) {
+        // Обновляем данные сотрудника (навыки обрабатываются в EmployeeEditModal через set_skills)
+        const { skills, ...dataWithoutSkills } = employeeData;
         const updated = await employeesAPI.update(
           editingEmployee.id,
-          employeeData
+          dataWithoutSkills
         );
         // Обновляем editingEmployee с новыми данными, включая photoUrl
         if (updated) {
           setEditingEmployee(updated);
         }
-        toast({
-          status: "success",
-          title: "Данные сохранены",
-          description: "Изменения успешно применены",
-          duration: 3000,
-          isClosable: true,
-        });
+        // Для HR/админов не показываем сообщение здесь, так как навыки устанавливаются после
+        // и там будет показано отдельное сообщение
+        if (
+          !isAdmin ||
+          !employeeData.skills ||
+          employeeData.skills.length === 0
+        ) {
+          toast({
+            status: "success",
+            title: "Данные сохранены",
+            description: "Изменения успешно применены",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
       } else {
         await employeesAPI.create(employeeData);
         toast({
@@ -262,7 +275,14 @@ const HRDataPage: React.FC = () => {
           isClosable: true,
         });
       }
+      // Инвалидируем кеш сотрудников, чтобы обновить список с новыми навыками
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      // Также инвалидируем кеш конкретного сотрудника, если он редактировался
+      if (editingEmployee?.id) {
+        queryClient.invalidateQueries({
+          queryKey: ["employee", editingEmployee.id],
+        });
+      }
       onEditModalClose();
       setEditingEmployee(null);
     } catch (error) {

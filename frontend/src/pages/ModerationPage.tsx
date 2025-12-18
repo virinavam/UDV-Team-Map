@@ -43,7 +43,6 @@ const ModerationPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [activeStatus, setActiveStatus] = useState<Status>("pending");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("pending");
   const [rejectingRequest, setRejectingRequest] =
     useState<ModerationRequest | null>(null);
   const [rejectComment, setRejectComment] = useState("");
@@ -166,8 +165,12 @@ const ModerationPage: React.FC = () => {
         duration: 3000,
         isClosable: true,
       });
-      // Обновляем списки аватаров
+      // Обновляем списки аватаров и данные сотрудников
       queryClient.invalidateQueries({ queryKey: ["avatars"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({
+        queryKey: ["employee", request.employee.id],
+      });
     } catch (error) {
       toast({
         status: "error",
@@ -200,8 +203,12 @@ const ModerationPage: React.FC = () => {
         duration: 3000,
         isClosable: true,
       });
-      // Обновляем списки аватаров
+      // Обновляем списки аватаров и данные сотрудников
       queryClient.invalidateQueries({ queryKey: ["avatars"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({
+        queryKey: ["employee", rejectingRequest.employee.id],
+      });
       onRejectModalClose();
       setRejectingRequest(null);
       setRejectComment("");
@@ -471,13 +478,23 @@ const ModerationPage: React.FC = () => {
                 >
                   <HStack spacing={6} align="flex-start">
                     {/* Фото */}
-                    <Box position="relative">
-                      <AuthorizedAvatar
-                        size="xl"
-                        name={request.employee.name}
-                        src={request.avatarUrl}
+                    <Box position="relative" minW="200px">
+                      <Box
+                        w="200px"
+                        h="200px"
                         borderRadius="md"
-                      />
+                        overflow="hidden"
+                        border="2px solid"
+                        borderColor="gray.200"
+                        bg="gray.100"
+                      >
+                        <AuthorizedAvatar
+                          size="full"
+                          name={request.employee.name}
+                          src={request.avatarUrl}
+                          borderRadius="md"
+                        />
+                      </Box>
                     </Box>
 
                     {/* Информация */}

@@ -453,6 +453,9 @@ export const employeesAPI = {
     }
 
     const url = new URL(`${API_BASE_URL}/employees/${id}/avatar/upload`);
+    // Добавляем параметр no_moderation только если явно указано true
+    // Для обычных сотрудников (noModeration=false) параметр не добавляется,
+    // что означает, что фото будет отправлено на модерацию
     if (noModeration) {
       url.searchParams.append("no_moderation", "true");
     }
@@ -460,6 +463,11 @@ export const employeesAPI = {
     if (import.meta.env.DEV) {
       console.log(
         `[API] Uploading avatar for user ${id}, noModeration: ${noModeration}`
+      );
+      console.log(
+        `[API] Photo will be ${
+          noModeration ? "activated immediately" : "sent for moderation"
+        }`
       );
       console.log(`[API] URL: ${url.toString()}`);
     }
@@ -579,25 +587,48 @@ export interface AvatarModerationRequest {
   rejection_reason?: string | null;
 }
 
+/**
+ * API для работы с модерацией аватаров
+ * Используется HR и админами для получения и модерации фотографий сотрудников
+ */
 export const avatarsAPI = {
+  /**
+   * GET /api/employees/avatars/pending
+   * Получить список аватаров, ожидающих модерации
+   */
   async getPending() {
     return jsonRequest<AvatarModerationRequest[]>(
       "/employees/avatars/pending",
       { method: "GET" }
     );
   },
+  /**
+   * GET /api/employees/avatars/accepted
+   * Получить список одобренных аватаров
+   */
   async getAccepted() {
     return jsonRequest<AvatarModerationRequest[]>(
       "/employees/avatars/accepted",
       { method: "GET" }
     );
   },
+  /**
+   * GET /api/employees/avatars/rejected
+   * Получить список отклоненных аватаров
+   */
   async getRejected() {
     return jsonRequest<AvatarModerationRequest[]>(
       "/employees/avatars/rejected",
       { method: "GET" }
     );
   },
+  /**
+   * PUT /api/employees/avatars/{avatar_id}/moderate
+   * Модерация аватара (одобрение или отклонение)
+   * @param avatarId - ID аватара
+   * @param status - Статус модерации: "ACCEPTED" (одобрено) или "REJECTED" (отклонено)
+   * @param rejectionReason - Причина отклонения (опционально, только для статуса "REJECTED")
+   */
   async moderate(
     avatarId: string,
     status: "ACCEPTED" | "REJECTED",
@@ -610,5 +641,47 @@ export const avatarsAPI = {
         rejection_reason: rejectionReason || null,
       }),
     });
+  },
+};
+
+// ======================= SKILLS API =======================
+export interface Skill {
+  id: string;
+  name: string;
+}
+
+export const skillsAPI = {
+  async list(): Promise<Skill[]> {
+    return jsonRequest<Skill[]>("/skills/", { method: "GET" });
+  },
+
+  async create(name: string): Promise<Skill> {
+    return jsonRequest<Skill>("/skills/", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async setSkills(userId: string, skillNames: string[]): Promise<Employee> {
+    console.log("setSkills вызван с:", { userId, skillNames });
+    const requestBody = { skills: skillNames };
+    console.log("Тело запроса:", JSON.stringify(requestBody));
+
+    const backendUser = await jsonRequest<BackendUser>(
+      `/employees/${userId}/set_skills`,
+      {
+        method: "PUT",
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    console.log("Ответ от бэкенда set_skills:", backendUser);
+    console.log("Навыки в ответе:", backendUser.skills);
+
+    const mappedEmployee = mapBackendUserToEmployee(backendUser);
+    console.log("Маппированный сотрудник:", mappedEmployee);
+    console.log("Навыки после маппинга:", mappedEmployee.skills);
+
+    return mappedEmployee;
   },
 };

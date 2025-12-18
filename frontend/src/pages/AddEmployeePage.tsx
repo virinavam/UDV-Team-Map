@@ -24,9 +24,11 @@ import {
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import MainLayout from "../components/MainLayout";
 import AvatarUploader from "../components/profile/AvatarUploader";
+import SkillsSelector from "../components/SkillsSelector";
 import type { Employee } from "../types/types";
-import { employeesAPI, authAPI } from "../lib/api";
+import { employeesAPI, authAPI, skillsAPI } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../context/AuthContext";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -44,6 +46,8 @@ const AddEmployeePage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -70,6 +74,8 @@ const AddEmployeePage: React.FC = () => {
     mattermost: "",
     telegram: "",
   });
+
+  const [password, setPassword] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -99,6 +105,15 @@ const AddEmployeePage: React.FC = () => {
       newErrors.email = REQUIRED_FIELDS.email;
     } else if (!validateEmail(formData.email)) {
       newErrors.email = "Некорректный email адрес";
+    }
+
+    // Валидация пароля (только на третьем этапе)
+    if (currentStep === 3) {
+      if (!isNotEmpty(password)) {
+        newErrors.password = "Пароль обязателен для заполнения";
+      } else if (password.length < 6) {
+        newErrors.password = "Пароль должен содержать минимум 6 символов";
+      }
     }
 
     // Валидация максимальных длин
@@ -244,10 +259,18 @@ const AddEmployeePage: React.FC = () => {
       };
 
       // Шаг 1: Регистрируем нового пользователя через POST /api/auth/register
-      // Генерируем временный пароль (пользователь сможет изменить его позже)
-      const tempPassword = `Temp${Date.now()}${Math.random()
-        .toString(36)
-        .substring(2, 9)}`;
+      // Используем пароль из формы
+      if (!password || password.length < 6) {
+        toast({
+          status: "error",
+          title: "Ошибка валидации",
+          description:
+            "Пароль обязателен и должен содержать минимум 6 символов",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
 
       toast({
         status: "info",
@@ -259,7 +282,7 @@ const AddEmployeePage: React.FC = () => {
 
       const registerResponse = await authAPI.register({
         email: trimmedData.email || "",
-        password: tempPassword,
+        password: password,
         first_name: trimmedData.firstName || "",
         last_name: trimmedData.lastName || "",
       });
@@ -364,19 +387,7 @@ const AddEmployeePage: React.FC = () => {
         group: trimmedData.group || undefined,
         legalEntity: trimmedData.legalEntity || undefined,
         department: trimmedData.department || undefined,
-        skills: (() => {
-          const skillsValue: string[] | string | undefined = trimmedData.skills;
-          if (Array.isArray(skillsValue)) {
-            return skillsValue;
-          }
-          if (typeof skillsValue === "string") {
-            return skillsValue
-              .split(",")
-              .map((s: string) => s.trim())
-              .filter(Boolean);
-          }
-          return [];
-        })(),
+        // Навыки не включаем в updateData, они будут установлены через set_skills
       };
 
       // Удаляем undefined значения
@@ -405,6 +416,59 @@ const AddEmployeePage: React.FC = () => {
         }
       }
 
+      // Шаг 4: Устанавливаем навыки через set_skills (только для HR и админов)
+      if (
+        isAdmin &&
+        trimmedData.skills &&
+        Array.isArray(trimmedData.skills) &&
+        trimmedData.skills.length > 0
+      ) {
+        try {
+          // Сначала получаем список всех существующих навыков из бэкенда
+          const allSkills = await skillsAPI.list();
+          const existingSkillNames = new Set(
+            allSkills.map((skill) => skill.name.toLowerCase())
+          );
+
+          // Создаем навыки, которых еще нет в базе
+          const skillsToCreate = trimmedData.skills.filter(
+            (skillName) => !existingSkillNames.has(skillName.toLowerCase())
+          );
+
+          if (skillsToCreate.length > 0) {
+            console.log("Создаем новые навыки:", skillsToCreate);
+            // Создаем все недостающие навыки
+            await Promise.all(
+              skillsToCreate.map((skillName) => skillsAPI.create(skillName))
+            );
+            // Обновляем кеш навыков
+            queryClient.invalidateQueries({ queryKey: ["skills"] });
+          }
+
+          // Теперь устанавливаем навыки (все они уже должны существовать в БД)
+          const updatedWithSkills = await skillsAPI.setSkills(
+            userId,
+            trimmedData.skills
+          );
+
+          // Обновляем кеш с новыми данными сотрудника, включая навыки
+          queryClient.setQueryData(["employee", userId], updatedWithSkills);
+          queryClient.invalidateQueries({ queryKey: ["employees"] });
+        } catch (skillsError) {
+          console.error("Ошибка при установке навыков:", skillsError);
+          toast({
+            status: "warning",
+            title: "Предупреждение",
+            description:
+              skillsError instanceof Error
+                ? skillsError.message
+                : "Не удалось установить навыки, но сотрудник создан",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      }
+
       toast({
         status: "success",
         title: "Сотрудник добавлен",
@@ -414,6 +478,8 @@ const AddEmployeePage: React.FC = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      // Очищаем пароль после успешного сохранения
+      setPassword("");
       navigate("/hr-data");
     } catch (error) {
       console.error("Ошибка добавления сотрудника:", error);
@@ -440,17 +506,9 @@ const AddEmployeePage: React.FC = () => {
     handleSave();
   };
 
-  const handleSkillsChange = (value: string) => {
-    const skills = value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const handleSkillsChange = (skills: string[]) => {
     handleFieldChange("skills", skills);
   };
-
-  const skillsText = Array.isArray(formData.skills)
-    ? formData.skills.join(", ")
-    : "";
 
   const fullName =
     `${formData.lastName || ""} ${formData.firstName || ""}`.trim() ||
@@ -749,16 +807,34 @@ const AddEmployeePage: React.FC = () => {
                           />
                           <FormErrorMessage>{errors.hireDate}</FormErrorMessage>
                         </FormControl>
-                        <FormControl>
-                          <FormLabel>Навыки</FormLabel>
-                          <Textarea
-                            value={skillsText}
-                            onChange={(e) => handleSkillsChange(e.target.value)}
-                            placeholder="Введите текст..."
-                            bg="gray.50"
-                            rows={3}
+                        {isAdmin ? (
+                          <SkillsSelector
+                            selectedSkills={formData.skills || []}
+                            onChange={handleSkillsChange}
                           />
-                        </FormControl>
+                        ) : (
+                          <FormControl>
+                            <FormLabel>Навыки</FormLabel>
+                            <Textarea
+                              value={
+                                Array.isArray(formData.skills)
+                                  ? formData.skills.join(", ")
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const skills = e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean);
+                                handleFieldChange("skills", skills);
+                              }}
+                              placeholder="Введите навыки через запятую"
+                              bg="gray.50"
+                              rows={3}
+                              isReadOnly={!isAdmin}
+                            />
+                          </FormControl>
+                        )}
                         <FormControl isInvalid={!!errors.description}>
                           <FormLabel>Описание</FormLabel>
                           <Textarea
@@ -864,6 +940,29 @@ const AddEmployeePage: React.FC = () => {
                         </FormControl>
                       </VStack>
                     </SimpleGrid>
+
+                    {/* Поле пароля */}
+                    <FormControl isInvalid={!!errors.password}>
+                      <FormLabel>Пароль *</FormLabel>
+                      <Input
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (errors.password) {
+                            setErrors((prev) => {
+                              const newErrors = { ...prev };
+                              delete newErrors.password;
+                              return newErrors;
+                            });
+                          }
+                        }}
+                        placeholder="Введите пароль"
+                        bg="gray.50"
+                        type="password"
+                        minLength={6}
+                      />
+                      <FormErrorMessage>{errors.password}</FormErrorMessage>
+                    </FormControl>
                   </VStack>
                   {/* Кнопка Сохранить внизу */}
                   <HStack justify="center" w="100%" pt={4}>

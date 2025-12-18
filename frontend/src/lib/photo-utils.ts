@@ -65,7 +65,9 @@ export const getPhotoUrl = (
   // Если это относительный путь, добавляем базовый URL API
   // Если путь начинается с /api/, используем базовый URL без /api
   if (photoUrl.startsWith("/api/")) {
+    // Убираем /api из конца API_BASE_URL, если он есть
     const baseUrl = API_BASE_URL.replace(/\/api$/, "");
+    // Путь уже содержит /api/, просто добавляем к baseUrl
     return `${baseUrl}${photoUrl}`;
   }
 
@@ -121,27 +123,28 @@ export const loadPhotoWithAuth = async (
       return fullUrl; // Возвращаем URL без токена, пусть браузер попробует загрузить
     }
 
-    // Загружаем фото с токеном авторизации
-    const response = await fetch(fullUrl, {
-      method: "GET",
+    // 1️⃣ Получаем файл через fetch с Authorization
+    const res = await fetch(fullUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
-    if (!response.ok) {
-      console.warn(`Не удалось загрузить фото: ${response.status}`);
+    if (!res.ok) {
+      console.warn(`Не удалось загрузить фото: ${res.status}`);
       return undefined;
     }
 
-    // Создаем blob из ответа
-    const blob = await response.blob();
-    const blobUrl = URL.createObjectURL(blob);
+    // 2️⃣ Конвертируем в blob
+    const blob = await res.blob();
+
+    // 3️⃣ Показываем через ObjectURL
+    const imageUrl = URL.createObjectURL(blob);
 
     // Сохраняем в кеш
-    photoCache.set(photoUrl, blobUrl);
+    photoCache.set(photoUrl, imageUrl);
 
-    return blobUrl;
+    return imageUrl;
   } catch (error) {
     console.error("Ошибка при загрузке фото с авторизацией:", error);
     // В случае ошибки возвращаем исходный URL

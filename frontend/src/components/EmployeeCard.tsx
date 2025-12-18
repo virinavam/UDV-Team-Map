@@ -183,39 +183,41 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
         </HStack>
 
         {/* Skills */}
-        <Box mt="auto" pt={2}>
-          <HStack spacing={2} flexWrap="wrap" justify="center" align="center">
-            {employee.skills.map((skill) => (
-              <Box
-                key={skill}
-                display="flex"
-                flexDirection="column"
-                justifyContent="center"
-                alignItems="center"
-                px={2} // горизонтальные отступы, текст растянет блок
-                height="22px" // фиксированная высота
-                bg="rgba(0, 210, 157, 0.12)" // зелёный фон
-                borderRadius="30px"
-                flex="none"
-                order={0}
-                flexGrow={0}
-              >
-                <Text
-                  fontStyle="normal"
-                  fontWeight={500}
-                  fontSize="13px"
-                  lineHeight="16px"
-                  color="rgba(25, 28, 48, 0.9)"
+        {employee.skills && employee.skills.length > 0 && (
+          <Box mt="auto" pt={2}>
+            <HStack spacing={2} flexWrap="wrap" justify="center" align="center">
+              {employee.skills.map((skill) => (
+                <Box
+                  key={skill}
                   display="flex"
+                  flexDirection="column"
+                  justifyContent="center"
                   alignItems="center"
-                  textAlign="center"
+                  px={2} // горизонтальные отступы, текст растянет блок
+                  height="22px" // фиксированная высота
+                  bg="rgba(0, 210, 157, 0.12)" // зелёный фон
+                  borderRadius="30px"
+                  flex="none"
+                  order={0}
+                  flexGrow={0}
                 >
-                  {skill}
-                </Text>
-              </Box>
-            ))}
-          </HStack>
-        </Box>
+                  <Text
+                    fontStyle="normal"
+                    fontWeight={500}
+                    fontSize="13px"
+                    lineHeight="16px"
+                    color="rgba(25, 28, 48, 0.9)"
+                    display="flex"
+                    alignItems="center"
+                    textAlign="center"
+                  >
+                    {skill}
+                  </Text>
+                </Box>
+              ))}
+            </HStack>
+          </Box>
+        )}
       </VStack>
     </Box>
   );

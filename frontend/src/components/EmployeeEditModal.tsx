@@ -26,8 +26,10 @@ import {
 import { CloseIcon } from "@chakra-ui/icons";
 import type { Employee } from "../types/types";
 import AvatarUploader from "./profile/AvatarUploader";
-import { employeesAPI } from "../lib/api";
+import SkillsSelector from "./SkillsSelector";
+import { employeesAPI, skillsAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -53,6 +55,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   onSave,
 }) => {
   const toast = useToast();
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   // Проверяем, является ли пользователь админом или HR
   const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
@@ -200,11 +203,7 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     setAvatarPreview(previewUrl);
   };
 
-  const handleSkillsChange = (value: string) => {
-    const skills = value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const handleSkillsChange = (skills: string[]) => {
     handleFieldChange("skills", skills);
   };
 
@@ -244,8 +243,11 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         department: trimAndValidate(formData.department),
         description: trimAndValidate(formData.description),
         comment: trimAndValidate(formData.comment),
+        skills: Array.isArray(formData.skills) ? formData.skills : [],
       };
 
+      // Создаем employeeData без навыков (они будут установлены отдельно через set_skills)
+      const { skills, ...dataWithoutSkills } = trimmedData;
       const employeeData: Employee = {
         id: employee?.id || `e${Date.now()}`,
         name:
@@ -255,10 +257,20 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         position: trimmedData.position || "",
         city: trimmedData.city || "",
         email: trimmedData.email || "",
-        skills: trimmedData.skills || [],
+        skills: skills || [],
         status: trimmedData.status || "Активен",
-        ...trimmedData, // остальные поля
+        ...dataWithoutSkills, // остальные поля без навыков
       };
+
+      console.log("=== ПОДГОТОВКА ДАННЫХ ===");
+      console.log("formData.skills:", formData.skills);
+      console.log("trimmedData.skills:", trimmedData.skills);
+      console.log("employeeData.skills перед установкой:", employeeData.skills);
+      console.log(
+        "employeeData.skills - это массив?",
+        Array.isArray(employeeData.skills)
+      );
+      console.log("employeeData.skills.length:", employeeData.skills?.length);
 
       // Если это редактирование существующего сотрудника и есть новый аватар
       if (employee?.id && pendingAvatarFile) {
@@ -317,6 +329,122 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         }
       }
 
+      // Если это редактирование существующего сотрудника и пользователь - HR/админ,
+      // устанавливаем навыки через set_skills ДО вызова onSave
+      if (employee?.id && isAdmin && Array.isArray(employeeData.skills)) {
+        try {
+          console.log("=== УСТАНОВКА НАВЫКОВ ===");
+          console.log("employee.id:", employee.id);
+          console.log("employeeData.skills:", employeeData.skills);
+          console.log("Длина массива навыков:", employeeData.skills.length);
+
+          // Сначала получаем список всех существующих навыков из бэкенда
+          let allSkills = await skillsAPI.list();
+          console.log("Существующие навыки в БД:", allSkills);
+          let existingSkillNames = new Set(
+            allSkills.map((skill) => skill.name.toLowerCase())
+          );
+
+          // Создаем навыки, которых еще нет в базе
+          const skillsToCreate = employeeData.skills.filter(
+            (skillName) => !existingSkillNames.has(skillName.toLowerCase())
+          );
+
+          if (skillsToCreate.length > 0) {
+            console.log("Создаем новые навыки:", skillsToCreate);
+            // Создаем все недостающие навыки
+            const createdSkills = await Promise.all(
+              skillsToCreate.map(async (skillName) => {
+                const created = await skillsAPI.create(skillName);
+                console.log(`Создан навык: ${skillName} ->`, created);
+                return created;
+              })
+            );
+            console.log("Все созданные навыки:", createdSkills);
+
+            // Перезагружаем список навыков после создания
+            queryClient.invalidateQueries({ queryKey: ["skills"] });
+            // Ждем немного и перезагружаем список
+            await new Promise((resolve) => setTimeout(resolve, 200));
+            allSkills = await skillsAPI.list();
+            console.log(
+              "Обновленный список навыков после создания:",
+              allSkills
+            );
+            existingSkillNames = new Set(
+              allSkills.map((skill) => skill.name.toLowerCase())
+            );
+          }
+
+          // Проверяем, что все навыки теперь существуют
+          const missingSkills = employeeData.skills.filter(
+            (skillName) => !existingSkillNames.has(skillName.toLowerCase())
+          );
+          if (missingSkills.length > 0) {
+            console.error(
+              "ОШИБКА: Некоторые навыки все еще отсутствуют:",
+              missingSkills
+            );
+            throw new Error(
+              `Навыки не найдены в базе данных: ${missingSkills.join(", ")}`
+            );
+          }
+
+          console.log(
+            "Все навыки существуют, устанавливаем их:",
+            employeeData.skills
+          );
+          // Теперь устанавливаем навыки (все они уже должны существовать в БД)
+          const updatedWithSkills = await skillsAPI.setSkills(
+            employee.id,
+            employeeData.skills
+          );
+          console.log("Навыки установлены, получен ответ:", updatedWithSkills);
+          console.log(
+            "Навыки в ответе от set_skills:",
+            updatedWithSkills.skills
+          );
+
+          // Обновляем employeeData с актуальными навыками ПЕРЕД обновлением кеша
+          employeeData.skills = updatedWithSkills.skills || [];
+          console.log(
+            "employeeData.skills после обновления:",
+            employeeData.skills
+          );
+
+          // Обновляем кеш с новыми данными сотрудника, включая навыки
+          queryClient.setQueryData(
+            ["employee", employee.id],
+            updatedWithSkills
+          );
+          // Инвалидируем кеш списка сотрудников, чтобы обновить карточки
+          queryClient.invalidateQueries({ queryKey: ["employees"] });
+          // Также инвалидируем кеш конкретного сотрудника
+          queryClient.invalidateQueries({
+            queryKey: ["employee", employee.id],
+          });
+        } catch (skillsError) {
+          console.error("Ошибка при установке навыков:", skillsError);
+          toast({
+            status: "error",
+            title: "Ошибка",
+            description:
+              skillsError instanceof Error
+                ? skillsError.message
+                : "Не удалось установить навыки",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+
+      // Обновляем кеш сотрудников после сохранения
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      if (employee?.id) {
+        queryClient.invalidateQueries({ queryKey: ["employee", employee.id] });
+      }
+
+      // Вызываем onSave после установки навыков (если они были установлены)
       onSave(employeeData);
       setShowSaveConfirm(false);
       setPendingAvatarFile(null);
@@ -359,10 +487,6 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
   const handleCancelSave = () => {
     setShowSaveConfirm(false);
   };
-
-  const skillsText = Array.isArray(formData.skills)
-    ? formData.skills.join(", ")
-    : "";
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} size="6xl" scrollBehavior="inside">
@@ -595,16 +719,34 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                 </FormControl>
 
                 {/* Навыки */}
-                <FormControl>
-                  <FormLabel>Навыки</FormLabel>
-                  <Textarea
-                    value={skillsText}
-                    onChange={(e) => handleSkillsChange(e.target.value)}
-                    bg="gray.50"
-                    placeholder="Введите навыки через запятую"
-                    rows={2}
+                {isAdmin ? (
+                  <SkillsSelector
+                    selectedSkills={formData.skills || []}
+                    onChange={handleSkillsChange}
                   />
-                </FormControl>
+                ) : (
+                  <FormControl>
+                    <FormLabel>Навыки</FormLabel>
+                    <Textarea
+                      value={
+                        Array.isArray(formData.skills)
+                          ? formData.skills.join(", ")
+                          : ""
+                      }
+                      onChange={(e) => {
+                        const skills = e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        handleFieldChange("skills", skills);
+                      }}
+                      bg="gray.50"
+                      placeholder="Введите навыки через запятую"
+                      rows={2}
+                      isReadOnly={!isAdmin}
+                    />
+                  </FormControl>
+                )}
 
                 {/* Подразделение */}
                 <FormControl>

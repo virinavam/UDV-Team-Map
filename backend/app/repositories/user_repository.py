@@ -19,7 +19,15 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         """Получает пользователя по email."""
-        result = await self.db.execute(select(User).where(User.email == email))
+        result = await self.db.execute(
+            select(User)
+            .where(User.email == email)
+            .options(
+                selectinload(User.managed_department),
+                selectinload(User.skills),
+                selectinload(User.current_avatar),
+            )
+        )
         return result.scalar_one_or_none()
 
     async def get_by_id(self, user_id: UUID) -> User | None:
@@ -40,7 +48,9 @@ class UserRepository:
         )
         self.db.add(new_user)
         await self.db.commit()
-        return new_user
+        await self.db.refresh(new_user)
+        # Перезагружаем пользователя с selectinload для корректной сериализации photo_url
+        return await self.get_by_id(new_user.id)
 
     async def get_all_users(self) -> Sequence[User]:
         """Получает список всех пользователей."""
@@ -98,8 +108,8 @@ class UserRepository:
         result = await self.db.execute(stmt)
         await self.db.commit()
 
-        user = result.scalar_one_or_none()
-        return user
+        # Перезагружаем пользователя с selectinload для корректной сериализации photo_url
+        return await self.get_by_id(user_id)
 
     async def set_skills(self, user_id: UUID, skills: Sequence[Skill]) -> User | None:
         user = await self.get_by_id(user_id)

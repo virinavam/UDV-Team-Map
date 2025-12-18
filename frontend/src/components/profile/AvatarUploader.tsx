@@ -1,5 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Avatar, Box, Text, VStack } from "@chakra-ui/react";
+import { loadPhotoWithAuth } from "../../lib/photo-utils";
 
 interface AvatarUploaderProps {
   fullName: string;
@@ -14,6 +15,7 @@ const AvatarUploader: React.FC<AvatarUploaderProps> = ({
 }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [imageSrc, setImageSrc] = useState<string | undefined>(undefined);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -45,6 +47,38 @@ const AvatarUploader: React.FC<AvatarUploaderProps> = ({
     inputRef.current?.click();
   };
 
+  // Загружаем фото с авторизацией
+  useEffect(() => {
+    if (!photoUrl) {
+      setImageSrc(undefined);
+      return;
+    }
+
+    // Если это data URL или placeholder, используем напрямую
+    if (
+      photoUrl.startsWith("data:") ||
+      photoUrl === "/placeholder.svg" ||
+      photoUrl.includes("placeholder")
+    ) {
+      setImageSrc(photoUrl);
+      return;
+    }
+
+    // Загружаем фото с авторизацией
+    loadPhotoWithAuth(photoUrl)
+      .then((blobUrl) => {
+        if (blobUrl) {
+          setImageSrc(blobUrl);
+        } else {
+          setImageSrc(undefined);
+        }
+      })
+      .catch((error) => {
+        console.error("Ошибка при загрузке фото для AvatarUploader:", error);
+        setImageSrc(undefined);
+      });
+  }, [photoUrl]);
+
   return (
     <VStack spacing={4} align="stretch" w="200px">
       {/* Квадратное фото */}
@@ -58,21 +92,17 @@ const AvatarUploader: React.FC<AvatarUploaderProps> = ({
         bg="gray.100"
         position="relative"
       >
-        {photoUrl ? (
+        {imageSrc ? (
           <Box
             as="img"
-            src={photoUrl}
+            src={imageSrc}
             alt={fullName}
             w="100%"
             h="100%"
             objectFit="cover"
           />
         ) : (
-          <Avatar
-            size="full"
-            name={fullName}
-            borderRadius="lg"
-          />
+          <Avatar size="full" name={fullName} borderRadius="lg" />
         )}
       </Box>
 
@@ -117,9 +147,3 @@ const AvatarUploader: React.FC<AvatarUploaderProps> = ({
 };
 
 export default AvatarUploader;
-
-
-
-
-
-

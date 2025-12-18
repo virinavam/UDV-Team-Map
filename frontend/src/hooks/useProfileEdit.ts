@@ -6,7 +6,7 @@ import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Employee } from "../types/types";
-import { employeesAPI } from "../lib/api";
+import { employeesAPI, skillsAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import {
   trimAndValidate,
@@ -171,24 +171,80 @@ export const useProfileEdit = ({
           }
         }
 
-        // Обновляем данные сотрудника
-        const updated = await employeesAPI.update(editedEmployee.id, payload);
+        // Исключаем навыки из payload для обновления (они будут установлены отдельно через set_skills)
+        const { skills, ...dataWithoutSkills } = payload;
+
+        // Обновляем данные сотрудника (без навыков)
+        const updated = await employeesAPI.update(
+          editedEmployee.id,
+          dataWithoutSkills
+        );
+
+        // Если пользователь - HR/админ, устанавливаем навыки через set_skills
+        if (
+          isAdmin &&
+          editedEmployee.skills &&
+          Array.isArray(editedEmployee.skills)
+        ) {
+          try {
+            // Сначала получаем список всех существующих навыков из бэкенда
+            const allSkills = await skillsAPI.list();
+            const existingSkillNames = new Set(
+              allSkills.map((skill) => skill.name.toLowerCase())
+            );
+
+            // Создаем навыки, которых еще нет в базе
+            const skillsToCreate = editedEmployee.skills.filter(
+              (skillName) => !existingSkillNames.has(skillName.toLowerCase())
+            );
+
+            if (skillsToCreate.length > 0) {
+              // Создаем все недостающие навыки
+              await Promise.all(
+                skillsToCreate.map((skillName) => skillsAPI.create(skillName))
+              );
+              // Обновляем кеш навыков
+              queryClient.invalidateQueries({ queryKey: ["skills"] });
+              // Ждем немного и перезагружаем список
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+
+            // Устанавливаем навыки через set_skills
+            const updatedWithSkills = await skillsAPI.setSkills(
+              editedEmployee.id,
+              editedEmployee.skills
+            );
+
+            // Используем обновленные данные с навыками
+            updated.skills = updatedWithSkills.skills || [];
+          } catch (skillsError) {
+            console.error("Ошибка при установке навыков:", skillsError);
+            toast({
+              status: "warning",
+              title: "Предупреждение",
+              description:
+                skillsError instanceof Error
+                  ? skillsError.message
+                  : "Не удалось установить навыки, но остальные данные сохранены",
+              duration: 3000,
+              isClosable: true,
+            });
+          }
+        }
 
         // ВАЖНО: Получаем обновленные данные сотрудника из бэка после сохранения,
-        // чтобы получить актуальный photo_url (если аватар был загружен)
+        // чтобы получить актуальный photo_url (если аватар был загружен) и навыки
         let finalUpdated = updated;
-        if (pendingAvatarFile) {
-          try {
-            // Делаем небольшую задержку, чтобы бэк успел обработать изменения
-            await new Promise((resolve) => setTimeout(resolve, 500));
-            finalUpdated = await employeesAPI.getById(editedEmployee.id);
-          } catch (refreshError) {
-            console.warn(
-              "Не удалось получить обновленные данные сотрудника после сохранения:",
-              refreshError
-            );
-            // Используем данные из update, если не удалось получить свежие данные
-          }
+        try {
+          // Делаем небольшую задержку, чтобы бэк успел обработать изменения
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          finalUpdated = await employeesAPI.getById(editedEmployee.id);
+        } catch (refreshError) {
+          console.warn(
+            "Не удалось получить обновленные данные сотрудника после сохранения:",
+            refreshError
+          );
+          // Используем данные из update, если не удалось получить свежие данные
         }
 
         // Инвалидируем кэш и обновляем данные
