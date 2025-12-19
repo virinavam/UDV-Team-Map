@@ -26,23 +26,63 @@ class AvatarService:
 
     async def upload_and_activate(
         self, target_user: User, file: UploadFile, initial_status: AMSEnum, moderator_id: UUID | None
-    ):
+    ) -> str:
+        from app.core.logger import get_logger
 
-        s3_key = generate_key(target_user.id, file.filename)
-        await self.s3_service.upload_file_obj(
-            file_object=file.file,
-            object_key=s3_key,
-            bucket_name=settings.S3_USER_AVATAR_BUCKET,
-        )
+        logger = get_logger()
 
-        new_avatar = await self.avatar_repository.create_avatar(
-            user_id=target_user.id, s3_key=s3_key, status=initial_status, moderated_by_id=moderator_id
-        )
+        try:
+            # Обрабатываем случай, когда filename может быть None
+            filename = file.filename or "avatar.jpg"
+            s3_key = generate_key(target_user.id, filename)
 
-        if initial_status == AMSEnum.ACTIVE:
-            await self.avatar_repository.set_current_avatar(target_user, new_avatar)
-        else:
+            logger.info(
+                f"Uploading avatar for user {target_user.id}, s3_key: {s3_key}, content_type: {file.content_type}"
+            )
+
+            # Читаем содержимое файла в память, так как file.file может быть уже прочитан
+            file_content = await file.read()
+            file_buffer = BytesIO(file_content)
+
+            # Устанавливаем content_type для S3
+            file_buffer.content_type = file.content_type or "image/jpeg"
+
+            logger.info(f"File read into memory, size: {len(file_content)} bytes")
+
+            await self.s3_service.upload_file_obj(
+                file_object=file_buffer,
+                object_key=s3_key,
+                bucket_name=settings.S3_USER_AVATAR_BUCKET,
+            )
+
+            logger.info("Avatar uploaded to S3, creating database record")
+
+            # Этап 1: Создаем объект Avatar БЕЗ moderated_by_id и привязываем его к user_id
+            # Выполняем flush (это отправит аватар в БД и получит его ID, но не завершит транзакцию)
+            new_avatar = await self.avatar_repository.create_avatar_without_commit(
+                user_id=target_user.id, s3_key=s3_key, status=initial_status, moderated_by_id=moderator_id
+            )
+
+            # Этап 2: Только после flush устанавливаем user.current_avatar_id = new_avatar.id
+            # Это должно быть сделано ДО установки moderated_by_id, чтобы избежать циклических зависимостей
+            if initial_status == AMSEnum.ACTIVE:
+                logger.info(f"Setting avatar as active for user {target_user.id}")
+                await self.avatar_repository.set_current_avatar_without_commit(target_user, new_avatar)
+
+            # Этап 3: Устанавливаем moderated_by_id ПОСЛЕ установки current_avatar_id
+            # Это позволяет избежать циклических зависимостей
+            await self.avatar_repository.set_moderated_by_id(new_avatar, moderator_id)
+
+            # Этап 4: Выполняем итоговый commit
             await self.avatar_repository.db.commit()
+
+            logger.info(f"Avatar upload completed successfully for user {target_user.id}")
+            return s3_key
+        except Exception as e:
+            logger.error(f"Error in upload_and_activate for user {target_user.id}: {e}", exc_info=True)
+            # Выполняем rollback в случае ошибки
+            await self.avatar_repository.db.rollback()
+            raise
 
     async def download(self, s3_key: str, file_object: BytesIO):
         await self.s3_service.download_file_obj(file_object, settings.S3_USER_AVATAR_BUCKET, s3_key)
@@ -57,7 +97,13 @@ class AvatarService:
     async def get_pending_list(self):
         return await self.avatar_repository.get_pending_list()
 
-    async def moderate(self, avatar_id: UUID, status: AMSEnum, moderator_id: UUID, rejection_reason: str = None):
+    async def get_accepted_list(self):
+        return await self.avatar_repository.get_accepted_list()
+
+    async def get_rejected_list(self):
+        return await self.avatar_repository.get_rejected_list()
+
+    async def moderate(self, avatar_id: UUID, status: AMSEnum, moderator_id: UUID, rejection_reason: str = None) -> str:
         avatar = await self.get_avatar_model_by_id(avatar_id)
         if avatar.moderation_status != AMSEnum.PENDING:
             raise HTTPException(status_code=400, detail="Avatar is not pending review.")
@@ -71,7 +117,7 @@ class AvatarService:
             )
         moderator = await self.user_service.get_user(moderator_id)
         await self.avatar_repository.set_avatar_status(avatar, status, moderator, rejection_reason)
-        return {"message": f"Статус аватара {avatar_id} обновлен до {status.value}"}
+        return f"Статус аватара {avatar_id} обновлен до {status.value}"
 
     async def delete(self, avatar_id: UUID):
         avatar = await self.get_avatar_model_by_id(avatar_id)

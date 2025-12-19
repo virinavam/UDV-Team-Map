@@ -24,9 +24,11 @@ import {
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import MainLayout from "../components/MainLayout";
 import AvatarUploader from "../components/profile/AvatarUploader";
+import SkillsSelector from "../components/SkillsSelector";
 import type { Employee } from "../types/types";
-import { employeesAPI } from "../lib/api";
+import { employeesAPI, authAPI, skillsAPI } from "../lib/api";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "../context/AuthContext";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -44,6 +46,8 @@ const AddEmployeePage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -56,7 +60,6 @@ const AddEmployeePage: React.FC = () => {
   const [formData, setFormData] = useState<Partial<Employee>>({
     firstName: "",
     lastName: "",
-    middleName: "",
     city: "",
     position: "",
     hireDate: "",
@@ -71,6 +74,8 @@ const AddEmployeePage: React.FC = () => {
     mattermost: "",
     telegram: "",
   });
+
+  const [password, setPassword] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -102,6 +107,15 @@ const AddEmployeePage: React.FC = () => {
       newErrors.email = "Некорректный email адрес";
     }
 
+    // Валидация пароля (только на третьем этапе)
+    if (currentStep === 3) {
+      if (!isNotEmpty(password)) {
+        newErrors.password = "Пароль обязателен для заполнения";
+      } else if (password.length < 6) {
+        newErrors.password = "Пароль должен содержать минимум 6 символов";
+      }
+    }
+
     // Валидация максимальных длин
     if (
       formData.firstName &&
@@ -114,12 +128,6 @@ const AddEmployeePage: React.FC = () => {
       !validateMaxLength(formData.lastName, FIELD_MAX_LENGTHS.lastName)
     ) {
       newErrors.lastName = `Фамилия не должна превышать ${FIELD_MAX_LENGTHS.lastName} символов`;
-    }
-    if (
-      formData.middleName &&
-      !validateMaxLength(formData.middleName, FIELD_MAX_LENGTHS.middleName)
-    ) {
-      newErrors.middleName = `Отчество не должно превышать ${FIELD_MAX_LENGTHS.middleName} символов`;
     }
     if (
       formData.email &&
@@ -237,7 +245,6 @@ const AddEmployeePage: React.FC = () => {
         ...formData,
         firstName: trimAndValidate(formData.firstName),
         lastName: trimAndValidate(formData.lastName),
-        middleName: trimAndValidate(formData.middleName),
         email: trimAndValidate(formData.email),
         phone: trimAndValidate(formData.phone),
         city: trimAndValidate(formData.city),
@@ -251,32 +258,62 @@ const AddEmployeePage: React.FC = () => {
         department: trimAndValidate(formData.department),
       };
 
-      // Создаем сотрудника
-      const employeeData: Employee = {
-        id: `e${Date.now()}`,
-        name:
-          `${trimmedData.lastName || ""} ${trimmedData.firstName || ""} ${
-            trimmedData.middleName || ""
-          }`.trim() || "Новый сотрудник",
-        position: trimmedData.position || "",
-        city: trimmedData.city || "",
+      // Шаг 1: Регистрируем нового пользователя через POST /api/auth/register
+      // Используем пароль из формы
+      if (!password || password.length < 6) {
+        toast({
+          status: "error",
+          title: "Ошибка валидации",
+          description:
+            "Пароль обязателен и должен содержать минимум 6 символов",
+          duration: 5000,
+          isClosable: true,
+        });
+        return;
+      }
+
+      toast({
+        status: "info",
+        title: "Регистрация сотрудника...",
+        description: "Пожалуйста, подождите",
+        duration: 2000,
+        isClosable: true,
+      });
+
+      const registerResponse = await authAPI.register({
         email: trimmedData.email || "",
-        skills: Array.isArray(trimmedData.skills)
-          ? trimmedData.skills
-          : typeof trimmedData.skills === "string"
-          ? trimmedData.skills
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [],
-        status: "Активен",
-        ...trimmedData,
-      };
+        password: password,
+        first_name: trimmedData.firstName || "",
+        last_name: trimmedData.lastName || "",
+      });
 
-      const created = await employeesAPI.create(employeeData);
+      // user_id может быть UUID объектом или строкой
+      let userId: string;
+      if (typeof registerResponse.user_id === "string") {
+        userId = registerResponse.user_id;
+      } else if (
+        registerResponse.user_id &&
+        typeof registerResponse.user_id === "object" &&
+        "toString" in registerResponse.user_id
+      ) {
+        userId = registerResponse.user_id.toString();
+      } else {
+        userId = String(registerResponse.user_id);
+      }
 
-      // Загружаем фото, если есть
-      if (photoFile && created.id) {
+      if (!userId || userId === "undefined" || userId === "null") {
+        throw new Error(
+          "Не удалось получить ID пользователя после регистрации"
+        );
+      }
+
+      if ((import.meta as any).env?.DEV) {
+        console.log("[AddEmployeePage] Registered user ID:", userId);
+        console.log("[AddEmployeePage] Register response:", registerResponse);
+      }
+
+      // Шаг 2: Загружаем фото, если есть (POST /api/employees/{user_id}/avatar/upload)
+      if (photoFile) {
         try {
           toast({
             status: "info",
@@ -286,11 +323,35 @@ const AddEmployeePage: React.FC = () => {
             isClosable: true,
           });
 
-          const { photoUrl } = await employeesAPI.uploadAvatar(
-            created.id,
-            photoFile
+          // Проверяем, является ли пользователь админом или HR
+          const currentUser = await authAPI.getCurrentUser();
+          const isAdmin =
+            currentUser?.role === "SYSTEM_ADMIN" ||
+            currentUser?.role === "HR_ADMIN";
+
+          // Загружаем аватар
+          await employeesAPI.uploadAvatar(
+            userId,
+            photoFile,
+            isAdmin // Для админов/HR используем no_moderation
           );
-          await employeesAPI.update(created.id, { photoUrl });
+
+          // ВАЖНО: Получаем обновленные данные сотрудника из бэка, чтобы получить актуальный photo_url
+          // Делаем небольшую задержку, чтобы бэк успел обработать загрузку
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          try {
+            const refreshedEmployee = await employeesAPI.getById(userId);
+            if (refreshedEmployee?.photoUrl) {
+              // Обновляем photoPreview с актуальными данными из бэка
+              setPhotoPreview(refreshedEmployee.photoUrl);
+            }
+          } catch (refreshError) {
+            console.warn(
+              "Не удалось получить обновленные данные сотрудника после загрузки аватара:",
+              refreshError
+            );
+          }
 
           toast({
             status: "success",
@@ -313,6 +374,101 @@ const AddEmployeePage: React.FC = () => {
         }
       }
 
+      // Шаг 3: Обновляем данные сотрудника через PUT /api/employees/{user_id}
+      // Подготавливаем данные для обновления
+      const updateData: Partial<Employee> = {
+        city: trimmedData.city || undefined,
+        position: trimmedData.position || undefined,
+        phone: trimmedData.phone || undefined,
+        telegram: trimmedData.telegram || undefined,
+        mattermost: trimmedData.mattermost || undefined,
+        description: trimmedData.description || undefined,
+        managerName: trimmedData.managerName || undefined,
+        group: trimmedData.group || undefined,
+        legalEntity: trimmedData.legalEntity || undefined,
+        department: trimmedData.department || undefined,
+        // Навыки не включаем в updateData, они будут установлены через set_skills
+      };
+
+      // Удаляем undefined значения
+      Object.keys(updateData).forEach((key) => {
+        if (updateData[key as keyof Employee] === undefined) {
+          delete updateData[key as keyof Employee];
+        }
+      });
+
+      // Обновляем данные только если есть что обновлять
+      if (Object.keys(updateData).length > 0) {
+        try {
+          await employeesAPI.update(userId, updateData);
+        } catch (error) {
+          console.error("Ошибка обновления данных сотрудника:", error);
+          toast({
+            status: "warning",
+            title: "Сотрудник создан, но не все данные обновлены",
+            description:
+              error instanceof Error
+                ? error.message
+                : "Не удалось обновить некоторые данные",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      }
+
+      // Шаг 4: Устанавливаем навыки через set_skills (только для HR и админов)
+      if (
+        isAdmin &&
+        trimmedData.skills &&
+        Array.isArray(trimmedData.skills) &&
+        trimmedData.skills.length > 0
+      ) {
+        try {
+          // Сначала получаем список всех существующих навыков из бэкенда
+          const allSkills = await skillsAPI.list();
+          const existingSkillNames = new Set(
+            allSkills.map((skill) => skill.name.toLowerCase())
+          );
+
+          // Создаем навыки, которых еще нет в базе
+          const skillsToCreate = trimmedData.skills.filter(
+            (skillName) => !existingSkillNames.has(skillName.toLowerCase())
+          );
+
+          if (skillsToCreate.length > 0) {
+            console.log("Создаем новые навыки:", skillsToCreate);
+            // Создаем все недостающие навыки
+            await Promise.all(
+              skillsToCreate.map((skillName) => skillsAPI.create(skillName))
+            );
+            // Обновляем кеш навыков
+            queryClient.invalidateQueries({ queryKey: ["skills"] });
+          }
+
+          // Теперь устанавливаем навыки (все они уже должны существовать в БД)
+          const updatedWithSkills = await skillsAPI.setSkills(
+            userId,
+            trimmedData.skills
+          );
+
+          // Обновляем кеш с новыми данными сотрудника, включая навыки
+          queryClient.setQueryData(["employee", userId], updatedWithSkills);
+          queryClient.invalidateQueries({ queryKey: ["employees"] });
+        } catch (skillsError) {
+          console.error("Ошибка при установке навыков:", skillsError);
+          toast({
+            status: "warning",
+            title: "Предупреждение",
+            description:
+              skillsError instanceof Error
+                ? skillsError.message
+                : "Не удалось установить навыки, но сотрудник создан",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
+      }
+
       toast({
         status: "success",
         title: "Сотрудник добавлен",
@@ -322,12 +478,22 @@ const AddEmployeePage: React.FC = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      // Инвалидируем кэш карты, если был указан отдел
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["legal-entities"] });
+      // Очищаем пароль после успешного сохранения
+      setPassword("");
       navigate("/hr-data");
     } catch (error) {
+      console.error("Ошибка добавления сотрудника:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Не удалось добавить сотрудника";
       toast({
         status: "error",
         title: "Ошибка",
-        description: "Не удалось добавить сотрудника",
+        description: errorMessage,
         duration: 5000,
         isClosable: true,
       });
@@ -343,22 +509,13 @@ const AddEmployeePage: React.FC = () => {
     handleSave();
   };
 
-  const handleSkillsChange = (value: string) => {
-    const skills = value
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
+  const handleSkillsChange = (skills: string[]) => {
     handleFieldChange("skills", skills);
   };
 
-  const skillsText = Array.isArray(formData.skills)
-    ? formData.skills.join(", ")
-    : "";
-
   const fullName =
-    `${formData.lastName || ""} ${formData.firstName || ""} ${
-      formData.middleName || ""
-    }`.trim() || "Новый сотрудник";
+    `${formData.lastName || ""} ${formData.firstName || ""}`.trim() ||
+    "Новый сотрудник";
 
   return (
     <MainLayout>
@@ -516,19 +673,6 @@ const AddEmployeePage: React.FC = () => {
                         />
                         <FormErrorMessage>{errors.firstName}</FormErrorMessage>
                       </FormControl>
-                      <FormControl isInvalid={!!errors.middleName}>
-                        <FormLabel>Отчество</FormLabel>
-                        <Input
-                          value={formData.middleName || ""}
-                          onChange={(e) =>
-                            handleFieldChange("middleName", e.target.value)
-                          }
-                          placeholder="Введите текст..."
-                          bg="gray.50"
-                          maxLength={FIELD_MAX_LENGTHS.middleName}
-                        />
-                        <FormErrorMessage>{errors.middleName}</FormErrorMessage>
-                      </FormControl>
                       <FormControl isInvalid={!!errors.city}>
                         <FormLabel>Город</FormLabel>
                         <Input
@@ -666,16 +810,34 @@ const AddEmployeePage: React.FC = () => {
                           />
                           <FormErrorMessage>{errors.hireDate}</FormErrorMessage>
                         </FormControl>
-                        <FormControl>
-                          <FormLabel>Навыки</FormLabel>
-                          <Textarea
-                            value={skillsText}
-                            onChange={(e) => handleSkillsChange(e.target.value)}
-                            placeholder="Введите текст..."
-                            bg="gray.50"
-                            rows={3}
+                        {isAdmin ? (
+                          <SkillsSelector
+                            selectedSkills={formData.skills || []}
+                            onChange={handleSkillsChange}
                           />
-                        </FormControl>
+                        ) : (
+                          <FormControl>
+                            <FormLabel>Навыки</FormLabel>
+                            <Textarea
+                              value={
+                                Array.isArray(formData.skills)
+                                  ? formData.skills.join(", ")
+                                  : ""
+                              }
+                              onChange={(e) => {
+                                const skills = e.target.value
+                                  .split(",")
+                                  .map((s) => s.trim())
+                                  .filter(Boolean);
+                                handleFieldChange("skills", skills);
+                              }}
+                              placeholder="Введите навыки через запятую"
+                              bg="gray.50"
+                              rows={3}
+                              isReadOnly={!isAdmin}
+                            />
+                          </FormControl>
+                        )}
                         <FormControl isInvalid={!!errors.description}>
                           <FormLabel>Описание</FormLabel>
                           <Textarea
@@ -781,6 +943,29 @@ const AddEmployeePage: React.FC = () => {
                         </FormControl>
                       </VStack>
                     </SimpleGrid>
+
+                    {/* Поле пароля */}
+                    <FormControl isInvalid={!!errors.password}>
+                      <FormLabel>Пароль *</FormLabel>
+                      <Input
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (errors.password) {
+                            setErrors((prev) => {
+                              const newErrors = { ...prev };
+                              delete newErrors.password;
+                              return newErrors;
+                            });
+                          }
+                        }}
+                        placeholder="Введите пароль"
+                        bg="gray.50"
+                        type="password"
+                        minLength={6}
+                      />
+                      <FormErrorMessage>{errors.password}</FormErrorMessage>
+                    </FormControl>
                   </VStack>
                   {/* Кнопка Сохранить внизу */}
                   <HStack justify="center" w="100%" pt={4}>

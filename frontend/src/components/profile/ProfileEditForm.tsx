@@ -17,6 +17,8 @@ import {
 import { AddIcon, CloseIcon } from "@chakra-ui/icons";
 import type { Employee } from "../../types/types";
 import AvatarUploader from "./AvatarUploader";
+import SkillsSelector from "../SkillsSelector";
+import { useAuth } from "../../context/AuthContext";
 
 interface ProfileEditFormProps {
   employee: Employee;
@@ -35,42 +37,14 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
   onAvatarSelect,
   isSaving,
 }) => {
-  const fullName = `${employee.lastName || ""} ${employee.firstName || ""} ${
-    employee.middleName || ""
+  const { user } = useAuth();
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
+  const fullName = `${employee.lastName || ""} ${
+    employee.firstName || ""
   }`.trim();
 
-  const [skillInput, setSkillInput] = useState(
-    employee.skills?.join(", ") || ""
-  );
-
-  const handleSkillInputChange = (value: string) => {
-    setSkillInput(value);
-    const skills = value
-      .split(",")
-      .map((skill) => skill.trim())
-      .filter(Boolean);
+  const handleSkillsChange = (skills: string[]) => {
     onFieldChange("skills", skills);
-  };
-
-  const handleAddSkill = () => {
-    if (skillInput.trim()) {
-      const newSkills = [
-        ...(employee.skills || []),
-        ...skillInput
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean),
-      ];
-      onFieldChange("skills", [...new Set(newSkills)]);
-      setSkillInput("");
-    }
-  };
-
-  const handleRemoveSkill = (skillToRemove: string) => {
-    const newSkills = (employee.skills || []).filter(
-      (skill) => skill !== skillToRemove
-    );
-    onFieldChange("skills", newSkills);
   };
 
   return (
@@ -110,11 +84,6 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
                 onChange={(value) => onFieldChange("firstName", value)}
               />
               <InputField
-                label="Отчество"
-                value={employee.middleName || ""}
-                onChange={(value) => onFieldChange("middleName", value)}
-              />
-              <InputField
                 label="Дата рождения"
                 value={employee.dateOfBirth || ""}
                 onChange={(value) => onFieldChange("dateOfBirth", value)}
@@ -129,81 +98,55 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
 
               {/* Навыки */}
               <Box>
-                <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
-                  Навыки
-                </Text>
-                {employee.skills && employee.skills.length > 0 && (
-                  <HStack spacing={2} flexWrap="wrap" mb={2}>
-                    {employee.skills.map((skill, index) => (
-                      <Badge
-                        key={index}
-                        px={3}
-                        py={1}
-                        borderRadius="md"
-                        bg="green.100"
-                        color="green.800"
-                        fontSize="sm"
-                        fontWeight="medium"
-                        display="flex"
-                        alignItems="center"
-                        gap={1}
-                      >
-                        {skill}
-                        <IconButton
-                          aria-label="Удалить навык"
-                          icon={<CloseIcon />}
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => handleRemoveSkill(skill)}
-                          h="16px"
-                          minW="16px"
-                        />
-                      </Badge>
-                    ))}
-                    <IconButton
-                      aria-label="Добавить навык"
-                      icon={<AddIcon />}
-                      size="sm"
-                      colorScheme="green"
-                      variant="outline"
-                      onClick={handleAddSkill}
-                    />
-                  </HStack>
-                )}
-                <InputGroup>
-                  <Input
-                    value={skillInput}
-                    onChange={(e) => setSkillInput(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === "Enter") {
-                        handleAddSkill();
-                      }
-                    }}
-                    placeholder="Введите навык и нажмите +"
-                    bg="white"
-                    borderColor="gray.300"
-                    fontSize="sm"
+                {isAdmin ? (
+                  <SkillsSelector
+                    selectedSkills={employee.skills || []}
+                    onChange={handleSkillsChange}
                   />
-                  {employee.skills && employee.skills.length === 0 && (
-                    <InputRightElement>
-                      <IconButton
-                        aria-label="Добавить навык"
-                        icon={<AddIcon />}
-                        size="sm"
-                        colorScheme="green"
-                        variant="ghost"
-                        onClick={handleAddSkill}
-                        h="24px"
-                        minW="24px"
-                      />
-                    </InputRightElement>
-                  )}
-                </InputGroup>
+                ) : (
+                  <Box>
+                    <Text
+                      fontWeight="semibold"
+                      color="gray.600"
+                      mb={2}
+                      fontSize="sm"
+                    >
+                      Навыки
+                    </Text>
+                    <HStack spacing={2} flexWrap="wrap">
+                      {employee.skills && employee.skills.length > 0 ? (
+                        employee.skills.map((skill, index) => (
+                          <Badge
+                            key={index}
+                            px={3}
+                            py={1}
+                            borderRadius="md"
+                            bg="green.100"
+                            color="green.800"
+                            fontSize="sm"
+                            fontWeight="medium"
+                          >
+                            {skill}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Text color="gray.400" fontSize="sm">
+                          Нет навыков
+                        </Text>
+                      )}
+                    </HStack>
+                  </Box>
+                )}
               </Box>
 
               {/* О себе */}
               <Box>
-                <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
+                <Text
+                  fontWeight="semibold"
+                  color="gray.600"
+                  mb={2}
+                  fontSize="sm"
+                >
                   О себе
                 </Text>
                 <Textarea
@@ -275,9 +218,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             <InputField
               label="Почта"
               value={employee.email || ""}
-              onChange={(value) => onFieldChange("email", value)}
-              showClear
-              onClear={() => onFieldChange("email", "")}
+              // email должен быть только для чтения в форме профиля
+              readOnly={true}
             />
             <InputField
               label="Номер телефона"
@@ -303,7 +245,9 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
       {/* Кнопка сохранения внизу по центру */}
       <Box pt={4} display="flex" justifyContent="center">
         <Button
-          colorScheme="purple"
+           bg="#763186"
+            color="white"
+            _hover={{ bg: "#5a2568" }}
           size="lg"
           onClick={onSave}
           isLoading={isSaving}
@@ -323,7 +267,14 @@ const InputField: React.FC<{
   readOnly?: boolean;
   showClear?: boolean;
   onClear?: () => void;
-}> = ({ label, value, onChange, readOnly = false, showClear = false, onClear }) => (
+}> = ({
+  label,
+  value,
+  onChange,
+  readOnly = false,
+  showClear = false,
+  onClear,
+}) => (
   <Box>
     <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
       {label}
@@ -357,9 +308,3 @@ const InputField: React.FC<{
 );
 
 export default ProfileEditForm;
-
-
-
-
-
-

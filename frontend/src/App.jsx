@@ -7,7 +7,7 @@ import { allRoutes } from "./routes/routes";
 
 const LoadingFallback = () => (
   <Center h="100vh" w="100vw">
-    <Spinner size="lg" color="purple.500" />
+    <Spinner size="lg" color="#763186" />
   </Center>
 );
 

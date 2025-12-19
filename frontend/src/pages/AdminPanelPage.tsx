@@ -6,12 +6,12 @@ import {
   Text,
   VStack,
   HStack,
-  Avatar,
   Button,
 } from "@chakra-ui/react";
 import { AddIcon } from "@chakra-ui/icons";
 import { useQuery } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
+import AuthorizedAvatar from "../components/AuthorizedAvatar";
 import { employeesAPI } from "../lib/api";
 import { ROUTES } from "../routes/paths";
 
@@ -110,7 +110,6 @@ const AdminPanelPage: React.FC = () => {
               Добавить нового сотрудника
             </Button>
             <Button
-              leftIcon={<Text fontSize="lg">📷</Text>}
               variant="outline"
               borderColor="#763186"
               color="#763186"
@@ -145,15 +144,14 @@ const AdminPanelPage: React.FC = () => {
                     borderRadius="md"
                     _hover={{ bg: "gray.50" }}
                   >
-                    <Avatar
+                    <AuthorizedAvatar
                       size="md"
                       name={employee.name}
                       src={employee.photoUrl}
                     />
                     <VStack align="start" spacing={0} flex={1}>
                       <Text fontWeight="medium">
-                        {employee.lastName} {employee.firstName}{" "}
-                        {employee.middleName}
+                        {employee.lastName} {employee.firstName}
                       </Text>
                       <Text fontSize="sm" color="gray.600">
                         {employee.position}

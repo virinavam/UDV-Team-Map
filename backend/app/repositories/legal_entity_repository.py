@@ -4,7 +4,7 @@ from sqlalchemy import Sequence, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Department, LegalEntity
+from app.models import Department, LegalEntity, User
 
 
 class LegalEntityRepository:
@@ -17,8 +17,12 @@ class LegalEntityRepository:
             select(LegalEntity)
             .where(LegalEntity.id == legal_entity_id)
             .options(
-                selectinload(LegalEntity.departments).selectinload(Department.employees),
-                selectinload(LegalEntity.departments).selectinload(Department.manager),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.employees)
+                .selectinload(User.current_avatar),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.manager)
+                .selectinload(User.current_avatar),
             )
         )
         return result.scalar_one_or_none()
@@ -29,8 +33,12 @@ class LegalEntityRepository:
             select(LegalEntity)
             .where(LegalEntity.name == legal_entity_name)
             .options(
-                selectinload(LegalEntity.departments).selectinload(Department.employees),
-                selectinload(LegalEntity.departments).selectinload(Department.manager),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.employees)
+                .selectinload(User.current_avatar),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.manager)
+                .selectinload(User.current_avatar),
             )
         )
         return result.scalar_one_or_none()
@@ -39,11 +47,15 @@ class LegalEntityRepository:
         """Получает список всех юридических лиц."""
         result = await self.db.execute(
             select(LegalEntity).options(
-                selectinload(LegalEntity.departments).selectinload(Department.employees),
-                selectinload(LegalEntity.departments).selectinload(Department.manager),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.employees)
+                .selectinload(User.current_avatar),
+                selectinload(LegalEntity.departments)
+                .selectinload(Department.manager)
+                .selectinload(User.current_avatar),
             )
         )
-        return result.scalars().all()
+        return result.scalars().unique().all()
 
     async def create_legal_entity(self, name: str) -> LegalEntity:
         """Создает и сохраняет новое юридическое лицо в БД."""

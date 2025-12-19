@@ -5,7 +5,6 @@ import {
   Menu,
   MenuButton,
   MenuList,
-  MenuItem,
   Checkbox,
   VStack,
   HStack,
@@ -36,10 +35,12 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [tempSelection, setTempSelection] = useState<string[]>(selectedValues);
 
-  // Синхронизация временного выбора с внешними selectedValues
+  // Синхронизация временного выбора с внешними selectedValues только когда меню закрыто
   useEffect(() => {
-    setTempSelection(selectedValues);
-  }, [selectedValues]);
+    if (!isOpen) {
+      setTempSelection(selectedValues);
+    }
+  }, [selectedValues, isOpen]);
 
   // Переключение выбора
   const handleToggle = (value: string) => {
@@ -84,13 +85,19 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     }
   }
 
+  // При закрытии меню без применения - восстанавливаем временные значения из выбранных
+  const handleClose = () => {
+    setTempSelection(selectedValues);
+    onClose();
+  };
+
   return (
-    <Menu isOpen={isOpen} onOpen={onOpen} onClose={onClose}>
+    <Menu isOpen={isOpen} onOpen={onOpen} onClose={handleClose}>
       <MenuButton
         as={Button}
         rightIcon={<ChevronDownIcon />}
         variant={hasSelection ? "solid" : "outline"}
-        colorScheme={hasSelection ? "purple" : undefined}
+        colorScheme={hasSelection ? "#763186" : undefined}
         size="md"
         bg={hasSelection ? "#763186" : "white"}
         color={hasSelection ? "white" : undefined}
@@ -103,7 +110,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
         {displayLabel}
       </MenuButton>
 
-      <MenuList minW="200px" p={4}>
+      <MenuList minW="200px" p={4} closeOnSelect={false}>
         <VStack align="stretch" spacing={3}>
           <HStack justify="space-between">
             <Button
@@ -122,7 +129,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 
           <Box maxH="300px" overflowY="auto">
             {options.map((option) => (
-              <MenuItem key={option.value} cursor="default">
+              <Box key={option.value} p={2} cursor="pointer" _hover={{ bg: "gray.100" }} borderRadius="md">
                 <Checkbox
                   isChecked={tempSelection.includes(option.value)}
                   onChange={() => handleToggle(option.value)}
@@ -130,7 +137,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                 >
                   {option.label}
                 </Checkbox>
-              </MenuItem>
+              </Box>
             ))}
           </Box>
         </VStack>

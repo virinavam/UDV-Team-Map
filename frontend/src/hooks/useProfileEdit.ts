@@ -6,7 +6,8 @@ import { useState, useCallback } from "react";
 import { useToast } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Employee } from "../types/types";
-import { employeesAPI } from "../lib/api";
+import { employeesAPI, skillsAPI } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -21,147 +22,277 @@ interface UseProfileEditOptions {
   onSuccess?: () => void;
 }
 
-export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions) => {
+export const useProfileEdit = ({
+  employeeId,
+  onSuccess,
+}: UseProfileEditOptions) => {
   const toast = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
 
-  const validateEmployeeData = useCallback((employee: Employee): string | null => {
-    if (!isNotEmpty(employee.firstName)) {
-      return "Имя обязательно для заполнения";
-    }
-    if (!isNotEmpty(employee.lastName)) {
-      return "Фамилия обязательна для заполнения";
-    }
-    if (!isNotEmpty(employee.email)) {
-      return "Email обязателен для заполнения";
-    }
-    if (!validateEmail(employee.email)) {
-      return "Некорректный email адрес";
-    }
-    if (employee.firstName && !validateMaxLength(employee.firstName, FIELD_MAX_LENGTHS.firstName)) {
-      return `Имя не должно превышать ${FIELD_MAX_LENGTHS.firstName} символов`;
-    }
-    if (employee.lastName && !validateMaxLength(employee.lastName, FIELD_MAX_LENGTHS.lastName)) {
-      return `Фамилия не должна превышать ${FIELD_MAX_LENGTHS.lastName} символов`;
-    }
-    if (employee.email && !validateMaxLength(employee.email, FIELD_MAX_LENGTHS.email)) {
-      return `Email не должен превышать ${FIELD_MAX_LENGTHS.email} символов`;
-    }
-    if (employee.phone && !validatePhone(employee.phone)) {
-      return "Некорректный формат телефона";
-    }
-    if (employee.phone && !validateMaxLength(employee.phone, FIELD_MAX_LENGTHS.phone)) {
-      return `Телефон не должен превышать ${FIELD_MAX_LENGTHS.phone} символов`;
-    }
-    return null;
-  }, []);
+  // Проверяем, является ли пользователь админом или HR
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
 
-  const saveEmployee = useCallback(async (editedEmployee: Employee): Promise<Employee | false> => {
-    // Валидация перед сохранением
-    const validationError = validateEmployeeData(editedEmployee);
-    if (validationError) {
-      toast({
-        status: "error",
-        title: "Ошибка валидации",
-        description: validationError,
-        duration: 5000,
-        isClosable: true,
-      });
-      return false;
-    }
+  const validateEmployeeData = useCallback(
+    (employee: Employee): string | null => {
+      if (!isNotEmpty(employee.firstName)) {
+        return "Имя обязательно для заполнения";
+      }
+      if (!isNotEmpty(employee.lastName)) {
+        return "Фамилия обязательна для заполнения";
+      }
+      if (!isNotEmpty(employee.email)) {
+        return "Email обязателен для заполнения";
+      }
+      if (!validateEmail(employee.email)) {
+        return "Некорректный email адрес";
+      }
+      if (
+        employee.firstName &&
+        !validateMaxLength(employee.firstName, FIELD_MAX_LENGTHS.firstName)
+      ) {
+        return `Имя не должно превышать ${FIELD_MAX_LENGTHS.firstName} символов`;
+      }
+      if (
+        employee.lastName &&
+        !validateMaxLength(employee.lastName, FIELD_MAX_LENGTHS.lastName)
+      ) {
+        return `Фамилия не должна превышать ${FIELD_MAX_LENGTHS.lastName} символов`;
+      }
+      if (
+        employee.email &&
+        !validateMaxLength(employee.email, FIELD_MAX_LENGTHS.email)
+      ) {
+        return `Email не должен превышать ${FIELD_MAX_LENGTHS.email} символов`;
+      }
+      if (employee.phone && !validatePhone(employee.phone)) {
+        return "Некорректный формат телефона";
+      }
+      if (
+        employee.phone &&
+        !validateMaxLength(employee.phone, FIELD_MAX_LENGTHS.phone)
+      ) {
+        return `Телефон не должен превышать ${FIELD_MAX_LENGTHS.phone} символов`;
+      }
+      return null;
+    },
+    []
+  );
 
-    setIsSaving(true);
-    try {
-      // Обрезаем пробелы из всех строковых полей
-      let payload: Partial<Employee> = {
-        ...editedEmployee,
-        firstName: trimAndValidate(editedEmployee.firstName),
-        lastName: trimAndValidate(editedEmployee.lastName),
-        middleName: trimAndValidate(editedEmployee.middleName),
-        email: trimAndValidate(editedEmployee.email),
-        phone: trimAndValidate(editedEmployee.phone),
-        city: trimAndValidate(editedEmployee.city),
-        position: trimAndValidate(editedEmployee.position),
-        telegram: trimAndValidate(editedEmployee.telegram),
-        mattermost: trimAndValidate(editedEmployee.mattermost),
-        managerName: trimAndValidate(editedEmployee.managerName),
-      };
-
-      // Загружаем аватар, если он был выбран
-      if (pendingAvatarFile) {
-        try {
-          toast({
-            status: "info",
-            title: "Загрузка аватара...",
-            description: "Пожалуйста, подождите",
-            duration: 2000,
-            isClosable: true,
-          });
-
-          const { photoUrl } = await employeesAPI.uploadAvatar(
-            editedEmployee.id,
-            pendingAvatarFile
-          );
-          payload = { ...payload, photoUrl };
-
-          toast({
-            status: "success",
-            title: "Аватар загружен",
-            duration: 2000,
-            isClosable: true,
-          });
-        } catch (avatarError) {
-          toast({
-            status: "error",
-            title: "Ошибка загрузки аватара",
-            description:
-              avatarError instanceof Error
-                ? avatarError.message
-                : "Не удалось загрузить аватар",
-            duration: 5000,
-            isClosable: true,
-          });
-          // Продолжаем сохранение без аватара
-        }
+  const saveEmployee = useCallback(
+    async (editedEmployee: Employee): Promise<Employee | false> => {
+      // Валидация перед сохранением
+      const validationError = validateEmployeeData(editedEmployee);
+      if (validationError) {
+        toast({
+          status: "error",
+          title: "Ошибка валидации",
+          description: validationError,
+          duration: 5000,
+          isClosable: true,
+        });
+        return false;
       }
 
-      // Обновляем данные сотрудника
-      const updated = await employeesAPI.update(editedEmployee.id, payload);
-      
-      // Инвалидируем кэш и обновляем данные
-      queryClient.invalidateQueries({ queryKey: ["employees"] });
-      queryClient.setQueryData(["employee", editedEmployee.id], updated);
+      setIsSaving(true);
+      try {
+        // Обрезаем пробелы из всех строковых полей
+        let payload: Partial<Employee> = {
+          ...editedEmployee,
+          firstName: trimAndValidate(editedEmployee.firstName),
+          lastName: trimAndValidate(editedEmployee.lastName),
+          email: trimAndValidate(editedEmployee.email),
+          phone: trimAndValidate(editedEmployee.phone),
+          city: trimAndValidate(editedEmployee.city),
+          position: trimAndValidate(editedEmployee.position),
+          telegram: trimAndValidate(editedEmployee.telegram),
+          mattermost: trimAndValidate(editedEmployee.mattermost),
+          managerName: trimAndValidate(editedEmployee.managerName),
+        };
 
-      setPendingAvatarFile(null);
+        // Загружаем аватар, если он был выбран
+        if (pendingAvatarFile) {
+          try {
+            toast({
+              status: "info",
+              title: "Загрузка аватара...",
+              description: "Пожалуйста, подождите",
+              duration: 2000,
+              isClosable: true,
+            });
 
-      toast({
-        status: "success",
-        title: "Изменения сохранены",
-        description: "Изменения отправлены на проверку модератору",
-        duration: 5000,
-        isClosable: true,
-      });
+            // Загружаем аватар
+            await employeesAPI.uploadAvatar(
+              editedEmployee.id,
+              pendingAvatarFile,
+              isAdmin // Для админов/HR используем no_moderation
+            );
 
-      onSuccess?.();
-      return updated;
-    } catch (err) {
-      toast({
-        status: "error",
-        title: "Не удалось сохранить изменения",
-        description:
-          err instanceof Error
-            ? err.message
-            : "Произошла ошибка при сохранении",
-        duration: 5000,
-        isClosable: true,
-      });
-      return false;
-    } finally {
-      setIsSaving(false);
-    }
-  }, [pendingAvatarFile, validateEmployeeData, toast, queryClient, onSuccess, employeeId]);
+            // ВАЖНО: Получаем обновленные данные сотрудника из бэка, чтобы получить актуальный photo_url
+            // Делаем небольшую задержку, чтобы бэк успел обработать загрузку
+            await new Promise((resolve) => setTimeout(resolve, 500));
+
+            const refreshedEmployee = await employeesAPI.getById(
+              editedEmployee.id
+            );
+
+            // Обновляем photoUrl в payload с актуальными данными из бэка
+            if (refreshedEmployee?.photoUrl) {
+              payload.photoUrl = refreshedEmployee.photoUrl;
+            }
+
+            toast({
+              status: "success",
+              title: isAdmin
+                ? "Аватар загружен и активирован"
+                : "Аватар загружен",
+              description: isAdmin
+                ? "Фотография активирована без модерации"
+                : "Фотография отправлена на модерацию",
+              duration: 2000,
+              isClosable: true,
+            });
+          } catch (avatarError) {
+            toast({
+              status: "error",
+              title: "Ошибка загрузки аватара",
+              description:
+                avatarError instanceof Error
+                  ? avatarError.message
+                  : "Не удалось загрузить аватар",
+              duration: 5000,
+              isClosable: true,
+            });
+            // Прерываем сохранение, если загрузка аватара не удалась
+            setIsSaving(false);
+            return false;
+          }
+        }
+
+        // Исключаем навыки из payload для обновления (они будут установлены отдельно через set_skills)
+        const { skills, ...dataWithoutSkills } = payload;
+
+        // Обновляем данные сотрудника (без навыков)
+        const updated = await employeesAPI.update(
+          editedEmployee.id,
+          dataWithoutSkills
+        );
+
+        // Если пользователь - HR/админ, устанавливаем навыки через set_skills
+        if (
+          isAdmin &&
+          editedEmployee.skills &&
+          Array.isArray(editedEmployee.skills)
+        ) {
+          try {
+            // Сначала получаем список всех существующих навыков из бэкенда
+            const allSkills = await skillsAPI.list();
+            const existingSkillNames = new Set(
+              allSkills.map((skill) => skill.name.toLowerCase())
+            );
+
+            // Создаем навыки, которых еще нет в базе
+            const skillsToCreate = editedEmployee.skills.filter(
+              (skillName) => !existingSkillNames.has(skillName.toLowerCase())
+            );
+
+            if (skillsToCreate.length > 0) {
+              // Создаем все недостающие навыки
+              await Promise.all(
+                skillsToCreate.map((skillName) => skillsAPI.create(skillName))
+              );
+              // Обновляем кеш навыков
+              queryClient.invalidateQueries({ queryKey: ["skills"] });
+              // Ждем немного и перезагружаем список
+              await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+
+            // Устанавливаем навыки через set_skills
+            const updatedWithSkills = await skillsAPI.setSkills(
+              editedEmployee.id,
+              editedEmployee.skills
+            );
+
+            // Используем обновленные данные с навыками
+            updated.skills = updatedWithSkills.skills || [];
+          } catch (skillsError) {
+            console.error("Ошибка при установке навыков:", skillsError);
+            toast({
+              status: "warning",
+              title: "Предупреждение",
+              description:
+                skillsError instanceof Error
+                  ? skillsError.message
+                  : "Не удалось установить навыки, но остальные данные сохранены",
+              duration: 3000,
+              isClosable: true,
+            });
+          }
+        }
+
+        // ВАЖНО: Получаем обновленные данные сотрудника из бэка после сохранения,
+        // чтобы получить актуальный photo_url (если аватар был загружен) и навыки
+        let finalUpdated = updated;
+        try {
+          // Делаем небольшую задержку, чтобы бэк успел обработать изменения
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          finalUpdated = await employeesAPI.getById(editedEmployee.id);
+        } catch (refreshError) {
+          console.warn(
+            "Не удалось получить обновленные данные сотрудника после сохранения:",
+            refreshError
+          );
+          // Используем данные из update, если не удалось получить свежие данные
+        }
+
+        // Инвалидируем кэш и обновляем данные
+        queryClient.invalidateQueries({ queryKey: ["employees"] });
+        queryClient.setQueryData(["employee", editedEmployee.id], finalUpdated);
+        // Инвалидируем кэш карты, если изменился отдел
+        queryClient.invalidateQueries({ queryKey: ["departments"] });
+        queryClient.invalidateQueries({ queryKey: ["legal-entities"] });
+
+        setPendingAvatarFile(null);
+
+        toast({
+          status: "success",
+          title: "Изменения сохранены",
+          description: "Изменения отправлены на проверку модератору",
+          duration: 5000,
+          isClosable: true,
+        });
+
+        onSuccess?.();
+        return finalUpdated;
+      } catch (err) {
+        toast({
+          status: "error",
+          title: "Не удалось сохранить изменения",
+          description:
+            err instanceof Error
+              ? err.message
+              : "Произошла ошибка при сохранении",
+          duration: 5000,
+          isClosable: true,
+        });
+        return false;
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [
+      pendingAvatarFile,
+      validateEmployeeData,
+      toast,
+      queryClient,
+      onSuccess,
+      employeeId,
+      isAdmin,
+      user,
+    ]
+  );
 
   return {
     isSaving,
@@ -171,5 +302,3 @@ export const useProfileEdit = ({ employeeId, onSuccess }: UseProfileEditOptions)
     validateEmployeeData,
   };
 };
-
-

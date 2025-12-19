@@ -19,7 +19,15 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         """Получает пользователя по email."""
-        result = await self.db.execute(select(User).where(User.email == email))
+        result = await self.db.execute(
+            select(User)
+            .where(User.email == email)
+            .options(
+                selectinload(User.managed_department),
+                selectinload(User.skills),
+                selectinload(User.current_avatar),
+            )
+        )
         return result.scalar_one_or_none()
 
     async def get_by_id(self, user_id: UUID) -> User | None:
@@ -40,7 +48,9 @@ class UserRepository:
         )
         self.db.add(new_user)
         await self.db.commit()
-        return new_user
+        await self.db.refresh(new_user)
+        # Перезагружаем пользователя с selectinload для корректной сериализации photo_url
+        return await self.get_by_id(new_user.id)
 
     async def get_all_users(self) -> Sequence[User]:
         """Получает список всех пользователей."""
@@ -57,6 +67,13 @@ class UserRepository:
         result = await self.db.execute(stmt)
         cities = result.scalars().all()
         return sorted(cities, key=str.lower)
+
+    async def get_positions(self) -> Sequence[str]:
+        """Получает список всех должностей пользователей."""
+        stmt = select(User.position).where(User.position.isnot(None)).distinct()
+        result = await self.db.execute(stmt)
+        positions = result.scalars().all()
+        return sorted(positions, key=str.lower)
 
     async def get_all_active_users(self) -> Sequence[User]:
         """Получает список всех активных пользователей."""
@@ -87,12 +104,11 @@ class UserRepository:
     async def delete_user(self, user_id: UUID) -> User | None:
         """Пометить пользователя как неактивного."""
         stmt = update(User).where(User.id == user_id).values(is_active=False).returning(User)
-
-        result = await self.db.execute(stmt)
+        await self.db.execute(stmt)
         await self.db.commit()
 
-        user = result.scalar_one_or_none()
-        return user
+        # Перезагружаем пользователя с selectinload для корректной сериализации photo_url
+        return await self.get_by_id(user_id)
 
     async def set_skills(self, user_id: UUID, skills: Sequence[Skill]) -> User | None:
         user = await self.get_by_id(user_id)

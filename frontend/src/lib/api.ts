@@ -4,6 +4,11 @@ import {
   mapEmployeeToBackendUser,
   type BackendUser,
 } from "./api-mapper";
+import {
+  getPhotoUrl,
+  clearPhotoCache,
+  clearPhotoFromCache,
+} from "./photo-utils";
 
 const API_BASE_URL =
   (import.meta as any).env?.VITE_API_URL || "http://localhost:8000/api";
@@ -13,9 +18,9 @@ const jsonRequest = async <T>(
   options: RequestInit = {}
 ): Promise<T> => {
   const token = localStorage.getItem("authToken");
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options.headers || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   // Добавляем токен авторизации, если он есть и не был передан явно
@@ -23,19 +28,71 @@ const jsonRequest = async <T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Собираем финальные опции, убеждаясь, что headers и body правильно обработаны
+  const {
+    body: optionsBody,
+    headers: optionsHeaders,
+    ...restOptions
+  } = options;
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: options.method || "GET",
+    ...restOptions,
     headers,
-    ...options,
+    ...(optionsBody !== undefined && { body: optionsBody }),
   });
 
   if (!response.ok) {
-    const message = await response
+    const errorData = await response
       .json()
-      .catch(() => ({ message: "Request failed" }));
-    throw new Error(message?.detail || message?.message || "Request failed");
+      .catch(() => ({ detail: "Request failed" }));
+
+    // Обработка ошибок валидации FastAPI (422)
+    let errorMessage = "Request failed";
+    if (errorData?.detail) {
+      if (Array.isArray(errorData.detail)) {
+        // Форматируем ошибки валидации
+        errorMessage = errorData.detail
+          .map((err: any) => {
+            const field = err.loc?.join(".") || "field";
+            return `${field}: ${err.msg || err.message || "Ошибка валидации"}`;
+          })
+          .join("; ");
+      } else if (typeof errorData.detail === "string") {
+        errorMessage = errorData.detail;
+      } else {
+        errorMessage = JSON.stringify(errorData.detail);
+      }
+    } else if (errorData?.message) {
+      errorMessage = errorData.message;
+    }
+
+    const error = new Error(errorMessage);
+    (error as any).status = response.status;
+    (error as any).data = errorData;
+    throw error;
   }
 
-  return (await response.json()) as T;
+  // Обработка пустого ответа (например, 204 No Content или DELETE запросы)
+  const contentLength = response.headers.get("content-length");
+  const contentType = response.headers.get("content-type");
+  
+  // Если ответ пустой или нет контента, возвращаем undefined
+  if (
+    response.status === 204 ||
+    contentLength === "0" ||
+    !contentType?.includes("application/json")
+  ) {
+    return undefined as T;
+  }
+
+  // Пытаемся распарсить JSON, если он есть
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+  
+  return JSON.parse(text) as T;
 };
 
 // ======================= Типы =======================
@@ -147,6 +204,8 @@ export const authAPI = {
   async logout(): Promise<void> {
     localStorage.removeItem("authToken");
     localStorage.removeItem("refreshToken");
+    // Очищаем кеш фотографий при выходе
+    clearPhotoCache();
   },
 
   getToken(): string | null {
@@ -211,6 +270,31 @@ export const authAPI = {
       return { success: false, message: "Ошибка подключения к серверу" };
     }
   },
+
+  async register(data: {
+    email: string;
+    password: string;
+    first_name: string;
+    last_name: string;
+  }): Promise<{
+    user_id: string | { toString(): string };
+    access_token: string;
+    refresh_token: string;
+  }> {
+    const response = await jsonRequest<{
+      user_id: string | { toString(): string };
+      access_token: string;
+      refresh_token: string;
+    }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    // Преобразуем user_id в строку, если это необходимо
+    if (response.user_id && typeof response.user_id !== "string") {
+      response.user_id = String(response.user_id);
+    }
+    return response;
+  },
 };
 
 type EmployeeListResponse = { items: Employee[] };
@@ -228,7 +312,10 @@ export const employeesAPI = {
       url = new URL(`${API_BASE_URL}/employees/search/`);
       // Если есть поисковый запрос, передаем его, иначе пустую строку
       url.searchParams.set("q", params?.search?.trim() || "");
-      if (params?.city) url.searchParams.set("city", params.city);
+      // Бэкенд ожидает cities как массив, передаем как массив
+      if (params?.city) {
+        url.searchParams.append("cities", params.city);
+      }
       if (params?.skills && params.skills.length > 0) {
         params.skills.forEach((skill) =>
           url.searchParams.append("skills", skill)
@@ -268,6 +355,76 @@ export const employeesAPI = {
     return employees;
   },
 
+  /**
+   * Поиск сотрудников по имени, фамилии, должности или email
+   * @param params Параметры поиска
+   * @param params.q Строка поиска (обязательный параметр)
+   * @param params.cities Массив названий городов для фильтрации
+   * @param params.departments Массив ID подразделений для фильтрации
+   * @param params.legal_entities Массив ID юридических лиц для фильтрации
+   * @param params.skills Массив названий навыков для фильтрации
+   * @returns Список сотрудников, соответствующих критериям поиска
+   */
+  async search(params: {
+    q: string;
+    cities?: string[];
+    departments?: string[];
+    legal_entities?: string[];
+    skills?: string[];
+  }): Promise<Employee[]> {
+    const url = new URL(`${API_BASE_URL}/employees/search/`);
+
+    // Обязательный параметр q
+    url.searchParams.set("q", params.q.trim());
+
+    // Опциональные параметры
+    if (params.cities && params.cities.length > 0) {
+      params.cities.forEach((city) => url.searchParams.append("cities", city));
+    }
+    if (params.departments && params.departments.length > 0) {
+      params.departments.forEach((dept) =>
+        url.searchParams.append("departments", dept)
+      );
+    }
+    if (params.legal_entities && params.legal_entities.length > 0) {
+      params.legal_entities.forEach((entity) =>
+        url.searchParams.append("legal_entities", entity)
+      );
+    }
+    if (params.skills && params.skills.length > 0) {
+      params.skills.forEach((skill) =>
+        url.searchParams.append("skills", skill)
+      );
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Searching employees: ${url.toString()}`);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[API] Error ${response.status}: ${errorText}`);
+      throw new Error(
+        `Не удалось выполнить поиск: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const backendUsers = (await response.json()) as BackendUser[];
+    const employees = backendUsers.map(mapBackendUserToEmployee);
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Found ${employees.length} employees`);
+    }
+
+    return employees;
+  },
+
   async getById(id: string) {
     const backendUser = await jsonRequest<BackendUser>(`/employees/${id}`, {
       method: "GET",
@@ -291,18 +448,76 @@ export const employeesAPI = {
   },
 
   async update(id: string, payload: Partial<Employee>) {
+    // Если указано название отдела, но нет departmentId, пытаемся найти ID по названию
+    if (payload.department && !payload.departmentId) {
+      try {
+        const departments = await departmentsAPI.list();
+        const foundDepartment = departments.find(
+          (dept) => dept.name === payload.department
+        );
+        if (foundDepartment) {
+          payload.departmentId = foundDepartment.id;
+        } else if (payload.department.trim()) {
+          // Если отдел указан, но не найден в списке, выбрасываем ошибку
+          throw new Error(
+            `Подразделение "${payload.department}" не найдено. Пожалуйста, сначала создайте это подразделение или выберите существующее.`
+          );
+        }
+      } catch (error) {
+        // Если это наша ошибка о ненайденном отделе, пробрасываем её дальше
+        if (error instanceof Error && error.message.includes("не найдено")) {
+          throw error;
+        }
+        console.warn(
+          "Не удалось загрузить список отделов для поиска ID:",
+          error
+        );
+        // Если не удалось загрузить список отделов, но отдел указан, выбрасываем ошибку
+        if (payload.department && payload.department.trim()) {
+          throw new Error(
+            "Не удалось загрузить список подразделений. Пожалуйста, попробуйте позже или убедитесь, что подразделение существует."
+          );
+        }
+      }
+    }
+
     const backendPayload = mapEmployeeToBackendUser(payload);
+
+    // Убеждаемся, что отправляем валидный объект
+    if (
+      !backendPayload ||
+      typeof backendPayload !== "object" ||
+      Array.isArray(backendPayload)
+    ) {
+      throw new Error("Invalid payload: expected an object");
+    }
+
+    // Преобразуем в JSON строку
+    const bodyString = JSON.stringify(backendPayload);
+
+    // Проверяем, что получилась валидная JSON строка (не пустой объект и не null/undefined)
+    if (
+      !bodyString ||
+      bodyString === "null" ||
+      bodyString === "undefined" ||
+      bodyString === "{}"
+    ) {
+      // Если payload пустой, отправляем пустой объект, но это может вызвать ошибку на бэкенде
+      // Лучше выбросить ошибку, чтобы пользователь знал, что нечего обновлять
+      throw new Error("No fields to update");
+    }
+
     const backendUser = await jsonRequest<BackendUser>(`/employees/${id}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
       },
-      body: JSON.stringify(backendPayload),
+      body: bodyString,
     });
     return mapBackendUserToEmployee(backendUser);
   },
 
-  async uploadAvatar(id: string, file: File) {
+  async uploadAvatar(id: string, file: File, noModeration: boolean = false) {
     // Валидация размера файла на клиенте
     const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
     if (file.size > MAX_FILE_SIZE) {
@@ -314,24 +529,97 @@ export const employeesAPI = {
       throw new Error("Файл должен быть изображением");
     }
 
+    if (!id) {
+      throw new Error("ID пользователя не указан");
+    }
+
     const formData = new FormData();
-    formData.append("avatar", file);
+    formData.append("file", file);
 
     const token = localStorage.getItem("authToken");
-    const response = await fetch(`${API_BASE_URL}/employees/${id}/avatar`, {
+    if (!token) {
+      throw new Error("Токен авторизации не найден");
+    }
+
+    const url = new URL(`${API_BASE_URL}/employees/${id}/avatar/upload`);
+    // Добавляем параметр no_moderation только если явно указано true
+    // Для обычных сотрудников (noModeration=false) параметр не добавляется,
+    // что означает, что фото будет отправлено на модерацию
+    if (noModeration) {
+      url.searchParams.append("no_moderation", "true");
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(
+        `[API] Uploading avatar for user ${id}, noModeration: ${noModeration}`
+      );
+      console.log(
+        `[API] Photo will be ${
+          noModeration ? "activated immediately" : "sent for moderation"
+        }`
+      );
+      console.log(`[API] URL: ${url.toString()}`);
+    }
+
+    const response = await fetch(url.toString(), {
       method: "POST",
       headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${token}`,
+        // Не устанавливаем Content-Type для FormData, браузер сделает это автоматически с boundary
       },
       body: formData,
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || "Не удалось загрузить аватар");
+      let errorMessage = "Не удалось загрузить аватар";
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorData.message || errorMessage;
+        if ((import.meta as any).env?.DEV) {
+          console.error(
+            `[API] Avatar upload error (${response.status}):`,
+            errorData
+          );
+        }
+      } catch (parseError) {
+        // Если не удалось распарсить JSON, используем текст ответа
+        const text = await response.text().catch(() => "");
+        if (text) {
+          errorMessage = text;
+        }
+        if ((import.meta as any).env?.DEV) {
+          console.error(
+            `[API] Avatar upload error (${response.status}):`,
+            text
+          );
+        }
+      }
+      throw new Error(`${errorMessage} (Status: ${response.status})`);
     }
 
-    return (await response.json()) as { photoUrl: string };
+    const s3Key = await response.json();
+    // Возвращаем объект с photoUrl для совместимости с существующим кодом
+    // s3Key - это строка, которую FastAPI автоматически сериализует в JSON
+    const s3KeyString = typeof s3Key === "string" ? s3Key : String(s3Key);
+    const photoPath = `/api/employees/avatars/${s3KeyString}`;
+    const fullPhotoUrl = getPhotoUrl(photoPath) || photoPath;
+
+    // Очищаем кеш для старого фото сотрудника (если оно было)
+    // Получаем обновленные данные сотрудника, чтобы очистить кеш старого фото
+    try {
+      const refreshedEmployee = await this.getById(id);
+      if (
+        refreshedEmployee?.photoUrl &&
+        refreshedEmployee.photoUrl !== fullPhotoUrl
+      ) {
+        clearPhotoFromCache(refreshedEmployee.photoUrl);
+      }
+    } catch (error) {
+      // Игнорируем ошибку, если не удалось получить данные сотрудника
+      console.warn("Не удалось очистить кеш старого фото:", error);
+    }
+
+    return { photoUrl: fullPhotoUrl };
   },
 
   async remove(id: string) {
@@ -358,8 +646,229 @@ export const filtersAPI = {
   },
 };
 
-export const orgAPI = {
-  async getTree() {
-    return jsonRequest<{ tree: OrgNode[] }>("/org-tree", { method: "GET" });
+export interface Department {
+  id: string;
+  name: string;
+  legal_entity_id: string;
+  parent_id: string | null;
+  manager: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    position: string | null;
+    photo_url: string | null;
+  } | null;
+  employees: any[];
+  created_at: string;
+  updated_at: string;
+}
+
+export const departmentsAPI = {
+  async list() {
+    return jsonRequest<Department[]>("/departments/", { method: "GET" });
+  },
+  async create(data: {
+    name: string;
+    legal_entity_id: string;
+    parent_id?: string | null;
+  }) {
+    return jsonRequest<Department>("/departments/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+  async update(
+    departmentId: string,
+    data: {
+      name?: string;
+      parent_id?: string | null;
+      manager_id?: string | null;
+    }
+  ) {
+    return jsonRequest<Department>(`/departments/${departmentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+export interface AvatarModerationRequest {
+  id: string;
+  user: BackendUser;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  rejection_reason?: string | null;
+}
+
+/**
+ * API для работы с модерацией аватаров
+ * Используется HR и админами для получения и модерации фотографий сотрудников
+ */
+export const avatarsAPI = {
+  /**
+   * GET /api/employees/avatars/pending
+   * Получить список аватаров, ожидающих модерации
+   */
+  async getPending() {
+    return jsonRequest<AvatarModerationRequest[]>(
+      "/employees/avatars/pending",
+      { method: "GET" }
+    );
+  },
+  /**
+   * GET /api/employees/avatars/accepted
+   * Получить список одобренных аватаров
+   */
+  async getAccepted() {
+    return jsonRequest<AvatarModerationRequest[]>(
+      "/employees/avatars/accepted",
+      { method: "GET" }
+    );
+  },
+  /**
+   * GET /api/employees/avatars/rejected
+   * Получить список отклоненных аватаров
+   */
+  async getRejected() {
+    return jsonRequest<AvatarModerationRequest[]>(
+      "/employees/avatars/rejected",
+      { method: "GET" }
+    );
+  },
+  /**
+   * PUT /api/employees/avatars/{avatar_id}/moderate
+   * Модерация аватара (одобрение или отклонение)
+   * @param avatarId - ID аватара
+   * @param status - Статус модерации: "ACCEPTED" (одобрено) или "REJECTED" (отклонено)
+   * @param rejectionReason - Причина отклонения (опционально, только для статуса "REJECTED")
+   */
+  async moderate(
+    avatarId: string,
+    status: "ACCEPTED" | "REJECTED",
+    rejectionReason?: string
+  ) {
+    return jsonRequest<string>(`/employees/avatars/${avatarId}/moderate`, {
+      method: "PUT",
+      body: JSON.stringify({
+        status,
+        rejection_reason: rejectionReason || null,
+      }),
+    });
+  },
+};
+
+// ======================= SKILLS API =======================
+export interface Skill {
+  id: string;
+  name: string;
+}
+
+export const skillsAPI = {
+  async list(): Promise<Skill[]> {
+    return jsonRequest<Skill[]>("/skills/", { method: "GET" });
+  },
+
+  async create(name: string): Promise<Skill> {
+    return jsonRequest<Skill>("/skills/", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  async setSkills(userId: string, skillNames: string[]): Promise<Employee> {
+    console.log("setSkills вызван с:", { userId, skillNames });
+    const requestBody = { skills: skillNames };
+    console.log("Тело запроса:", JSON.stringify(requestBody));
+
+    const backendUser = await jsonRequest<BackendUser>(
+      `/employees/${userId}/set_skills`,
+      {
+        method: "PUT",
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    console.log("Ответ от бэкенда set_skills:", backendUser);
+    console.log("Навыки в ответе:", backendUser.skills);
+
+    const mappedEmployee = mapBackendUserToEmployee(backendUser);
+    console.log("Маппированный сотрудник:", mappedEmployee);
+    console.log("Навыки после маппинга:", mappedEmployee.skills);
+
+    return mappedEmployee;
+  },
+};
+
+// ======================= LEGAL ENTITIES API =======================
+export interface DepartmentInLegalEntity {
+  id: string;
+  name: string;
+  legal_entity_id: string;
+  parent_id: string | null;
+  manager: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
+  employees: any[];
+  subdepartments?: DepartmentInLegalEntity[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LegalEntity {
+  id: string;
+  name: string;
+  departments: DepartmentInLegalEntity[];
+  created_at: string;
+  updated_at: string;
+}
+
+export const legalEntitiesAPI = {
+  /**
+   * GET /api/legal-entities/
+   * Получить список всех юридических лиц
+   */
+  async list(): Promise<LegalEntity[]> {
+    return jsonRequest<LegalEntity[]>("/legal-entities/", {
+      method: "GET",
+    });
+  },
+
+  /**
+   * POST /api/legal-entities/
+   * Создать новое юридическое лицо
+   * Доступно только для SYSTEM_ADMIN и HR_ADMIN
+   */
+  async create(name: string): Promise<LegalEntity> {
+    return jsonRequest<LegalEntity>("/legal-entities/", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  /**
+   * PATCH /api/legal-entities/{le_id}
+   * Обновить данные юридического лица
+   * Доступно только для SYSTEM_ADMIN и HR_ADMIN
+   */
+  async update(leId: string, data: { name: string }): Promise<LegalEntity> {
+    return jsonRequest<LegalEntity>(`/legal-entities/${leId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * DELETE /api/legal-entities/{le_id}
+   * Удалить юридическое лицо
+   * Доступно только для SYSTEM_ADMIN и HR_ADMIN
+   */
+  async delete(leId: string): Promise<void> {
+    return jsonRequest<void>(`/legal-entities/${leId}`, {
+      method: "DELETE",
+    });
   },
 };

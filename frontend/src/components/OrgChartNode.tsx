@@ -1,11 +1,5 @@
-import {
-  Box,
-  Text,
-  HStack,
-  IconButton,
-  Avatar,
-  VStack,
-} from "@chakra-ui/react";
+import { Box, Text, HStack, IconButton, VStack } from "@chakra-ui/react";
+import AuthorizedAvatar from "./AuthorizedAvatar";
 import { ChevronUpIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import type { OrgNode } from "../types/types";
 
@@ -102,7 +96,7 @@ export default function OrgChartNode({ data }: OrgChartNodeProps) {
         >
           {data.employees!.map((employee) => (
             <HStack key={employee.id} spacing={3} align="center">
-              <Avatar
+              <AuthorizedAvatar
                 size="sm"
                 name={employee.name}
                 src={employee.photoUrl || "/placeholder.svg"}

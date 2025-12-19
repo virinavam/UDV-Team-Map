@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useId } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
@@ -49,6 +49,8 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const emailId = useId();
+  const passwordId = useId();
 
   const {
     register,
@@ -98,8 +100,9 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
       <form onSubmit={handleSubmit(onSubmit, onError)}>
         <VStack spacing={4} align="stretch">
           <FormControl isInvalid={!!errors.email}>
-            <FormLabel>Email</FormLabel>
+            <FormLabel htmlFor={emailId}>Email</FormLabel>
             <Input
+              id={emailId}
               type="email"
               placeholder="your.email@udv.com"
               {...register("email")}
@@ -120,8 +123,9 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
           </FormControl>
 
           <FormControl isInvalid={!!errors.password || !!error}>
-            <FormLabel>Пароль</FormLabel>
+            <FormLabel htmlFor={passwordId}>Пароль</FormLabel>
             <Input
+              id={passwordId}
               type="password"
               placeholder="Введите ваш пароль"
               {...register("password")}
@@ -171,17 +175,17 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
             Войти
           </Button>
 
-          <Button
-            type="button"
-            variant="link"
-            color="#763186"
-            fontSize="sm"
-            fontWeight="normal"
-            onClick={() => navigate(ROUTES.forgotPassword)}
-            _hover={{ textDecoration: "underline" }}
-          >
-            Забыли пароль?
-          </Button>
+          {/*<Button*/}
+          {/*  type="button"*/}
+          {/*  variant="link"*/}
+          {/*  color="#763186"*/}
+          {/*  fontSize="sm"*/}
+          {/*  fontWeight="normal"*/}
+          {/*  onClick={() => navigate(ROUTES.forgotPassword)}*/}
+          {/*  _hover={{ textDecoration: "underline" }}*/}
+          {/*>*/}
+          {/*  Забыли пароль?*/}
+          {/*</Button>*/}
         </VStack>
       </form>
     </Box>

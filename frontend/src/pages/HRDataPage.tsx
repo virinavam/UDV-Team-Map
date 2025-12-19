@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Avatar,
   Box,
   Button,
   HStack,
@@ -30,23 +29,27 @@ import {
 } from "@chakra-ui/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import MainLayout from "../components/MainLayout";
+import AuthorizedAvatar from "../components/AuthorizedAvatar";
 import FilterDropdown from "../components/FilterDropdown";
 import AppliedFiltersBar from "../components/AppliedFiltersBar";
 import EmployeeEditModal from "../components/EmployeeEditModal";
 import EmployeeDeleteModal from "../components/EmployeeDeleteModal";
 import type { Employee } from "../types/types";
-import { employeesAPI } from "../lib/api";
-import { searchEmployees } from "../lib/search-utils";
+import { employeesAPI, skillsAPI, legalEntitiesAPI, departmentsAPI } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
 import { ROUTES } from "../routes/paths";
+import { useDebounce } from "../hooks/useDebounce";
 
 type SortDirection = "asc" | "desc" | null;
 
 const HRDataPage: React.FC = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedLegalEntity, setSelectedLegalEntity] = useState<string[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string[]>([]);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -67,14 +70,42 @@ const HRDataPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  // Определяем, нужно ли использовать серверный поиск (используем debounced значение)
+  const hasSearchQuery = debouncedSearchQuery.trim().length > 0;
+  const hasServerFilters = selectedCity.length > 0;
+
+  // Загружаем данные: либо через поиск API, либо через обычный list
   const {
     data: employees = [],
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["employees", { scope: "hr" }],
-    queryFn: () => employeesAPI.list(),
+    queryKey: [
+      "employees",
+      {
+        scope: "hr",
+        search: hasSearchQuery ? debouncedSearchQuery.trim() : undefined,
+        cities: selectedCity.length > 0 ? selectedCity : undefined,
+      },
+    ],
+    queryFn: () => {
+      if (hasSearchQuery) {
+        // Используем серверный поиск
+        return employeesAPI.search({
+          q: debouncedSearchQuery.trim(),
+          cities: selectedCity.length > 0 ? selectedCity : undefined,
+        });
+      } else if (hasServerFilters) {
+        // Используем list с фильтрами
+        return employeesAPI.list({
+          city: selectedCity[0], // list принимает один city, берем первый
+        });
+      } else {
+        // Обычный список всех сотрудников
+        return employeesAPI.list();
+      }
+    },
     retry: 1,
   });
 
@@ -94,6 +125,19 @@ const HRDataPage: React.FC = () => {
     }
   }, [isError, error, toast]);
 
+  // Получаем списки юридических лиц и отделов с сервера для заполнения фильтров
+  const { data: legalEntitiesFromApi = [] } = useQuery({
+    queryKey: ["legal-entities"],
+    queryFn: () => legalEntitiesAPI.list(),
+    retry: 1,
+  });
+
+  const { data: departmentsFromApi = [] } = useQuery({
+    queryKey: ["departments-list"],
+    queryFn: () => departmentsAPI.list(),
+    retry: 1,
+  });
+
   const createOptions = (getter: (emp: Employee) => string | undefined) => {
     const items = new Set<string>();
     employees.forEach((emp) => {
@@ -103,61 +147,128 @@ const HRDataPage: React.FC = () => {
     return Array.from(items).map((value) => ({ value, label: value }));
   };
 
-  const legalEntities = useMemo(
-    () =>
-      createOptions(
-        (emp) => emp.legalEntity || emp.departmentFull?.split(" / ")[0]
-      ),
-    [employees]
-  );
-  const departments = useMemo(
-    () =>
-      createOptions(
-        (emp) => emp.departmentFull?.split(" / ")[2] || emp.department
-      ),
-    [employees]
-  );
-  const groups = useMemo(() => createOptions((emp) => emp.group), [employees]);
+  const legalEntities = useMemo(() => {
+    // Сначала используем данные из API
+    if (legalEntitiesFromApi && legalEntitiesFromApi.length > 0) {
+      return legalEntitiesFromApi.map((le: any) => ({ value: le.name, label: le.name }));
+    }
+    // Fallback на вычисление из сотрудников
+    return createOptions(
+      (emp) => emp.legalEntity || emp.departmentFull?.split(" / ")[0]
+    );
+  }, [legalEntitiesFromApi, employees]);
+
+  const departments = useMemo(() => {
+    // Сначала используем данные из API
+    if (departmentsFromApi && departmentsFromApi.length > 0) {
+      // Берём полный путь подразделения
+      return departmentsFromApi
+        .map((d: any) => {
+          // Построим полный путь подразделения через parent_id
+          const buildPath = (dept: any, allDepts: any[], seen = new Set<string>()): string[] => {
+            if (!dept || seen.has(dept.id)) return [];
+            seen.add(dept.id);
+            const parts = [dept.name];
+            if (dept.parent_id) {
+              const parent = allDepts.find((p: any) => p.id === dept.parent_id);
+              if (parent) {
+                const parentParts = buildPath(parent, allDepts, seen);
+                return [...parentParts, ...parts];
+              }
+            }
+            return parts;
+          };
+          const path = buildPath(d, departmentsFromApi).join(" / ");
+          return { value: path, label: path };
+        })
+        // Удаляем дубликаты по value
+        .filter((v: any, i: number, arr: any[]) => arr.findIndex((a: any) => a.value === v.value) === i);
+    }
+    // Fallback на вычисление из сотрудников
+    return createOptions(
+      (emp) => emp.departmentFull?.split(" / ")[2] || emp.department
+    );
+  }, [departmentsFromApi, employees]);
   const positions = useMemo(
     () => createOptions((emp) => emp.position),
     [employees]
   );
   const cities = useMemo(() => createOptions((emp) => emp.city), [employees]);
 
+  // Построим мапы для быстрого поиска отдела и юридического лица по id
+  const departmentsMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (departmentsFromApi && departmentsFromApi.length > 0) {
+      departmentsFromApi.forEach((d: any) => map.set(d.id, d));
+    }
+    return map;
+  }, [departmentsFromApi]);
+
+  const legalEntitiesMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (legalEntitiesFromApi && legalEntitiesFromApi.length > 0) {
+      legalEntitiesFromApi.forEach((le: any) => map.set(le.id, le));
+    }
+    return map;
+  }, [legalEntitiesFromApi]);
+
+  // Функция для построения полного пути подразделения через parent_id
+  const buildDepartmentPath = (deptId?: string) => {
+    if (!deptId) return null;
+    const parts: string[] = [];
+    let current = departmentsMap.get(deptId);
+    // Проходим вверх по parent_id и собираем имена
+    const seen = new Set<string>();
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      parts.unshift(current.name);
+      if (!current.parent_id) break;
+      current = departmentsMap.get(current.parent_id);
+    }
+    return parts.length ? parts.join(" / ") : null;
+  };
+
+  // Клиентская фильтрация только для фильтров, которые не поддерживаются API поиском
+  // (юридическое лицо, подразделение, должность)
+  // Поиск и фильтр по городу теперь выполняются на сервере
   const filteredEmployees = useMemo(() => {
     let filtered = [...employees];
-
-    // Универсальный поиск с fuzzy matching
-    if (searchQuery.trim()) {
-      filtered = searchEmployees(filtered, searchQuery, {
-        fuzzyThreshold: 0.5,
-        matchAllTokens: false,
-      });
-    }
 
     // Фильтр по юридическому лицу
     if (selectedLegalEntity.length) {
       filtered = filtered.filter((employee) => {
-        const entity =
-          employee.legalEntity || employee.departmentFull?.split(" / ")[0];
-        return entity && selectedLegalEntity.includes(entity);
+        // Получаем юридическое лицо для этого сотрудника
+        let entityName: string | null = null;
+        if (employee.legalEntity) {
+          entityName = employee.legalEntity;
+        } else if (employee.departmentId) {
+          const dept = departmentsMap.get(employee.departmentId);
+          if (dept && dept.legal_entity_id) {
+            const le = legalEntitiesMap.get(dept.legal_entity_id);
+            if (le) {
+              entityName = le.name;
+            }
+          }
+        }
+        if (!entityName) {
+          entityName = employee.departmentFull?.split(" / ")[0];
+        }
+        return entityName && selectedLegalEntity.includes(entityName);
       });
     }
 
     // Фильтр по подразделению
     if (selectedDepartment.length) {
       filtered = filtered.filter((employee) => {
-        const dep =
-          employee.departmentFull?.split(" / ")[2] || employee.department;
-        return dep && selectedDepartment.includes(dep);
+        let deptPath: string | null = null;
+        if (employee.departmentId) {
+          deptPath = buildDepartmentPath(employee.departmentId);
+        }
+        if (!deptPath) {
+          deptPath = employee.departmentFull?.split(" / ").slice(1).join(" / ") || employee.department;
+        }
+        return deptPath && selectedDepartment.includes(deptPath);
       });
-    }
-
-    // Фильтр по группе
-    if (selectedGroup.length) {
-      filtered = filtered.filter(
-        (employee) => employee.group && selectedGroup.includes(employee.group)
-      );
     }
 
     // Фильтр по должности
@@ -168,23 +279,8 @@ const HRDataPage: React.FC = () => {
       );
     }
 
-    // Фильтр по городу
-    if (selectedCity.length) {
-      filtered = filtered.filter(
-        (employee) => employee.city && selectedCity.includes(employee.city)
-      );
-    }
-
     return filtered;
-  }, [
-    employees,
-    searchQuery,
-    selectedLegalEntity,
-    selectedDepartment,
-    selectedGroup,
-    selectedPosition,
-    selectedCity,
-  ]);
+  }, [employees, selectedLegalEntity, selectedDepartment, selectedPosition, departmentsMap, legalEntitiesMap]);
 
   // Сортировка по ФИО
   const sortedEmployees = useMemo(() => {
@@ -193,14 +289,10 @@ const HRDataPage: React.FC = () => {
     }
 
     const sorted = [...filteredEmployees].sort((a, b) => {
-      const fullNameA = `${a.lastName || ""} ${a.firstName || ""} ${
-        a.middleName || ""
-      }`
+      const fullNameA = `${a.lastName || ""} ${a.firstName || ""}`
         .trim()
         .toLowerCase();
-      const fullNameB = `${b.lastName || ""} ${b.firstName || ""} ${
-        b.middleName || ""
-      }`
+      const fullNameB = `${b.lastName || ""} ${b.firstName || ""}`
         .trim()
         .toLowerCase();
 
@@ -241,14 +333,31 @@ const HRDataPage: React.FC = () => {
   const handleSaveEmployee = async (employeeData: Employee) => {
     try {
       if (editingEmployee?.id) {
-        await employeesAPI.update(editingEmployee.id, employeeData);
-        toast({
-          status: "success",
-          title: "Данные сохранены",
-          description: "Изменения успешно применены",
-          duration: 3000,
-          isClosable: true,
-        });
+        // Обновляем данные сотрудника (навыки обрабатываются в EmployeeEditModal через set_skills)
+        const { skills, ...dataWithoutSkills } = employeeData;
+        const updated = await employeesAPI.update(
+          editingEmployee.id,
+          dataWithoutSkills
+        );
+        // Обновляем editingEmployee с новыми данными, включая photoUrl
+        if (updated) {
+          setEditingEmployee(updated);
+        }
+        // Для HR/админов не показываем сообщение здесь, так как навыки устанавливаются после
+        // и там будет показано отдельное сообщение
+        if (
+          !isAdmin ||
+          !employeeData.skills ||
+          employeeData.skills.length === 0
+        ) {
+          toast({
+            status: "success",
+            title: "Данные сохранены",
+            description: "Изменения успешно применены",
+            duration: 3000,
+            isClosable: true,
+          });
+        }
       } else {
         await employeesAPI.create(employeeData);
         toast({
@@ -259,14 +368,25 @@ const HRDataPage: React.FC = () => {
           isClosable: true,
         });
       }
+      // Инвалидируем кеш сотрудников, чтобы обновить список с новыми навыками
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      // Также инвалидируем кеш конкретного сотрудника, если он редактировался
+      if (editingEmployee?.id) {
+        queryClient.invalidateQueries({
+          queryKey: ["employee", editingEmployee.id],
+        });
+      }
       onEditModalClose();
       setEditingEmployee(null);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Произошла ошибка при сохранении";
       toast({
         status: "error",
         title: "Ошибка",
-        description: "Не удалось сохранить изменения",
+        description: errorMessage || "Не удалось сохранить изменения",
         duration: 5000,
         isClosable: true,
       });
@@ -327,13 +447,6 @@ const HRDataPage: React.FC = () => {
             prev.filter((item) => item !== value)
           ),
       })),
-      ...selectedGroup.map((value) => ({
-        id: `group-${value}`,
-        label: "Группа",
-        value,
-        onRemove: () =>
-          setSelectedGroup((prev) => prev.filter((item) => item !== value)),
-      })),
       ...selectedPosition.map((value) => ({
         id: `pos-${value}`,
         label: "Должность",
@@ -354,7 +467,6 @@ const HRDataPage: React.FC = () => {
     searchQuery,
     selectedLegalEntity,
     selectedDepartment,
-    selectedGroup,
     selectedPosition,
     selectedCity,
   ]);
@@ -365,7 +477,6 @@ const HRDataPage: React.FC = () => {
           setSearchQuery("");
           setSelectedLegalEntity([]);
           setSelectedDepartment([]);
-          setSelectedGroup([]);
           setSelectedPosition([]);
           setSelectedCity([]);
         }
@@ -381,7 +492,7 @@ const HRDataPage: React.FC = () => {
                 <SearchIcon color="gray.300" />
               </InputLeftElement>
               <Input
-                placeholder="Поиск: фамилия, имя, должность, навыки (например: 'Иванов React Senior')"
+                placeholder="Поиск: фамилия, имя, должность, навыки"
                 value={searchQuery}
                 onChange={(e) => {
                   // Поиск работает мгновенно при вводе каждой буквы
@@ -392,7 +503,7 @@ const HRDataPage: React.FC = () => {
               />
             </InputGroup>
             <Button
-              colorScheme="purple"
+              colorScheme="#763186"
               leftIcon={<AddIcon />}
               onClick={handleAddEmployee}
             >
@@ -418,13 +529,6 @@ const HRDataPage: React.FC = () => {
               options={departments}
               selectedValues={selectedDepartment}
               onSelectionChange={setSelectedDepartment}
-              showCount
-            />
-            <FilterDropdown
-              label="Группа"
-              options={groups}
-              selectedValues={selectedGroup}
-              onSelectionChange={setSelectedGroup}
               showCount
             />
             <FilterDropdown
@@ -515,7 +619,7 @@ const HRDataPage: React.FC = () => {
                   sortedEmployees.map((employee) => (
                     <Tr key={employee.id} _hover={{ bg: "gray.50" }}>
                       <Td>
-                        <Avatar
+                        <AuthorizedAvatar
                           size="sm"
                           name={employee.name}
                           src={employee.photoUrl}
@@ -523,20 +627,41 @@ const HRDataPage: React.FC = () => {
                       </Td>
                       <Td>
                         <Text fontWeight="medium">
-                          {employee.lastName} {employee.firstName}{" "}
-                          {employee.middleName}
+                          {employee.lastName} {employee.firstName}
                         </Text>
                       </Td>
                       <Td>{employee.position}</Td>
                       <Td>
-                        {employee.legalEntity ||
-                          employee.departmentFull?.split(" / ")[0] ||
-                          "-"}
+                        <Text noOfLines={1} maxW="150px">
+                          {(() => {
+                            // Сначала используем explicit поле employee.legalEntity
+                            if (employee.legalEntity) return employee.legalEntity;
+                            // Если есть departmentId, попробуем по нему найти юридическое лицо
+                            if (employee.departmentId) {
+                              const dept = departmentsMap.get(employee.departmentId);
+                              if (dept && dept.legal_entity_id) {
+                                const le = legalEntitiesMap.get(dept.legal_entity_id);
+                                if (le) return le.name;
+                              }
+                            }
+                            // Фоллбек на departmentFull парсинг
+                            return (
+                              employee.departmentFull?.split(" / ")[0] || "-"
+                            );
+                          })()}
+                        </Text>
                       </Td>
                       <Td>
-                        {employee.departmentFull?.split(" / ")[2] ||
-                          employee.department ||
-                          "-"}
+                        {(() => {
+                          // Попробуем построить путь подразделения через departmentId
+                          if (employee.departmentId) {
+                            const path = buildDepartmentPath(employee.departmentId);
+                            if (path) return path;
+                          }
+                          // Фоллбек: возьмём вторую/третью часть departmentFull если есть
+                          const parts = employee.departmentFull?.split(" / ") || [];
+                          return parts.slice(1).join(" / ") || employee.department || "-";
+                        })()}
                       </Td>
                       <Td>
                         <HStack spacing={2}>
@@ -544,7 +669,7 @@ const HRDataPage: React.FC = () => {
                             aria-label="Редактировать"
                             icon={<EditIcon />}
                             size="sm"
-                            colorScheme="purple"
+                            colorScheme="#763186"
                             variant="ghost"
                             onClick={() => handleEditEmployee(employee)}
                           />

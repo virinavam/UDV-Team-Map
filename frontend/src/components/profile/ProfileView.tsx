@@ -1,6 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Avatar,
   Badge,
   Box,
   Flex,
@@ -11,6 +10,9 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
+import AuthorizedAvatar from "../AuthorizedAvatar";
+import { departmentsAPI } from "../../lib/api";
 import type { Employee } from "../../types/types";
 
 interface ProfileViewProps {
@@ -18,9 +20,48 @@ interface ProfileViewProps {
 }
 
 const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
-  const fullName = `${employee.lastName || ""} ${employee.firstName || ""} ${
-    employee.middleName || ""
+  const fullName = `${employee.lastName || ""} ${
+    employee.firstName || ""
   }`.trim();
+
+  // Загружаем информацию об отделе по departmentId
+  const { data: department } = useQuery({
+    queryKey: ["department", employee.departmentId],
+    queryFn: async () => {
+      if (!employee.departmentId) return null;
+      try {
+        const departments = await departmentsAPI.list();
+        return departments.find((d) => d.id === employee.departmentId);
+      } catch (error) {
+        console.error("Ошибка при загрузке отдела:", error);
+        return null;
+      }
+    },
+    enabled: !!employee.departmentId,
+  });
+
+  // Формируем название отдела
+  const departmentName = department?.name || employee.department || employee.departmentFull || "—";
+
+  // Формируем юридическое лицо: сначала используем поле сотрудника, затем разбираем departmentFull
+  const legalEntityDisplay =
+    employee.legalEntity ||
+    (employee.departmentFull ? employee.departmentFull.split(" / ")[0] : undefined) ||
+    "—";
+
+  // Формируем отображение руководителя: если у отдела есть manager, используем его Фамилию Имя - должность
+  let managerDisplay = "—";
+  if (department && department.manager) {
+    const m = department.manager as any;
+    // Порядок: Имя Фамилия
+    const mName = `${m.first_name || ""} ${m.last_name || ""}`.trim();
+    managerDisplay = mName || employee.managerName || "—";
+    if (m.position) {
+      managerDisplay = `${managerDisplay} - ${m.position}`;
+    }
+  } else if (employee.managerName) {
+    managerDisplay = employee.managerName;
+  }
 
   return (
     <VStack spacing={6} align="stretch">
@@ -35,7 +76,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
       >
         <HStack spacing={8} align="start">
           {/* Фотография слева */}
-          <Avatar
+          <AuthorizedAvatar
             size="2xl"
             name={fullName || employee.name}
             src={employee.photoUrl}
@@ -117,11 +158,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
           </Text>
           <VStack spacing={4} align="stretch">
             <InputField label="Должность" value={employee.position} />
+            <InputField label="Юридическое лицо" value={legalEntityDisplay} />
             <InputField
               label="Подразделение"
-              value={employee.departmentFull || employee.department}
+              value={departmentName}
             />
-            <InputField label="Руководитель" value={employee.managerName} />
+            <InputField label="Руководитель" value={managerDisplay} />
             <InputField
               label="Стаж работы в компании"
               value={employee.workExperience}
@@ -173,9 +215,3 @@ const InputField: React.FC<{
 );
 
 export default ProfileView;
-
-
-
-
-
-

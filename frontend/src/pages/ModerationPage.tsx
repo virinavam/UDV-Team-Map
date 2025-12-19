@@ -6,7 +6,6 @@ import {
   VStack,
   HStack,
   Text,
-  Avatar,
   Badge,
   useDisclosure,
   Modal,
@@ -17,23 +16,26 @@ import {
   ModalFooter,
   Textarea,
   useToast,
+  Spinner,
 } from "@chakra-ui/react";
+import AuthorizedAvatar from "../components/AuthorizedAvatar";
 import { ArrowBackIcon } from "@chakra-ui/icons";
 import MainLayout from "../components/MainLayout";
-import type { Employee } from "../types/types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { employeesAPI } from "../lib/api";
+import { avatarsAPI, AvatarModerationRequest } from "../lib/api";
+import { mapBackendUserToEmployee } from "../lib/api-mapper";
+import { getPhotoUrl } from "../lib/photo-utils";
 
 type Status = "pending" | "approved" | "rejected";
-type FilterType = "pending" | "all";
 
 interface ModerationRequest {
   id: string;
-  employee: Employee;
+  employee: ReturnType<typeof mapBackendUserToEmployee>;
   updatedAt: string;
   checkedAt?: string;
   status: Status;
   comment?: string;
+  avatarUrl: string;
 }
 
 const ModerationPage: React.FC = () => {
@@ -41,7 +43,6 @@ const ModerationPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
   const [activeStatus, setActiveStatus] = useState<Status>("pending");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("pending");
   const [rejectingRequest, setRejectingRequest] =
     useState<ModerationRequest | null>(null);
   const [rejectComment, setRejectComment] = useState("");
@@ -52,44 +53,96 @@ const ModerationPage: React.FC = () => {
     onClose: onRejectModalClose,
   } = useDisclosure();
 
-  const { data: employees = [] } = useQuery({
-    queryKey: ["employees", { scope: "moderation" }],
-    queryFn: () => employeesAPI.list(),
+  const { data: pendingAvatars = [], isLoading: isLoadingPending } = useQuery({
+    queryKey: ["avatars", "pending"],
+    queryFn: () => avatarsAPI.getPending(),
   });
 
-  // Создаем заявки на модерацию из сотрудников
+  const { data: acceptedAvatars = [], isLoading: isLoadingAccepted } = useQuery(
+    {
+      queryKey: ["avatars", "accepted"],
+      queryFn: () => avatarsAPI.getAccepted(),
+    }
+  );
+
+  const { data: rejectedAvatars = [], isLoading: isLoadingRejected } = useQuery(
+    {
+      queryKey: ["avatars", "rejected"],
+      queryFn: () => avatarsAPI.getRejected(),
+    }
+  );
+
+  // Преобразуем данные аватаров в формат ModerationRequest
   const moderationRequests = useMemo<ModerationRequest[]>(() => {
-    return employees
-      .filter((emp) => !emp.photoUrl || emp.photoUrl.includes("placeholder"))
-      .map((emp) => ({
-        id: emp.id,
-        employee: emp,
-        updatedAt: new Date().toLocaleString("ru-RU", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "numeric",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        status: "pending" as Status,
-      }));
-  }, [employees]);
+    const pending = pendingAvatars.map((avatar) => ({
+      id: avatar.id,
+      employee: mapBackendUserToEmployee(avatar.user),
+      updatedAt: new Date(avatar.updated_at).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      status: "pending" as Status,
+      avatarUrl: getPhotoUrl(avatar.url) || avatar.url,
+    }));
+
+    const accepted = acceptedAvatars.map((avatar) => ({
+      id: avatar.id,
+      employee: mapBackendUserToEmployee(avatar.user),
+      updatedAt: new Date(avatar.updated_at).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      checkedAt: new Date(avatar.updated_at).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      status: "approved" as Status,
+      avatarUrl: getPhotoUrl(avatar.url) || avatar.url,
+    }));
+
+    const rejected = rejectedAvatars.map((avatar) => ({
+      id: avatar.id,
+      employee: mapBackendUserToEmployee(avatar.user),
+      updatedAt: new Date(avatar.updated_at).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      checkedAt: new Date(avatar.updated_at).toLocaleString("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      status: "rejected" as Status,
+      avatarUrl: getPhotoUrl(avatar.url) || avatar.url,
+      comment: avatar.rejection_reason || undefined,
+    }));
+
+    return [...pending, ...accepted, ...rejected];
+  }, [pendingAvatars, acceptedAvatars, rejectedAvatars]);
 
   // Фильтрация заявок
   const filteredRequests = useMemo(() => {
-    let filtered = [...moderationRequests];
-
-    // Фильтр по статусу (табы)
-    filtered = filtered.filter((req) => req.status === activeStatus);
-
-    // Дополнительный фильтр (если выбран "В ожидании", показываем только pending)
-    if (activeFilter === "pending" && activeStatus === "pending") {
-      filtered = filtered.filter((req) => req.status === "pending");
-    }
-
-    return filtered;
-  }, [moderationRequests, activeStatus, activeFilter]);
+    return moderationRequests.filter((req) => req.status === activeStatus);
+  }, [moderationRequests, activeStatus]);
 
   // Подсчет заявок по статусам
   const statusCounts = useMemo(() => {
@@ -104,7 +157,7 @@ const ModerationPage: React.FC = () => {
 
   const handleApprove = async (request: ModerationRequest) => {
     try {
-      // TODO: Реализовать API для одобрения
+      await avatarsAPI.moderate(request.id, "ACCEPTED");
       toast({
         status: "success",
         title: "Фото одобрено",
@@ -112,12 +165,20 @@ const ModerationPage: React.FC = () => {
         duration: 3000,
         isClosable: true,
       });
+      // Обновляем списки аватаров и данные сотрудников
+      queryClient.invalidateQueries({ queryKey: ["avatars"] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({
+        queryKey: ["employee", request.employee.id],
+      });
     } catch (error) {
       toast({
         status: "error",
         title: "Ошибка",
-        description: "Не удалось одобрить фотографию",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Не удалось одобрить фотографию",
         duration: 5000,
         isClosable: true,
       });
@@ -134,7 +195,7 @@ const ModerationPage: React.FC = () => {
     if (!rejectingRequest) return;
 
     try {
-      // TODO: Реализовать API для отклонения с комментарием
+      await avatarsAPI.moderate(rejectingRequest.id, "REJECTED", rejectComment);
       toast({
         status: "success",
         title: "Фото отклонено",
@@ -142,7 +203,12 @@ const ModerationPage: React.FC = () => {
         duration: 3000,
         isClosable: true,
       });
+      // Обновляем списки аватаров и данные сотрудников
+      queryClient.invalidateQueries({ queryKey: ["avatars"] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({
+        queryKey: ["employee", rejectingRequest.employee.id],
+      });
       onRejectModalClose();
       setRejectingRequest(null);
       setRejectComment("");
@@ -150,7 +216,10 @@ const ModerationPage: React.FC = () => {
       toast({
         status: "error",
         title: "Ошибка",
-        description: "Не удалось отклонить фотографию",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Не удалось отклонить фотографию",
         duration: 5000,
         isClosable: true,
       });
@@ -367,53 +436,24 @@ const ModerationPage: React.FC = () => {
             </Button>
           </HStack>
 
-          {/* Фильтры */}
-          <HStack spacing={2}>
-            <Button
-              variant={activeFilter === "pending" ? "solid" : "outline"}
-              bg={activeFilter === "pending" ? "#763186" : "white"}
-              color={activeFilter === "pending" ? "white" : "#763186"}
-              borderColor="#763186"
-              _hover={
-                activeFilter === "pending"
-                  ? { bg: "#5e2770" }
-                  : { bg: "purple.50" }
-              }
-              size="sm"
-              px={4}
-              py={2}
-              fontSize="sm"
-              onClick={() => setActiveFilter("pending")}
-            >
-              <HStack spacing={2}>
-                <Text fontSize="sm">🕐</Text>
-                <Text>В ожидании</Text>
-              </HStack>
-            </Button>
-            <Button
-              variant={activeFilter === "all" ? "solid" : "outline"}
-              bg={activeFilter === "all" ? "#763186" : "white"}
-              color={activeFilter === "all" ? "white" : "#763186"}
-              borderColor="#763186"
-              _hover={
-                activeFilter === "all" ? { bg: "#5e2770" } : { bg: "purple.50" }
-              }
-              size="sm"
-              px={4}
-              py={2}
-              fontSize="sm"
-              onClick={() => setActiveFilter("all")}
-            >
-              <HStack spacing={2}>
-                <Text fontSize="sm">✓</Text>
-                <Text>Все заявки</Text>
-              </HStack>
-            </Button>
-          </HStack>
-
           {/* Карточки заявок */}
           <VStack spacing={4} align="stretch">
-            {filteredRequests.length === 0 ? (
+            {(isLoadingPending || isLoadingAccepted || isLoadingRejected) &&
+            activeStatus === "pending" ? (
+              <Box
+                bg="white"
+                borderRadius="lg"
+                p={8}
+                border="1px solid"
+                borderColor="gray.200"
+                textAlign="center"
+              >
+                <Spinner size="xl" color="#763186" />
+                <Text color="gray.500" mt={4}>
+                  Загрузка...
+                </Text>
+              </Box>
+            ) : filteredRequests.length === 0 ? (
               <Box
                 bg="white"
                 borderRadius="lg"
@@ -438,13 +478,23 @@ const ModerationPage: React.FC = () => {
                 >
                   <HStack spacing={6} align="flex-start">
                     {/* Фото */}
-                    <Box position="relative">
-                      <Avatar
-                        size="xl"
-                        name={request.employee.name}
-                        src={request.employee.photoUrl}
+                    <Box position="relative" minW="200px">
+                      <Box
+                        w="200px"
+                        h="200px"
                         borderRadius="md"
-                      />
+                        overflow="hidden"
+                        border="2px solid"
+                        borderColor="gray.200"
+                        bg="gray.100"
+                      >
+                        <AuthorizedAvatar
+                          size="full"
+                          name={request.employee.name}
+                          src={request.avatarUrl}
+                          borderRadius="md"
+                        />
+                      </Box>
                     </Box>
 
                     {/* Информация */}
@@ -460,9 +510,8 @@ const ModerationPage: React.FC = () => {
                             fontWeight="bold"
                             color="gray.900"
                           >
-                            {request.employee.lastName}{" "}
-                            {request.employee.firstName}{" "}
-                            {request.employee.middleName}
+                            {request.employee.lastName || ""}{" "}
+                            {request.employee.firstName || ""}
                           </Text>
                           <Text fontSize="sm" color="gray.600">
                             Обновлено: {request.updatedAt}
