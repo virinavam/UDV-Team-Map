@@ -5,7 +5,6 @@ import {
   Menu,
   MenuButton,
   MenuList,
-  MenuItem,
   Checkbox,
   VStack,
   HStack,
@@ -111,7 +110,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
         {displayLabel}
       </MenuButton>
 
-      <MenuList minW="200px" p={4}>
+      <MenuList minW="200px" p={4} closeOnSelect={false}>
         <VStack align="stretch" spacing={3}>
           <HStack justify="space-between">
             <Button
@@ -130,7 +129,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 
           <Box maxH="300px" overflowY="auto">
             {options.map((option) => (
-              <MenuItem key={option.value} cursor="default">
+              <Box key={option.value} p={2} cursor="pointer" _hover={{ bg: "gray.100" }} borderRadius="md">
                 <Checkbox
                   isChecked={tempSelection.includes(option.value)}
                   onChange={() => handleToggle(option.value)}
@@ -138,7 +137,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
                 >
                   {option.label}
                 </Checkbox>
-              </MenuItem>
+              </Box>
             ))}
           </Box>
         </VStack>

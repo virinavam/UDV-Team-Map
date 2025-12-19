@@ -35,7 +35,7 @@ import AppliedFiltersBar from "../components/AppliedFiltersBar";
 import EmployeeEditModal from "../components/EmployeeEditModal";
 import EmployeeDeleteModal from "../components/EmployeeDeleteModal";
 import type { Employee } from "../types/types";
-import { employeesAPI, skillsAPI } from "../lib/api";
+import { employeesAPI, skillsAPI, legalEntitiesAPI, departmentsAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { ROUTES } from "../routes/paths";
 import { useDebounce } from "../hooks/useDebounce";
@@ -125,6 +125,19 @@ const HRDataPage: React.FC = () => {
     }
   }, [isError, error, toast]);
 
+  // Получаем списки юридических лиц и отделов с сервера для заполнения фильтров
+  const { data: legalEntitiesFromApi = [] } = useQuery({
+    queryKey: ["legal-entities"],
+    queryFn: () => legalEntitiesAPI.list(),
+    retry: 1,
+  });
+
+  const { data: departmentsFromApi = [] } = useQuery({
+    queryKey: ["departments-list"],
+    queryFn: () => departmentsAPI.list(),
+    retry: 1,
+  });
+
   const createOptions = (getter: (emp: Employee) => string | undefined) => {
     const items = new Set<string>();
     employees.forEach((emp) => {
@@ -134,25 +147,86 @@ const HRDataPage: React.FC = () => {
     return Array.from(items).map((value) => ({ value, label: value }));
   };
 
-  const legalEntities = useMemo(
-    () =>
-      createOptions(
-        (emp) => emp.legalEntity || emp.departmentFull?.split(" / ")[0]
-      ),
-    [employees]
-  );
-  const departments = useMemo(
-    () =>
-      createOptions(
-        (emp) => emp.departmentFull?.split(" / ")[2] || emp.department
-      ),
-    [employees]
-  );
+  const legalEntities = useMemo(() => {
+    // Сначала используем данные из API
+    if (legalEntitiesFromApi && legalEntitiesFromApi.length > 0) {
+      return legalEntitiesFromApi.map((le: any) => ({ value: le.name, label: le.name }));
+    }
+    // Fallback на вычисление из сотрудников
+    return createOptions(
+      (emp) => emp.legalEntity || emp.departmentFull?.split(" / ")[0]
+    );
+  }, [legalEntitiesFromApi, employees]);
+
+  const departments = useMemo(() => {
+    // Сначала используем данные из API
+    if (departmentsFromApi && departmentsFromApi.length > 0) {
+      // Берём полный путь подразделения
+      return departmentsFromApi
+        .map((d: any) => {
+          // Построим полный путь подразделения через parent_id
+          const buildPath = (dept: any, allDepts: any[], seen = new Set<string>()): string[] => {
+            if (!dept || seen.has(dept.id)) return [];
+            seen.add(dept.id);
+            const parts = [dept.name];
+            if (dept.parent_id) {
+              const parent = allDepts.find((p: any) => p.id === dept.parent_id);
+              if (parent) {
+                const parentParts = buildPath(parent, allDepts, seen);
+                return [...parentParts, ...parts];
+              }
+            }
+            return parts;
+          };
+          const path = buildPath(d, departmentsFromApi).join(" / ");
+          return { value: path, label: path };
+        })
+        // Удаляем дубликаты по value
+        .filter((v: any, i: number, arr: any[]) => arr.findIndex((a: any) => a.value === v.value) === i);
+    }
+    // Fallback на вычисление из сотрудников
+    return createOptions(
+      (emp) => emp.departmentFull?.split(" / ")[2] || emp.department
+    );
+  }, [departmentsFromApi, employees]);
   const positions = useMemo(
     () => createOptions((emp) => emp.position),
     [employees]
   );
   const cities = useMemo(() => createOptions((emp) => emp.city), [employees]);
+
+  // Построим мапы для быстрого поиска отдела и юридического лица по id
+  const departmentsMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (departmentsFromApi && departmentsFromApi.length > 0) {
+      departmentsFromApi.forEach((d: any) => map.set(d.id, d));
+    }
+    return map;
+  }, [departmentsFromApi]);
+
+  const legalEntitiesMap = useMemo(() => {
+    const map = new Map<string, any>();
+    if (legalEntitiesFromApi && legalEntitiesFromApi.length > 0) {
+      legalEntitiesFromApi.forEach((le: any) => map.set(le.id, le));
+    }
+    return map;
+  }, [legalEntitiesFromApi]);
+
+  // Функция для построения полного пути подразделения через parent_id
+  const buildDepartmentPath = (deptId?: string) => {
+    if (!deptId) return null;
+    const parts: string[] = [];
+    let current = departmentsMap.get(deptId);
+    // Проходим вверх по parent_id и собираем имена
+    const seen = new Set<string>();
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      parts.unshift(current.name);
+      if (!current.parent_id) break;
+      current = departmentsMap.get(current.parent_id);
+    }
+    return parts.length ? parts.join(" / ") : null;
+  };
 
   // Клиентская фильтрация только для фильтров, которые не поддерживаются API поиском
   // (юридическое лицо, подразделение, должность)
@@ -163,18 +237,37 @@ const HRDataPage: React.FC = () => {
     // Фильтр по юридическому лицу
     if (selectedLegalEntity.length) {
       filtered = filtered.filter((employee) => {
-        const entity =
-          employee.legalEntity || employee.departmentFull?.split(" / ")[0];
-        return entity && selectedLegalEntity.includes(entity);
+        // Получаем юридическое лицо для этого сотрудника
+        let entityName: string | null = null;
+        if (employee.legalEntity) {
+          entityName = employee.legalEntity;
+        } else if (employee.departmentId) {
+          const dept = departmentsMap.get(employee.departmentId);
+          if (dept && dept.legal_entity_id) {
+            const le = legalEntitiesMap.get(dept.legal_entity_id);
+            if (le) {
+              entityName = le.name;
+            }
+          }
+        }
+        if (!entityName) {
+          entityName = employee.departmentFull?.split(" / ")[0];
+        }
+        return entityName && selectedLegalEntity.includes(entityName);
       });
     }
 
     // Фильтр по подразделению
     if (selectedDepartment.length) {
       filtered = filtered.filter((employee) => {
-        const dep =
-          employee.departmentFull?.split(" / ")[2] || employee.department;
-        return dep && selectedDepartment.includes(dep);
+        let deptPath: string | null = null;
+        if (employee.departmentId) {
+          deptPath = buildDepartmentPath(employee.departmentId);
+        }
+        if (!deptPath) {
+          deptPath = employee.departmentFull?.split(" / ").slice(1).join(" / ") || employee.department;
+        }
+        return deptPath && selectedDepartment.includes(deptPath);
       });
     }
 
@@ -187,7 +280,7 @@ const HRDataPage: React.FC = () => {
     }
 
     return filtered;
-  }, [employees, selectedLegalEntity, selectedDepartment, selectedPosition]);
+  }, [employees, selectedLegalEntity, selectedDepartment, selectedPosition, departmentsMap, legalEntitiesMap]);
 
   // Сортировка по ФИО
   const sortedEmployees = useMemo(() => {
@@ -539,14 +632,36 @@ const HRDataPage: React.FC = () => {
                       </Td>
                       <Td>{employee.position}</Td>
                       <Td>
-                        {employee.legalEntity ||
-                          employee.departmentFull?.split(" / ")[0] ||
-                          "-"}
+                        <Text noOfLines={1} maxW="150px">
+                          {(() => {
+                            // Сначала используем explicit поле employee.legalEntity
+                            if (employee.legalEntity) return employee.legalEntity;
+                            // Если есть departmentId, попробуем по нему найти юридическое лицо
+                            if (employee.departmentId) {
+                              const dept = departmentsMap.get(employee.departmentId);
+                              if (dept && dept.legal_entity_id) {
+                                const le = legalEntitiesMap.get(dept.legal_entity_id);
+                                if (le) return le.name;
+                              }
+                            }
+                            // Фоллбек на departmentFull парсинг
+                            return (
+                              employee.departmentFull?.split(" / ")[0] || "-"
+                            );
+                          })()}
+                        </Text>
                       </Td>
                       <Td>
-                        {employee.departmentFull?.split(" / ")[2] ||
-                          employee.department ||
-                          "-"}
+                        {(() => {
+                          // Попробуем построить путь подразделения через departmentId
+                          if (employee.departmentId) {
+                            const path = buildDepartmentPath(employee.departmentId);
+                            if (path) return path;
+                          }
+                          // Фоллбек: возьмём вторую/третью часть departmentFull если есть
+                          const parts = employee.departmentFull?.split(" / ") || [];
+                          return parts.slice(1).join(" / ") || employee.department || "-";
+                        })()}
                       </Td>
                       <Td>
                         <HStack spacing={2}>
