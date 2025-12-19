@@ -175,10 +175,9 @@ export const useProfileEdit = ({
         const { skills, ...dataWithoutSkills } = payload;
 
         // Обновляем данные сотрудника (без навыков)
-        const updated = await employeesAPI.update(
-          editedEmployee.id,
-          dataWithoutSkills
-        );
+        const updated = isAdmin
+          ? await employeesAPI.update(editedEmployee.id, dataWithoutSkills)
+          : await employeesAPI.updateSelf(editedEmployee.id, dataWithoutSkills);
 
         // Если пользователь - HR/админ, устанавливаем навыки через set_skills
         if (

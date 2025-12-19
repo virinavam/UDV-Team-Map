@@ -1,6 +1,5 @@
-import React, { useState } from "react";
+import React from "react";
 import {
-  Avatar,
   Badge,
   Box,
   Button,
@@ -13,8 +12,9 @@ import {
   Text,
   Textarea,
   VStack,
+  Select,
 } from "@chakra-ui/react";
-import { AddIcon, CloseIcon } from "@chakra-ui/icons";
+import { CloseIcon } from "@chakra-ui/icons";
 import type { Employee } from "../../types/types";
 import AvatarUploader from "./AvatarUploader";
 import SkillsSelector from "../SkillsSelector";
@@ -60,13 +60,37 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
       >
         <HStack spacing={8} align="start">
           {/* Фотография слева */}
-          <Box>
+          <VStack spacing={4} align="stretch">
             <AvatarUploader
               fullName={fullName || employee.name}
               photoUrl={employee.photoUrl}
               onSelect={onAvatarSelect}
             />
-          </Box>
+
+            {/* Статус трудоустройства сразу под фото */}
+            <Box>
+              <Text fontWeight="semibold" color="gray.600" mb={2} fontSize="sm">
+                Статус
+              </Text>
+              <Select
+                value={employee.employmentStatus || "ACTIVE"}
+                onChange={(e) =>
+                  onFieldChange("employmentStatus", e.target.value)
+                }
+                bg="white"
+                borderColor="gray.300"
+                _focus={{ borderColor: "purple.400" }}
+                fontSize="sm"
+              >
+                <option value="ACTIVE">Активен</option>
+                <option value="INACTIVE">Не активен</option>
+                <option value="VACATION">В отпуске</option>
+                <option value="SICK">На больничном</option>
+                <option value="REMOTE">Удалёнка</option>
+                <option value="TRIP">В командировке</option>
+              </Select>
+            </Box>
+          </VStack>
 
           {/* Персональные данные справа */}
           <Box flex={1}>

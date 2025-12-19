@@ -42,7 +42,6 @@ const AppliedFiltersBar: React.FC<AppliedFiltersBarProps> = ({
             variant="solid"
             bg="#763186"
             color="white"
-            borderRadius="full"
             px={3}
             py={1}
           >
@@ -55,11 +54,10 @@ const AppliedFiltersBar: React.FC<AppliedFiltersBarProps> = ({
         {onClear && (
           <Button
             size="sm"
+            variant="ghost"
             bg="#763186"
             color="white"
             _hover={{ bg: "#5a2568" }}
-            onClick={onClear}
-            ml={2}
           >
             Сбросить все
           </Button>

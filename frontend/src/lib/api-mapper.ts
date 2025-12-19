@@ -55,7 +55,7 @@ export const mapBackendUserToEmployee = (
     dateOfBirth: backendUser.birthday || undefined,
     skills: backendUser.skills?.map((s) => s.name) || [],
     status: backendUser.is_active ? "Активен" : "Не активен",
-    employmentStatus: backendUser.employee_status || undefined,
+    employmentStatus: backendUser.employee_status || "ACTIVE",
     // Дополнительные поля, которые могут отсутствовать в бэкенде
     departmentId: backendUser.department_id || undefined,
     department: undefined,

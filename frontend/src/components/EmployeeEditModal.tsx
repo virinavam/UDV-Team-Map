@@ -15,13 +15,13 @@ import {
   FormControl,
   FormLabel,
   FormErrorMessage,
-  Avatar,
   IconButton,
   SimpleGrid,
   Text,
   Box,
   Divider,
   useToast,
+  Select,
 } from "@chakra-ui/react";
 import { CloseIcon } from "@chakra-ui/icons";
 import type { Employee } from "../types/types";
@@ -30,6 +30,7 @@ import SkillsSelector from "./SkillsSelector";
 import { employeesAPI, skillsAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
+import { statusConfig } from "../lib/status-utils";
 import {
   trimAndValidate,
   isNotEmpty,
@@ -73,6 +74,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
     group: "",
     email: "",
     phone: "",
+    mattermost: "",
+    telegram: "",
+    employmentStatus: "ACTIVE",
   });
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
@@ -103,6 +107,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
         group: "",
         email: "",
         phone: "",
+        mattermost: "",
+        telegram: "",
+        employmentStatus: "ACTIVE",
       });
       setAvatarPreview(null);
     }
@@ -534,6 +541,25 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   </Box>
                 </FormControl>
 
+                {/* Статус трудоустройства сразу под фото */}
+                <FormControl>
+                  <FormLabel>Статус</FormLabel>
+                  <Select
+                    value={formData.employmentStatus || "ACTIVE"}
+                    onChange={(e) =>
+                      handleFieldChange("employmentStatus", e.target.value)
+                    }
+                    bg="gray.50"
+                  >
+                    <option value="ACTIVE">Активен</option>
+                    <option value="INACTIVE">Не активен</option>
+                    <option value="VACATION">В отпуске</option>
+                    <option value="SICK">На больничном</option>
+                    <option value="REMOTE">Удалёнка</option>
+                    <option value="TRIP">В командировке</option>
+                  </Select>
+                </FormControl>
+
                 {/* Фамилия */}
                 <FormControl isInvalid={!!errors.lastName}>
                   <FormLabel>Фамилия *</FormLabel>
@@ -647,6 +673,50 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                     />
                   </HStack>
                   <FormErrorMessage>{errors.phone}</FormErrorMessage>
+                </FormControl>
+
+                {/* Mattermost */}
+                <FormControl isInvalid={!!errors.mattermost}>
+                  <FormLabel>Mattermost</FormLabel>
+                  <HStack>
+                    <Input
+                      value={formData.mattermost || ""}
+                      onChange={(e) =>
+                        handleFieldChange("mattermost", e.target.value)
+                      }
+                      bg="gray.50"
+                      maxLength={FIELD_MAX_LENGTHS.mattermost}
+                    />
+                    <IconButton
+                      aria-label="Очистить"
+                      icon={<CloseIcon />}
+                      size="sm"
+                      onClick={() => handleFieldChange("mattermost", "")}
+                    />
+                  </HStack>
+                  <FormErrorMessage>{errors.mattermost}</FormErrorMessage>
+                </FormControl>
+
+                {/* Telegram */}
+                <FormControl isInvalid={!!errors.telegram}>
+                  <FormLabel>Telegram</FormLabel>
+                  <HStack>
+                    <Input
+                      value={formData.telegram || ""}
+                      onChange={(e) =>
+                        handleFieldChange("telegram", e.target.value)
+                      }
+                      bg="gray.50"
+                      maxLength={FIELD_MAX_LENGTHS.telegram}
+                    />
+                    <IconButton
+                      aria-label="Очистить"
+                      icon={<CloseIcon />}
+                      size="sm"
+                      onClick={() => handleFieldChange("telegram", "")}
+                    />
+                  </HStack>
+                  <FormErrorMessage>{errors.telegram}</FormErrorMessage>
                 </FormControl>
               </VStack>
 
