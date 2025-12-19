@@ -517,6 +517,70 @@ export const employeesAPI = {
     return mapBackendUserToEmployee(backendUser);
   },
 
+  // Новый метод для обновления собственных данных сотрудником (PUT /employees/{id}/self)
+  async updateSelf(id: string, payload: Partial<Employee>) {
+    // Логика идентична `update`, только URL содержит `/self`
+    // Если указано название отдела, но нет departmentId, пытаемся найти ID по названию
+    if (payload.department && !payload.departmentId) {
+      try {
+        const departments = await departmentsAPI.list();
+        const foundDepartment = departments.find(
+          (dept) => dept.name === payload.department
+        );
+        if (foundDepartment) {
+          payload.departmentId = foundDepartment.id;
+        } else if (payload.department.trim()) {
+          throw new Error(
+            `Подразделение "${payload.department}" не найдено. Пожалуйста, сначала создайте это подразделение или выберите существующее.`
+          );
+        }
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("не найдено")) {
+          throw error;
+        }
+        console.warn(
+          "Не удалось загрузить список отделов для поиска ID:",
+          error
+        );
+        if (payload.department && payload.department.trim()) {
+          throw new Error(
+            "Не удалось загрузить список подразделений. Пожалуйста, попробуйте позже или убедитесь, что подразделение существует."
+          );
+        }
+      }
+    }
+
+    const backendPayload = mapEmployeeToBackendUser(payload);
+
+    if (
+      !backendPayload ||
+      typeof backendPayload !== "object" ||
+      Array.isArray(backendPayload)
+    ) {
+      throw new Error("Invalid payload: expected an object");
+    }
+
+    const bodyString = JSON.stringify(backendPayload);
+
+    if (
+      !bodyString ||
+      bodyString === "null" ||
+      bodyString === "undefined" ||
+      bodyString === "{}"
+    ) {
+      throw new Error("No fields to update");
+    }
+
+    const backendUser = await jsonRequest<BackendUser>(`/employees/${id}/self`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+      body: bodyString,
+    });
+    return mapBackendUserToEmployee(backendUser);
+  },
+
   async uploadAvatar(id: string, file: File, noModeration: boolean = false) {
     // Валидация размера файла на клиенте
     const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB

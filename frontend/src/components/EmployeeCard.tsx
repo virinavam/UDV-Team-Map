@@ -1,9 +1,9 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, VStack, Tag, TagLabel, Icon } from "@chakra-ui/react";
-import { EmailIcon } from "@chakra-ui/icons";
+import { Box, VStack } from "@chakra-ui/react";
 import { HStack, Text, Image } from "@chakra-ui/react";
 import AuthorizedAvatar from "./AuthorizedAvatar";
+import { getStatusConfig } from "../lib/status-utils";
 
 interface EmployeeCardProps {
   employee: {
@@ -17,6 +17,7 @@ interface EmployeeCardProps {
     status: "Активен" | "Не активен" | "В отпуске";
     mattermost?: string;
     telegram?: string;
+    employmentStatus?: string; // ACTIVE, INACTIVE, VACATION, SICK, REMOTE, TRIP
   };
 }
 
@@ -78,31 +79,34 @@ const EmployeeCard: React.FC<EmployeeCardProps> = ({ employee }) => {
         </Box>
 
         {/* Status Badge */}
-        <Box
-          display="flex"
-          flexDirection="row"
-          justifyContent="center"
-          alignItems="center"
-          px={2} // padding: 0 8px
-          height="22px"
-          width="118px"
-          bg="rgba(118, 49, 134, 0.1)"
-          borderRadius="30px"
-          margin="0 auto" // по центру под именем
-        >
-          {/* Фиолетовый кружок */}
+        {employee.employmentStatus && (
           <Box
-            width="8px"
-            height="8px"
-            bg="#763186"
-            borderRadius="50%"
-            mr={2} // отступ справа от кружка
-          />
-          <Text fontSize="sm" fontWeight="medium" color="gray.800">
-            {employee.status}{" "}
-            {/* поле status нужно добавить в объект сотрудника */}
-          </Text>
-        </Box>
+            display="flex"
+            flexDirection="row"
+            justifyContent="center"
+            alignItems="center"
+            px={2}
+            height="22px"
+            bg={getStatusConfig(employee.employmentStatus).bgColor}
+            borderRadius="30px"
+            margin="0 auto"
+          >
+            <Box
+              width="8px"
+              height="8px"
+              bg={getStatusConfig(employee.employmentStatus).dotColor}
+              borderRadius="50%"
+              mr={2}
+            />
+            <Text
+              fontSize="sm"
+              fontWeight="medium"
+              color={getStatusConfig(employee.employmentStatus).textColor}
+            >
+              {getStatusConfig(employee.employmentStatus).label}
+            </Text>
+          </Box>
+        )}
 
         {/* Role with icon */}
         <HStack spacing={2} justify="center" align="center">
