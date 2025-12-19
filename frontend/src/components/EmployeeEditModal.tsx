@@ -443,6 +443,9 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
       if (employee?.id) {
         queryClient.invalidateQueries({ queryKey: ["employee", employee.id] });
       }
+      // Инвалидируем кэш карты, если изменился отдел
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["legal-entities"] });
 
       // Вызываем onSave после установки навыков (если они были установлены)
       onSave(employeeData);

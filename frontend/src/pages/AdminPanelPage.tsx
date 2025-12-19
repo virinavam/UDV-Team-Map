@@ -110,7 +110,6 @@ const AdminPanelPage: React.FC = () => {
               Добавить нового сотрудника
             </Button>
             <Button
-              leftIcon={<Text fontSize="lg">📷</Text>}
               variant="outline"
               borderColor="#763186"
               color="#763186"

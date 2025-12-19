@@ -33,7 +33,10 @@ export const ProfileNotFound: React.FC<ProfileNotFoundProps> = ({ error }) => {
             <Button onClick={() => navigate(-1)} variant="outline">
               Вернуться назад
             </Button>
-            <Button onClick={() => navigate("/employees")} colorScheme="purple">
+            <Button
+              onClick={() => navigate("/employees")}
+              colorScheme="#763186"
+            >
               К списку сотрудников
             </Button>
           </HStack>

@@ -18,10 +18,10 @@ class DepartmentRepository:
             select(Department)
             .where(Department.id == department_id)
             .options(
-                selectinload(Department.manager),
-                selectinload(Department.employees),
-                selectinload(Department.subdepartments).selectinload(Department.manager),
-                selectinload(Department.subdepartments).selectinload(Department.employees),
+                selectinload(Department.manager).selectinload(User.current_avatar),
+                selectinload(Department.employees).selectinload(User.current_avatar),
+                selectinload(Department.subdepartments).selectinload(Department.manager).selectinload(User.current_avatar),
+                selectinload(Department.subdepartments).selectinload(Department.employees).selectinload(User.current_avatar),
             )
         )
         return result.scalar_one_or_none()
@@ -30,10 +30,10 @@ class DepartmentRepository:
         """Получает список всех департаментов."""
         result = await self.db.execute(
             select(Department).options(
-                selectinload(Department.manager),
-                selectinload(Department.employees),
-                selectinload(Department.subdepartments).selectinload(Department.manager),
-                selectinload(Department.subdepartments).selectinload(Department.employees),
+                selectinload(Department.manager).selectinload(User.current_avatar),
+                selectinload(Department.employees).selectinload(User.current_avatar),
+                selectinload(Department.subdepartments).selectinload(Department.manager).selectinload(User.current_avatar),
+                selectinload(Department.subdepartments).selectinload(Department.employees).selectinload(User.current_avatar),
             )
         )
         return result.scalars().all()

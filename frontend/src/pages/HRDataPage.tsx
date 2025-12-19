@@ -37,8 +37,8 @@ import EmployeeDeleteModal from "../components/EmployeeDeleteModal";
 import type { Employee } from "../types/types";
 import { employeesAPI, skillsAPI } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { searchEmployees } from "../lib/search-utils";
 import { ROUTES } from "../routes/paths";
+import { useDebounce } from "../hooks/useDebounce";
 
 type SortDirection = "asc" | "desc" | null;
 
@@ -47,9 +47,9 @@ const HRDataPage: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === "SYSTEM_ADMIN" || user?.role === "HR_ADMIN";
   const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 500);
   const [selectedLegalEntity, setSelectedLegalEntity] = useState<string[]>([]);
   const [selectedDepartment, setSelectedDepartment] = useState<string[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<string[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string[]>([]);
   const [sortDirection, setSortDirection] = useState<SortDirection>(null);
@@ -70,14 +70,42 @@ const HRDataPage: React.FC = () => {
   const toast = useToast();
   const queryClient = useQueryClient();
 
+  // Определяем, нужно ли использовать серверный поиск (используем debounced значение)
+  const hasSearchQuery = debouncedSearchQuery.trim().length > 0;
+  const hasServerFilters = selectedCity.length > 0;
+
+  // Загружаем данные: либо через поиск API, либо через обычный list
   const {
     data: employees = [],
     isLoading,
     isError,
     error,
   } = useQuery({
-    queryKey: ["employees", { scope: "hr" }],
-    queryFn: () => employeesAPI.list(),
+    queryKey: [
+      "employees",
+      {
+        scope: "hr",
+        search: hasSearchQuery ? debouncedSearchQuery.trim() : undefined,
+        cities: selectedCity.length > 0 ? selectedCity : undefined,
+      },
+    ],
+    queryFn: () => {
+      if (hasSearchQuery) {
+        // Используем серверный поиск
+        return employeesAPI.search({
+          q: debouncedSearchQuery.trim(),
+          cities: selectedCity.length > 0 ? selectedCity : undefined,
+        });
+      } else if (hasServerFilters) {
+        // Используем list с фильтрами
+        return employeesAPI.list({
+          city: selectedCity[0], // list принимает один city, берем первый
+        });
+      } else {
+        // Обычный список всех сотрудников
+        return employeesAPI.list();
+      }
+    },
     retry: 1,
   });
 
@@ -120,23 +148,17 @@ const HRDataPage: React.FC = () => {
       ),
     [employees]
   );
-  const groups = useMemo(() => createOptions((emp) => emp.group), [employees]);
   const positions = useMemo(
     () => createOptions((emp) => emp.position),
     [employees]
   );
   const cities = useMemo(() => createOptions((emp) => emp.city), [employees]);
 
+  // Клиентская фильтрация только для фильтров, которые не поддерживаются API поиском
+  // (юридическое лицо, подразделение, должность)
+  // Поиск и фильтр по городу теперь выполняются на сервере
   const filteredEmployees = useMemo(() => {
     let filtered = [...employees];
-
-    // Универсальный поиск с fuzzy matching
-    if (searchQuery.trim()) {
-      filtered = searchEmployees(filtered, searchQuery, {
-        fuzzyThreshold: 0.5,
-        matchAllTokens: false,
-      });
-    }
 
     // Фильтр по юридическому лицу
     if (selectedLegalEntity.length) {
@@ -156,13 +178,6 @@ const HRDataPage: React.FC = () => {
       });
     }
 
-    // Фильтр по группе
-    if (selectedGroup.length) {
-      filtered = filtered.filter(
-        (employee) => employee.group && selectedGroup.includes(employee.group)
-      );
-    }
-
     // Фильтр по должности
     if (selectedPosition.length) {
       filtered = filtered.filter(
@@ -171,23 +186,8 @@ const HRDataPage: React.FC = () => {
       );
     }
 
-    // Фильтр по городу
-    if (selectedCity.length) {
-      filtered = filtered.filter(
-        (employee) => employee.city && selectedCity.includes(employee.city)
-      );
-    }
-
     return filtered;
-  }, [
-    employees,
-    searchQuery,
-    selectedLegalEntity,
-    selectedDepartment,
-    selectedGroup,
-    selectedPosition,
-    selectedCity,
-  ]);
+  }, [employees, selectedLegalEntity, selectedDepartment, selectedPosition]);
 
   // Сортировка по ФИО
   const sortedEmployees = useMemo(() => {
@@ -354,13 +354,6 @@ const HRDataPage: React.FC = () => {
             prev.filter((item) => item !== value)
           ),
       })),
-      ...selectedGroup.map((value) => ({
-        id: `group-${value}`,
-        label: "Группа",
-        value,
-        onRemove: () =>
-          setSelectedGroup((prev) => prev.filter((item) => item !== value)),
-      })),
       ...selectedPosition.map((value) => ({
         id: `pos-${value}`,
         label: "Должность",
@@ -381,7 +374,6 @@ const HRDataPage: React.FC = () => {
     searchQuery,
     selectedLegalEntity,
     selectedDepartment,
-    selectedGroup,
     selectedPosition,
     selectedCity,
   ]);
@@ -392,7 +384,6 @@ const HRDataPage: React.FC = () => {
           setSearchQuery("");
           setSelectedLegalEntity([]);
           setSelectedDepartment([]);
-          setSelectedGroup([]);
           setSelectedPosition([]);
           setSelectedCity([]);
         }
@@ -419,7 +410,7 @@ const HRDataPage: React.FC = () => {
               />
             </InputGroup>
             <Button
-              colorScheme="purple"
+              colorScheme="#763186"
               leftIcon={<AddIcon />}
               onClick={handleAddEmployee}
             >
@@ -445,13 +436,6 @@ const HRDataPage: React.FC = () => {
               options={departments}
               selectedValues={selectedDepartment}
               onSelectionChange={setSelectedDepartment}
-              showCount
-            />
-            <FilterDropdown
-              label="Группа"
-              options={groups}
-              selectedValues={selectedGroup}
-              onSelectionChange={setSelectedGroup}
               showCount
             />
             <FilterDropdown
@@ -570,7 +554,7 @@ const HRDataPage: React.FC = () => {
                             aria-label="Редактировать"
                             icon={<EditIcon />}
                             size="sm"
-                            colorScheme="purple"
+                            colorScheme="#763186"
                             variant="ghost"
                             onClick={() => handleEditEmployee(employee)}
                           />

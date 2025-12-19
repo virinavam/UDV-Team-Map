@@ -246,7 +246,7 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
       {/* Кнопка сохранения внизу по центру */}
       <Box pt={4} display="flex" justifyContent="center">
         <Button
-          colorScheme="purple"
+          colorScheme="#763186"
           size="lg"
           onClick={onSave}
           isLoading={isSaving}

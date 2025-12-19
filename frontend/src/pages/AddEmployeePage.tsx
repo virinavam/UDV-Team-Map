@@ -478,6 +478,9 @@ const AddEmployeePage: React.FC = () => {
       });
 
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      // Инвалидируем кэш карты, если был указан отдел
+      queryClient.invalidateQueries({ queryKey: ["departments"] });
+      queryClient.invalidateQueries({ queryKey: ["legal-entities"] });
       // Очищаем пароль после успешного сохранения
       setPassword("");
       navigate("/hr-data");

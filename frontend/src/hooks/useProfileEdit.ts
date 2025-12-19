@@ -250,6 +250,9 @@ export const useProfileEdit = ({
         // Инвалидируем кэш и обновляем данные
         queryClient.invalidateQueries({ queryKey: ["employees"] });
         queryClient.setQueryData(["employee", editedEmployee.id], finalUpdated);
+        // Инвалидируем кэш карты, если изменился отдел
+        queryClient.invalidateQueries({ queryKey: ["departments"] });
+        queryClient.invalidateQueries({ queryKey: ["legal-entities"] });
 
         setPendingAvatarFile(null);
 

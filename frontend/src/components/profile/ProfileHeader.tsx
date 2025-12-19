@@ -27,7 +27,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       <Button
         leftIcon={<ArrowBackIcon />}
         variant="ghost"
-        colorScheme="purple"
+        colorScheme="#763186"
         onClick={() => navigate(-1)}
       >
         Назад
@@ -38,7 +38,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
             <Button
               leftIcon={<CloseIcon />}
               variant="ghost"
-              colorScheme="purple"
+              colorScheme="#763186"
               onClick={onCancelClick}
             >
               Закрыть
@@ -46,7 +46,7 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
           ) : (
             <Button
               leftIcon={<EditIcon />}
-              colorScheme="purple"
+              colorScheme="#763186"
               onClick={onEditClick}
             >
               Редактировать
@@ -57,4 +57,3 @@ export const ProfileHeader: React.FC<ProfileHeaderProps> = ({
     </HStack>
   );
 };
-

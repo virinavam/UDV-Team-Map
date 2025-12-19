@@ -336,6 +336,76 @@ export const employeesAPI = {
     return employees;
   },
 
+  /**
+   * Поиск сотрудников по имени, фамилии, должности или email
+   * @param params Параметры поиска
+   * @param params.q Строка поиска (обязательный параметр)
+   * @param params.cities Массив названий городов для фильтрации
+   * @param params.departments Массив ID подразделений для фильтрации
+   * @param params.legal_entities Массив ID юридических лиц для фильтрации
+   * @param params.skills Массив названий навыков для фильтрации
+   * @returns Список сотрудников, соответствующих критериям поиска
+   */
+  async search(params: {
+    q: string;
+    cities?: string[];
+    departments?: string[];
+    legal_entities?: string[];
+    skills?: string[];
+  }): Promise<Employee[]> {
+    const url = new URL(`${API_BASE_URL}/employees/search/`);
+
+    // Обязательный параметр q
+    url.searchParams.set("q", params.q.trim());
+
+    // Опциональные параметры
+    if (params.cities && params.cities.length > 0) {
+      params.cities.forEach((city) => url.searchParams.append("cities", city));
+    }
+    if (params.departments && params.departments.length > 0) {
+      params.departments.forEach((dept) =>
+        url.searchParams.append("departments", dept)
+      );
+    }
+    if (params.legal_entities && params.legal_entities.length > 0) {
+      params.legal_entities.forEach((entity) =>
+        url.searchParams.append("legal_entities", entity)
+      );
+    }
+    if (params.skills && params.skills.length > 0) {
+      params.skills.forEach((skill) =>
+        url.searchParams.append("skills", skill)
+      );
+    }
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Searching employees: ${url.toString()}`);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken") || ""}`,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[API] Error ${response.status}: ${errorText}`);
+      throw new Error(
+        `Не удалось выполнить поиск: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const backendUsers = (await response.json()) as BackendUser[];
+    const employees = backendUsers.map(mapBackendUserToEmployee);
+
+    if (import.meta.env.DEV) {
+      console.log(`[API] Found ${employees.length} employees`);
+    }
+
+    return employees;
+  },
+
   async getById(id: string) {
     const backendUser = await jsonRequest<BackendUser>(`/employees/${id}`, {
       method: "GET",
@@ -557,17 +627,19 @@ export const filtersAPI = {
   },
 };
 
-export const orgAPI = {
-  async getTree() {
-    return jsonRequest<{ tree: OrgNode[] }>("/org-tree", { method: "GET" });
-  },
-};
-
 export interface Department {
   id: string;
   name: string;
   legal_entity_id: string;
   parent_id: string | null;
+  manager: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    position: string | null;
+    photo_url: string | null;
+  } | null;
+  employees: any[];
   created_at: string;
   updated_at: string;
 }
@@ -575,6 +647,29 @@ export interface Department {
 export const departmentsAPI = {
   async list() {
     return jsonRequest<Department[]>("/departments/", { method: "GET" });
+  },
+  async create(data: {
+    name: string;
+    legal_entity_id: string;
+    parent_id?: string | null;
+  }) {
+    return jsonRequest<Department>("/departments/", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  },
+  async update(
+    departmentId: string,
+    data: {
+      name?: string;
+      parent_id?: string | null;
+      manager_id?: string | null;
+    }
+  ) {
+    return jsonRequest<Department>(`/departments/${departmentId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
   },
 };
 
@@ -683,5 +778,78 @@ export const skillsAPI = {
     console.log("Навыки после маппинга:", mappedEmployee.skills);
 
     return mappedEmployee;
+  },
+};
+
+// ======================= LEGAL ENTITIES API =======================
+export interface DepartmentInLegalEntity {
+  id: string;
+  name: string;
+  legal_entity_id: string;
+  parent_id: string | null;
+  manager: {
+    id: string;
+    first_name: string;
+    last_name: string;
+    email: string;
+  } | null;
+  employees: any[];
+  subdepartments?: DepartmentInLegalEntity[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LegalEntity {
+  id: string;
+  name: string;
+  departments: DepartmentInLegalEntity[];
+  created_at: string;
+  updated_at: string;
+}
+
+export const legalEntitiesAPI = {
+  /**
+   * GET /api/legal-entities/
+   * Получить список всех юридических лиц
+   */
+  async list(): Promise<LegalEntity[]> {
+    return jsonRequest<LegalEntity[]>("/legal-entities/", {
+      method: "GET",
+    });
+  },
+
+  /**
+   * POST /api/legal-entities/
+   * Создать новое юридическое лицо
+   * Доступно только для SYSTEM_ADMIN и HR_ADMIN
+   */
+  async create(name: string): Promise<LegalEntity> {
+    return jsonRequest<LegalEntity>("/legal-entities/", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+  },
+
+  /**
+   * PATCH /api/legal-entities/{le_id}
+   * Обновить данные юридического лица
+   * Доступно только для SYSTEM_ADMIN и HR_ADMIN
+   */
+  async update(leId: string, data: { name: string }): Promise<LegalEntity> {
+    return jsonRequest<LegalEntity>(`/legal-entities/${leId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  },
+
+  /**
+   * DELETE /api/legal-entities/{le_id}
+   * Удалить юридическое лицо
+   * Доступно только для SYSTEM_ADMIN и HR_ADMIN
+   */
+  async delete(leId: string): Promise<void> {
+    return jsonRequest<void>(`/legal-entities/${leId}`, {
+      method: "DELETE",
+    });
   },
 };

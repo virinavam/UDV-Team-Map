@@ -39,7 +39,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
   // Синхронизация временного выбора с внешними selectedValues только когда меню закрыто
   useEffect(() => {
     if (!isOpen) {
-    setTempSelection(selectedValues);
+      setTempSelection(selectedValues);
     }
   }, [selectedValues, isOpen]);
 
@@ -98,7 +98,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
         as={Button}
         rightIcon={<ChevronDownIcon />}
         variant={hasSelection ? "solid" : "outline"}
-        colorScheme={hasSelection ? "purple" : undefined}
+        colorScheme={hasSelection ? "#763186" : undefined}
         size="md"
         bg={hasSelection ? "#763186" : "white"}
         color={hasSelection ? "white" : undefined}

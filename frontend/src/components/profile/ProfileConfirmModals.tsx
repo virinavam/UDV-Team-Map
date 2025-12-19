@@ -57,7 +57,7 @@ export const ProfileConfirmModals: React.FC<ProfileConfirmModalsProps> = ({
             <Button variant="ghost" mr={3} onClick={onSaveConfirmNo}>
               Нет
             </Button>
-            <Button colorScheme="purple" onClick={onSaveConfirmYes}>
+            <Button colorScheme="#763186" onClick={onSaveConfirmYes}>
               Да
             </Button>
           </ModalFooter>
@@ -81,7 +81,7 @@ export const ProfileConfirmModals: React.FC<ProfileConfirmModalsProps> = ({
               Нет
             </Button>
             <Button
-              colorScheme="purple"
+              colorScheme="#763186"
               onClick={onFinalConfirm}
               isLoading={isSaving}
             >
@@ -109,7 +109,7 @@ export const ProfileConfirmModals: React.FC<ProfileConfirmModalsProps> = ({
             <Button variant="ghost" mr={3} onClick={onCancelConfirmClose}>
               Нет
             </Button>
-            <Button colorScheme="purple" onClick={onCancelConfirmYes}>
+            <Button colorScheme="#763186" onClick={onCancelConfirmYes}>
               Да
             </Button>
           </ModalFooter>
