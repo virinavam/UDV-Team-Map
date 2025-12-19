@@ -64,11 +64,7 @@ class AvatarRepository:
         Использует прямой SQL update, чтобы избежать обратных связей ORM.
         """
         if moderated_by_id:
-            await self.db.execute(
-                update(Avatar)
-                .where(Avatar.id == avatar.id)
-                .values(moderated_by_id=moderated_by_id)
-            )
+            await self.db.execute(update(Avatar).where(Avatar.id == avatar.id).values(moderated_by_id=moderated_by_id))
             # НЕ обновляем объект в памяти, чтобы избежать обратных связей ORM
             # Состояние будет синхронизировано после commit
 
@@ -84,27 +80,17 @@ class AvatarRepository:
                 .where(Avatar.id == user.current_avatar_id)
                 .values(moderation_status=AvatarModerationStatusEnum.ACCEPTED)
             )
-        
+
         if avatar:
             # Используем прямой SQL update для установки статуса нового аватара
             await self.db.execute(
-                update(Avatar)
-                .where(Avatar.id == avatar.id)
-                .values(moderation_status=AvatarModerationStatusEnum.ACTIVE)
+                update(Avatar).where(Avatar.id == avatar.id).values(moderation_status=AvatarModerationStatusEnum.ACTIVE)
             )
             # Используем прямой SQL update для установки current_avatar_id, чтобы избежать обратных связей
-            await self.db.execute(
-                update(User)
-                .where(User.id == user.id)
-                .values(current_avatar_id=avatar.id)
-            )
+            await self.db.execute(update(User).where(User.id == user.id).values(current_avatar_id=avatar.id))
         else:
-            await self.db.execute(
-                update(User)
-                .where(User.id == user.id)
-                .values(current_avatar_id=None)
-            )
-        
+            await self.db.execute(update(User).where(User.id == user.id).values(current_avatar_id=None))
+
         await self.db.commit()
         # Обновляем объект пользователя в сессии, чтобы изменения были видны
         await self.db.refresh(user)
@@ -123,28 +109,18 @@ class AvatarRepository:
                 .where(Avatar.id == user.current_avatar_id)
                 .values(moderation_status=AvatarModerationStatusEnum.ACCEPTED)
             )
-        
+
         if avatar:
             # Используем прямой SQL update для установки статуса нового аватара
             await self.db.execute(
-                update(Avatar)
-                .where(Avatar.id == avatar.id)
-                .values(moderation_status=AvatarModerationStatusEnum.ACTIVE)
+                update(Avatar).where(Avatar.id == avatar.id).values(moderation_status=AvatarModerationStatusEnum.ACTIVE)
             )
             # Используем прямой SQL update для установки current_avatar_id, чтобы избежать обратных связей
-            await self.db.execute(
-                update(User)
-                .where(User.id == user.id)
-                .values(current_avatar_id=avatar.id)
-            )
+            await self.db.execute(update(User).where(User.id == user.id).values(current_avatar_id=avatar.id))
             # НЕ обновляем объекты в памяти, чтобы избежать обратных связей ORM
             # Состояние будет синхронизировано после commit
         else:
-            await self.db.execute(
-                update(User)
-                .where(User.id == user.id)
-                .values(current_avatar_id=None)
-            )
+            await self.db.execute(update(User).where(User.id == user.id).values(current_avatar_id=None))
             # НЕ обновляем объект в памяти, чтобы избежать обратных связей ORM
         # Не делаем commit здесь - он будет выполнен после
 
@@ -169,20 +145,18 @@ class AvatarRepository:
             "moderated_by_id": moderator.id,
             "moderation_status": status,
         }
-        
+
         if status == AvatarModerationStatusEnum.REJECTED:
             update_values["rejection_reason"] = rejection_reason
         elif status == AvatarModerationStatusEnum.ACCEPTED:
             # Если аватар принят, устанавливаем его как текущий
             # Используем avatar.user_id вместо avatar.user, чтобы избежать ленивой загрузки
             user_id = avatar.user_id
-            
+
             # Получаем текущий аватар пользователя через прямой запрос
-            user_result = await self.db.execute(
-                select(User.current_avatar_id).where(User.id == user_id)
-            )
+            user_result = await self.db.execute(select(User.current_avatar_id).where(User.id == user_id))
             current_avatar_id = user_result.scalar_one_or_none()
-            
+
             # Сначала обновляем статус старого текущего аватара, если он есть
             if current_avatar_id:
                 await self.db.execute(
@@ -193,19 +167,11 @@ class AvatarRepository:
             # Устанавливаем новый аватар как активный
             update_values["moderation_status"] = AvatarModerationStatusEnum.ACTIVE
             # Обновляем current_avatar_id пользователя
-            await self.db.execute(
-                update(User)
-                .where(User.id == user_id)
-                .values(current_avatar_id=avatar.id)
-            )
-        
+            await self.db.execute(update(User).where(User.id == user_id).values(current_avatar_id=avatar.id))
+
         # Обновляем аватар
-        await self.db.execute(
-            update(Avatar)
-            .where(Avatar.id == avatar.id)
-            .values(**update_values)
-        )
-        
+        await self.db.execute(update(Avatar).where(Avatar.id == avatar.id).values(**update_values))
+
         await self.db.commit()
 
     async def delete_avatar(self, avatar: Avatar):
@@ -214,9 +180,7 @@ class AvatarRepository:
         Использует прямой SQL update для консистентности.
         """
         await self.db.execute(
-            update(Avatar)
-            .where(Avatar.id == avatar.id)
-            .values(moderation_status=AvatarModerationStatusEnum.DELETED)
+            update(Avatar).where(Avatar.id == avatar.id).values(moderation_status=AvatarModerationStatusEnum.DELETED)
         )
         await self.db.commit()
 

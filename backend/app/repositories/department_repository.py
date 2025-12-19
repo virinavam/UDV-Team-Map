@@ -20,8 +20,12 @@ class DepartmentRepository:
             .options(
                 selectinload(Department.manager).selectinload(User.current_avatar),
                 selectinload(Department.employees).selectinload(User.current_avatar),
-                selectinload(Department.subdepartments).selectinload(Department.manager).selectinload(User.current_avatar),
-                selectinload(Department.subdepartments).selectinload(Department.employees).selectinload(User.current_avatar),
+                selectinload(Department.subdepartments)
+                .selectinload(Department.manager)
+                .selectinload(User.current_avatar),
+                selectinload(Department.subdepartments)
+                .selectinload(Department.employees)
+                .selectinload(User.current_avatar),
             )
         )
         return result.scalar_one_or_none()
@@ -32,8 +36,12 @@ class DepartmentRepository:
             select(Department).options(
                 selectinload(Department.manager).selectinload(User.current_avatar),
                 selectinload(Department.employees).selectinload(User.current_avatar),
-                selectinload(Department.subdepartments).selectinload(Department.manager).selectinload(User.current_avatar),
-                selectinload(Department.subdepartments).selectinload(Department.employees).selectinload(User.current_avatar),
+                selectinload(Department.subdepartments)
+                .selectinload(Department.manager)
+                .selectinload(User.current_avatar),
+                selectinload(Department.subdepartments)
+                .selectinload(Department.employees)
+                .selectinload(User.current_avatar),
             )
         )
         return result.scalars().all()

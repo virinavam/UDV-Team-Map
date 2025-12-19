@@ -104,8 +104,7 @@ class UserRepository:
     async def delete_user(self, user_id: UUID) -> User | None:
         """Пометить пользователя как неактивного."""
         stmt = update(User).where(User.id == user_id).values(is_active=False).returning(User)
-
-        result = await self.db.execute(stmt)
+        await self.db.execute(stmt)
         await self.db.commit()
 
         # Перезагружаем пользователя с selectinload для корректной сериализации photo_url
