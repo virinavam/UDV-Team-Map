@@ -503,7 +503,9 @@ const HRDataPage: React.FC = () => {
               />
             </InputGroup>
             <Button
-              colorScheme="#763186"
+              bg="#763186"
+              color="white"
+              _hover={{ bg: "#5e2770" }}
               leftIcon={<AddIcon />}
               onClick={handleAddEmployee}
             >
