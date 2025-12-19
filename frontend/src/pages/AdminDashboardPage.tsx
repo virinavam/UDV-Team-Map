@@ -249,7 +249,7 @@ const AdminDashboardPage: React.FC = () => {
                                 <SearchIcon color="gray.300"/>
                             </InputLeftElement>
                             <Input
-                                placeholder="Поиск: фамилия, имя, должность, навыки (например: 'Иванов React Senior')"
+                                placeholder="Поиск: фамилия, имя, должность, навыки"
                                 value={searchQuery}
                                 onChange={(e) => {
                                     // Поиск работает мгновенно при вводе каждой буквы

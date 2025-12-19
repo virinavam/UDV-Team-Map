@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import {
   Box,
@@ -40,6 +41,7 @@ const DepartmentNode: React.FC<NodeProps<DepartmentNodeData>> = (
   const managerName = data.manager
     ? `${data.manager.last_name || ""} ${data.manager.first_name || ""}`.trim()
     : null;
+  const navigate = useNavigate();
 
   return (
     <Box
@@ -129,11 +131,21 @@ const DepartmentNode: React.FC<NodeProps<DepartmentNodeData>> = (
           <HStack spacing={3} align="flex-start">
             {/* Аватарка */}
             <Box flexShrink={0}>
-              <AuthorizedAvatar
-                src={data.manager.photo_url || undefined}
-                name={managerName || ""}
-                size="sm"
-              />
+              <Box
+                onClick={(e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  if (data.manager && (data.manager as any).id) {
+                    navigate(`/profile/${(data.manager as any).id}`);
+                  }
+                }}
+                cursor={(data.manager && (data.manager as any).id) ? "pointer" : "default"}
+              >
+                <AuthorizedAvatar
+                  src={data.manager.photo_url || undefined}
+                  name={managerName || ""}
+                  size="sm"
+                />
+              </Box>
             </Box>
 
             {/* ФИО и должность */}
@@ -145,6 +157,14 @@ const DepartmentNode: React.FC<NodeProps<DepartmentNodeData>> = (
                   color="gray.700"
                   isTruncated
                   width="100%"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (data.manager && (data.manager as any).id) {
+                      navigate(`/profile/${(data.manager as any).id}`);
+                    }
+                  }}
+                  cursor={(data.manager && (data.manager as any).id) ? "pointer" : "default"}
+                  _hover={{ color: (data.manager && (data.manager as any).id) ? "#763186" : undefined }}
                 >
                   {managerName}
                 </Text>
@@ -177,13 +197,32 @@ const DepartmentNode: React.FC<NodeProps<DepartmentNodeData>> = (
                 return (
                   <HStack key={employee.id} spacing={2} align="center" py={0.5}>
                     <Box flexShrink={0}>
-                      <AuthorizedAvatar
-                        src={employee.photo_url || undefined}
-                        name={employeeName || ""}
-                        size="xs"
-                      />
+                      <Box
+                        onClick={(e: React.MouseEvent) => {
+                          e.stopPropagation();
+                          if (employee.id) navigate(`/profile/${employee.id}`);
+                        }}
+                        cursor={employee.id ? "pointer" : "default"}
+                      >
+                        <AuthorizedAvatar
+                          src={employee.photo_url || undefined}
+                          name={employeeName || ""}
+                          size="xs"
+                        />
+                      </Box>
                     </Box>
-                    <Text fontSize="sm" color="gray.700" flex={1} isTruncated>
+                    <Text
+                      fontSize="sm"
+                      color="gray.700"
+                      flex={1}
+                      isTruncated
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                        if (employee.id) navigate(`/profile/${employee.id}`);
+                      }}
+                      cursor={employee.id ? "pointer" : "default"}
+                      _hover={{ color: employee.id ? "#763186" : undefined }}
+                    >
                       {employeeName}
                     </Text>
                   </HStack>

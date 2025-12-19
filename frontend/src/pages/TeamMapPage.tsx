@@ -323,6 +323,7 @@ const TeamMapPage: React.FC = () => {
           name: dept.name,
           manager: dept.manager
             ? {
+                id: dept.manager.id || dept.manager.user_id || undefined,
                 first_name: dept.manager.first_name,
                 last_name: dept.manager.last_name,
                 position: dept.manager.position,

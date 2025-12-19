@@ -218,9 +218,8 @@ const ProfileEditForm: React.FC<ProfileEditFormProps> = ({
             <InputField
               label="Почта"
               value={employee.email || ""}
-              onChange={(value) => onFieldChange("email", value)}
-              showClear
-              onClear={() => onFieldChange("email", "")}
+              // email должен быть только для чтения в форме профиля
+              readOnly={true}
             />
             <InputField
               label="Номер телефона"

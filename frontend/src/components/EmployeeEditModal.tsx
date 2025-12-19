@@ -610,19 +610,18 @@ const EmployeeEditModal: React.FC<EmployeeEditModalProps> = ({
                   <HStack>
                     <Input
                       value={formData.email || ""}
-                      onChange={(e) =>
-                        handleFieldChange("email", e.target.value)
-                      }
+                      // email должен быть только для чтения
+                      readOnly={true}
                       bg="gray.50"
                       type="email"
                       maxLength={FIELD_MAX_LENGTHS.email}
                     />
-                    <IconButton
+                    {/* <IconButton
                       aria-label="Очистить"
                       icon={<CloseIcon />}
                       size="sm"
                       onClick={() => handleFieldChange("email", "")}
-                    />
+                    /> */}
                   </HStack>
                   <FormErrorMessage>{errors.email}</FormErrorMessage>
                 </FormControl>

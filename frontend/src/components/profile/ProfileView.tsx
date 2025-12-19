@@ -43,6 +43,26 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
   // Формируем название отдела
   const departmentName = department?.name || employee.department || employee.departmentFull || "—";
 
+  // Формируем юридическое лицо: сначала используем поле сотрудника, затем разбираем departmentFull
+  const legalEntityDisplay =
+    employee.legalEntity ||
+    (employee.departmentFull ? employee.departmentFull.split(" / ")[0] : undefined) ||
+    "—";
+
+  // Формируем отображение руководителя: если у отдела есть manager, используем его Фамилию Имя - должность
+  let managerDisplay = "—";
+  if (department && department.manager) {
+    const m = department.manager as any;
+    // Порядок: Имя Фамилия
+    const mName = `${m.first_name || ""} ${m.last_name || ""}`.trim();
+    managerDisplay = mName || employee.managerName || "—";
+    if (m.position) {
+      managerDisplay = `${managerDisplay} - ${m.position}`;
+    }
+  } else if (employee.managerName) {
+    managerDisplay = employee.managerName;
+  }
+
   return (
     <VStack spacing={6} align="stretch">
       {/* Основная карточка с фото и персональными данными */}
@@ -138,11 +158,12 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
           </Text>
           <VStack spacing={4} align="stretch">
             <InputField label="Должность" value={employee.position} />
+            <InputField label="Юридическое лицо" value={legalEntityDisplay} />
             <InputField
               label="Подразделение"
               value={departmentName}
             />
-            <InputField label="Руководитель" value={employee.managerName} />
+            <InputField label="Руководитель" value={managerDisplay} />
             <InputField
               label="Стаж работы в компании"
               value={employee.workExperience}

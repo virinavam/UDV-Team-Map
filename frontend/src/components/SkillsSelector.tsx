@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Box,
   Input,
@@ -34,6 +34,7 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
   const [inputValue, setInputValue] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Загружаем список всех навыков
   const { data: allSkills = [], isLoading } = useQuery({
@@ -74,6 +75,8 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
     }
     setInputValue("");
     setSuggestions([]);
+    // Вернуть фокус в инпут после выбора
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   // Обработка добавления нового навыка
@@ -116,6 +119,8 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
       // Добавляем новый навык в список выбранных
       onChange([...selectedSkills, trimmed]);
       setInputValue("");
+      // Вернуть фокус в инпут после создания
+      setTimeout(() => inputRef.current?.focus(), 0);
       toast({
         status: "success",
         title: "Навык создан",
@@ -230,6 +235,7 @@ const SkillsSelector: React.FC<SkillsSelectorProps> = ({
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
+              ref={inputRef}
               placeholder={
                 isLoading
                   ? "Загрузка навыков..."
