@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Box, Text, IconButton, HStack } from "@chakra-ui/react";
-import { DeleteIcon, EditIcon } from "@chakra-ui/icons";
+import { DeleteIcon, EditIcon, AddIcon } from "@chakra-ui/icons";
 
 interface LegalEntityNodeData extends Record<string, unknown> {
   name: string;
@@ -9,6 +9,8 @@ interface LegalEntityNodeData extends Record<string, unknown> {
   canDelete?: boolean;
   onEdit?: () => void;
   canEdit?: boolean;
+  onAddDepartment?: () => void;
+  canAddDepartment?: boolean;
 }
 
 const LegalEntityNode: React.FC<NodeProps<LegalEntityNodeData>> = (
@@ -39,7 +41,7 @@ const LegalEntityNode: React.FC<NodeProps<LegalEntityNodeData>> = (
       />
 
       {/* Кнопки управления (появляются при наведении) */}
-      {(data.canEdit || data.canDelete) && (
+      {(data.canEdit || data.canDelete || data.canAddDepartment) && (
         <HStack
           position="absolute"
           top={1}
@@ -48,6 +50,25 @@ const LegalEntityNode: React.FC<NodeProps<LegalEntityNodeData>> = (
           opacity={isHovered ? 1 : 0}
           transition="opacity 0.2s"
         >
+          {data.canAddDepartment && data.onAddDepartment && (
+            <IconButton
+              aria-label="Добавить отдел"
+              icon={<AddIcon />}
+              size="xs"
+              colorScheme="green"
+              variant="ghost"
+              bg={isHovered ? "green.100" : "transparent"}
+              _hover={{
+                bg: "green.200",
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (data.onAddDepartment) {
+                  data.onAddDepartment();
+                }
+              }}
+            />
+          )}
           {data.canEdit && data.onEdit && (
             <IconButton
               aria-label="Редактировать юридическое лицо"

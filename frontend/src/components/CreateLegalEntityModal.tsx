@@ -115,7 +115,9 @@ const CreateLegalEntityModal: React.FC<CreateLegalEntityModalProps> = ({
             Отмена
           </Button>
           <Button
-            colorScheme="#763186"
+            bg="#763186"
+            color="white"
+            _hover={{ bg: "#5a2568" }}
             onClick={handleSubmit}
             isLoading={isSubmitting}
             isDisabled={!name.trim()}

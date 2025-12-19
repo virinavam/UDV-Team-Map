@@ -216,6 +216,20 @@ const TeamMapPage: React.FC = () => {
     []
   );
 
+  // Обработчик добавления отдела для юридического лица
+  const handleAddDepartmentToLegalEntity = useCallback(
+    (legalEntityId: string) => {
+      setSelectedDepartment({
+        id: "",
+        name: "",
+        legalEntityId,
+        parentId: null,
+        currentManagerId: null,
+      });
+    },
+    []
+  );
+
   // Обработчик открытия модального окна управления отделом
   const handleOpenDepartmentManage = useCallback(
     (
@@ -293,6 +307,8 @@ const TeamMapPage: React.FC = () => {
           canDelete: isAdmin,
           onEdit: () => handleEditLegalEntity(entity.id, entity.name),
           canEdit: isAdmin,
+          onAddDepartment: () => handleAddDepartmentToLegalEntity(entity.id),
+          canAddDepartment: isAdmin,
         },
         position: { x: 0, y: 0 }, // Позиция будет рассчитана dagre
       });
@@ -382,6 +398,7 @@ const TeamMapPage: React.FC = () => {
     handleOpenDepartmentManage,
     handleEditLegalEntity,
     handleEditDepartment,
+    handleAddDepartmentToLegalEntity,
   ]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);

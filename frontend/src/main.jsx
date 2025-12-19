@@ -56,14 +56,6 @@ const enableMocking = async () => {
 };
 
 const renderApp = () => {
-  const DevTools = import.meta.env.DEV
-    ? React.lazy(() =>
-        import("@tanstack/react-query-devtools").then((mod) => ({
-          default: mod.ReactQueryDevtools,
-        }))
-      )
-    : null;
-
   root.render(
     <React.StrictMode>
       <BrowserRouter>
@@ -73,11 +65,6 @@ const renderApp = () => {
               <App />
             </AuthProvider>
           </ChakraProvider>
-          {DevTools && (
-            <React.Suspense fallback={null}>
-              <DevTools initialIsOpen={false} />
-            </React.Suspense>
-          )}
         </QueryClientProvider>
       </BrowserRouter>
     </React.StrictMode>

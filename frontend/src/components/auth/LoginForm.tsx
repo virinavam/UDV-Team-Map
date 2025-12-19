@@ -175,17 +175,17 @@ export default function LoginForm({ onAuthenticated }: LoginFormProps) {
             Войти
           </Button>
 
-          <Button
-            type="button"
-            variant="link"
-            color="#763186"
-            fontSize="sm"
-            fontWeight="normal"
-            onClick={() => navigate(ROUTES.forgotPassword)}
-            _hover={{ textDecoration: "underline" }}
-          >
-            Забыли пароль?
-          </Button>
+          {/*<Button*/}
+          {/*  type="button"*/}
+          {/*  variant="link"*/}
+          {/*  color="#763186"*/}
+          {/*  fontSize="sm"*/}
+          {/*  fontWeight="normal"*/}
+          {/*  onClick={() => navigate(ROUTES.forgotPassword)}*/}
+          {/*  _hover={{ textDecoration: "underline" }}*/}
+          {/*>*/}
+          {/*  Забыли пароль?*/}
+          {/*</Button>*/}
         </VStack>
       </form>
     </Box>

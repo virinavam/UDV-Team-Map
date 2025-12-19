@@ -40,7 +40,8 @@ const AppliedFiltersBar: React.FC<AppliedFiltersBarProps> = ({
             key={`${filter.id}-${filter.value}`}
             size="md"
             variant="solid"
-            colorScheme="#763186"
+            bg="#763186"
+            color="white"
             borderRadius="full"
             px={3}
             py={1}
@@ -54,8 +55,9 @@ const AppliedFiltersBar: React.FC<AppliedFiltersBarProps> = ({
         {onClear && (
           <Button
             size="sm"
-            variant="ghost"
-            colorScheme="#763186"
+            bg="#763186"
+            color="white"
+            _hover={{ bg: "#5a2568" }}
             onClick={onClear}
             ml={2}
           >

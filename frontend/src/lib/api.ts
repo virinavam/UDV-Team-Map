@@ -73,7 +73,26 @@ const jsonRequest = async <T>(
     throw error;
   }
 
-  return (await response.json()) as T;
+  // Обработка пустого ответа (например, 204 No Content или DELETE запросы)
+  const contentLength = response.headers.get("content-length");
+  const contentType = response.headers.get("content-type");
+  
+  // Если ответ пустой или нет контента, возвращаем undefined
+  if (
+    response.status === 204 ||
+    contentLength === "0" ||
+    !contentType?.includes("application/json")
+  ) {
+    return undefined as T;
+  }
+
+  // Пытаемся распарсить JSON, если он есть
+  const text = await response.text();
+  if (!text) {
+    return undefined as T;
+  }
+  
+  return JSON.parse(text) as T;
 };
 
 // ======================= Типы =======================

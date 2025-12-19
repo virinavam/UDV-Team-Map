@@ -106,7 +106,9 @@ const EditLegalEntityModal: React.FC<EditLegalEntityModalProps> = ({
             Отмена
           </Button>
           <Button
-            colorScheme="#763186"
+            bg="#763186"
+            color="white"
+            _hover={{ bg: "#5a2568" }}
             onClick={handleSave}
             isLoading={isSubmitting}
             isDisabled={!name.trim() || name.trim() === currentName}

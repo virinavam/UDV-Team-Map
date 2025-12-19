@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Badge,
   Box,
@@ -10,7 +10,9 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
+import { useQuery } from "@tanstack/react-query";
 import AuthorizedAvatar from "../AuthorizedAvatar";
+import { departmentsAPI } from "../../lib/api";
 import type { Employee } from "../../types/types";
 
 interface ProfileViewProps {
@@ -21,6 +23,25 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
   const fullName = `${employee.lastName || ""} ${
     employee.firstName || ""
   }`.trim();
+
+  // Загружаем информацию об отделе по departmentId
+  const { data: department } = useQuery({
+    queryKey: ["department", employee.departmentId],
+    queryFn: async () => {
+      if (!employee.departmentId) return null;
+      try {
+        const departments = await departmentsAPI.list();
+        return departments.find((d) => d.id === employee.departmentId);
+      } catch (error) {
+        console.error("Ошибка при загрузке отдела:", error);
+        return null;
+      }
+    },
+    enabled: !!employee.departmentId,
+  });
+
+  // Формируем название отдела
+  const departmentName = department?.name || employee.department || employee.departmentFull || "—";
 
   return (
     <VStack spacing={6} align="stretch">
@@ -119,7 +140,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ employee }) => {
             <InputField label="Должность" value={employee.position} />
             <InputField
               label="Подразделение"
-              value={employee.departmentFull || employee.department}
+              value={departmentName}
             />
             <InputField label="Руководитель" value={employee.managerName} />
             <InputField
